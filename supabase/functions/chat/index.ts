@@ -4,6 +4,8 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { Cron } from "npm:croner@9";
 
+import { chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -15,21 +17,6 @@ function json(body: unknown, status = 200) {
     headers: { ...cors, "content-type": "application/json" },
   });
 }
-
-const SYSTEM = `You are Flowy, an AI employee the user chats with to get work done.
-
-Two things you do:
-1. Answer questions and help directly, like a sharp, concise teammate.
-2. When the user wants a recurring job done — anything on a schedule, "every day/week", "take care of X for me", "set up an agent" — create it with the create_recurring_task tool. That spins up an agent that runs on its own and delivers the result.
-
-When creating an agent:
-- Infer a sensible cron schedule from what they said (e.g. "every day at noon" -> "0 12 * * *", "every weekday at 8am" -> "0 8 * * 1-5", "every Monday 9am" -> "0 9 * * 1"). Omit the schedule only for a genuine one-off.
-- Default timezone to UTC unless they gave one.
-- Pick a delivery channel they mention (discord, telegram, slack, whatsapp) or default to "dashboard".
-- Write clear, self-contained instructions the agent can act on each run.
-- If the request is genuinely ambiguous about what to do, ask one brief clarifying question instead of guessing. Otherwise just create it.
-
-After creating an agent, confirm in one or two sentences what it'll do and when it runs. Keep all replies concise and friendly.`;
 
 const TOOL = {
   name: "create_recurring_task",
@@ -105,6 +92,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const ws = await fetchWorkspaceContext(userClient, teamId);
+    const system = chatSystem(ws);
+
     // Only trust plain {role, content:string} turns from the client.
     const convo: Msg[] = messages
       .filter(
@@ -128,7 +118,7 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           model: "claude-opus-4-8",
           max_tokens: 2048,
-          system: SYSTEM,
+          system,
           tools: [TOOL],
           messages: working,
         }),

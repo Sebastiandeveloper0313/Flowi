@@ -217,6 +217,53 @@
   color: #9aa3b5;
 }
 
+/* recent chat row: link + hover menu */
+.flowy-recent-row {
+  position: relative;
+}
+.flowy-recent-row .flowy-recent-item {
+  padding-right: 1.9rem; /* room for the menu button */
+}
+.flowy-recent-menu {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #8a93a6;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    background 0.12s,
+    color 0.12s;
+}
+.flowy-recent-row:hover .flowy-recent-menu,
+.flowy-recent-menu[data-state="open"] {
+  opacity: 1;
+}
+.flowy-recent-menu:hover,
+.flowy-recent-menu[data-state="open"] {
+  background: rgba(30, 60, 110, 0.1);
+  color: #160f24;
+}
+.flowy-recent-edit {
+  width: 100%;
+  padding: 0.42rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(66, 134, 245, 0.55);
+  background: #fff;
+  font-size: 0.86rem;
+  color: #160f24;
+  outline: none;
+}
+
 .flowy-side-foot {
   margin-top: auto;
   padding-top: 0.6rem;
@@ -302,4 +349,21 @@
   max-width: 1040px;
   margin: 0 auto;
   padding: 2.5rem 2rem 4rem;
+}
+
+/* ---------------- auth (login / signup) ---------------- */
+.flowy-auth-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+.flowy-wordmark {
+  font-family: "Gabarito", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+  color: #160f24;
 }

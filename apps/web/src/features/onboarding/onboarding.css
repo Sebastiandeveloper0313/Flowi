@@ -1,0 +1,277 @@
+/* Flowy onboarding — premium, brand-colored, scoped under .flowy-app */
+
+.flowy-onb-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 2.5rem 1rem 3.5rem;
+}
+
+.onb-shell {
+  width: 100%;
+  max-width: 640px;
+}
+
+.onb-brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+}
+
+.onb-head {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.onb-head h1 {
+  font-family: "Gabarito", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  line-height: 1.1;
+  color: #160f24;
+}
+.onb-head p {
+  color: #5b6b86;
+  margin-top: 0.55rem;
+  font-size: 0.98rem;
+}
+
+.onb-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(30, 60, 110, 0.08);
+  border-radius: 1.6rem;
+  padding: 1.9rem;
+  box-shadow:
+    0 44px 100px -54px rgba(26, 86, 210, 0.55),
+    0 10px 34px -24px rgba(16, 48, 120, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.onb-step {
+  animation: onb-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes onb-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.onb-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #5b6b86;
+  margin-bottom: 0.65rem;
+}
+
+.onb-section + .onb-section {
+  margin-top: 1.5rem;
+}
+
+.onb-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, 1fr);
+}
+.onb-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.onb-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.onb-grid.cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 560px) {
+  .onb-grid,
+  .onb-grid.cols-3,
+  .onb-grid.cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.onb-pill {
+  border: 1px solid rgba(30, 60, 110, 0.14);
+  background: #fff;
+  border-radius: 0.85rem;
+  padding: 0.72rem 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2a3346;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.14s,
+    background 0.14s,
+    color 0.14s,
+    box-shadow 0.14s,
+    transform 0.08s;
+}
+.onb-pill:hover {
+  border-color: rgba(66, 134, 245, 0.55);
+  background: #f5f9ff;
+}
+.onb-pill:active {
+  transform: scale(0.985);
+}
+.onb-pill.selected {
+  border-color: #3d82f5;
+  background: linear-gradient(180deg, #5a9bff, #3d82f5);
+  color: #fff;
+  box-shadow: 0 10px 22px -12px rgba(61, 130, 245, 0.75);
+}
+
+/* step 1: logo + fields */
+.onb-profile {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 520px) {
+  .onb-profile {
+    grid-template-columns: 1fr;
+  }
+}
+.onb-upload {
+  border: 1px dashed rgba(30, 60, 110, 0.28);
+  border-radius: 1rem;
+  background: #f6f9fe;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.6rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 0.14s,
+    background 0.14s;
+}
+.onb-upload:hover {
+  border-color: rgba(66, 134, 245, 0.6);
+  background: #eef4fd;
+}
+.onb-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.75rem;
+}
+.onb-upload-inner {
+  color: #5b6b86;
+  font-size: 0.78rem;
+}
+.onb-upload-inner .ico {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 0.4rem;
+  border-radius: 0.7rem;
+  background: rgba(66, 134, 245, 0.12);
+  color: #3d82f5;
+}
+
+.onb-note {
+  border: 1px solid rgba(66, 134, 245, 0.25);
+  background: #eef4fd;
+  border-radius: 0.85rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.85rem;
+  color: #3a4358;
+  text-align: center;
+  line-height: 1.45;
+}
+.onb-note.subtle {
+  margin-top: 1.3rem;
+}
+
+.onb-toggle {
+  background: none;
+  border: none;
+  color: #1f5fd6;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.onb-toggle:hover {
+  text-decoration: underline;
+}
+
+.onb-actions {
+  margin-top: 1.6rem;
+}
+
+.onb-back {
+  display: block;
+  margin: 0.95rem auto 0;
+  background: none;
+  border: none;
+  color: #5b6b86;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.onb-back:hover {
+  color: #160f24;
+}
+
+.onb-preparing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 2.6rem 1rem;
+  text-align: center;
+}
+.onb-preparing .spin {
+  color: #3d82f5;
+}
+.onb-preparing .t {
+  font-weight: 600;
+  color: #160f24;
+}
+.onb-preparing .s {
+  font-size: 0.88rem;
+  color: #5b6b86;
+}
+
+.onb-error {
+  color: #d83a52;
+  font-size: 0.85rem;
+  margin-top: 0.8rem;
+  text-align: center;
+}
+
+.onb-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 1.6rem;
+}
+.onb-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(30, 60, 110, 0.18);
+  transition:
+    width 0.2s,
+    background 0.2s;
+}
+.onb-dots .dot.active {
+  width: 22px;
+  background: #3d82f5;
+}
