@@ -1,6 +1,10 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { userQueryOptions } from "@/auth/queries";
+import { FlowySky } from "@/features/dashboard/brand";
+import { Sidebar } from "@/features/dashboard/Sidebar";
+
+import "@/features/dashboard/dashboard.css";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ context, location }) => {
@@ -20,8 +24,12 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    <div className="bg-background min-h-screen">
-      <Outlet />
+    <div className="flowy-app">
+      <FlowySky />
+      <Sidebar />
+      <main className="flowy-main">
+        <Outlet />
+      </main>
     </div>
   );
 }

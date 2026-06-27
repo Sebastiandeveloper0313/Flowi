@@ -1,0 +1,74 @@
+// Flowy — scheduler. Invoked every minute by pg_cron.
+// Finds active recurring tasks that are due, runs them, and advances next_run_at.
+// Protected by the service-role key (fail closed): only the cron job can call it.
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { Cron } from "npm:croner@9";
+
+import { runTaskOnce, type TaskRow } from "../_shared/runner.ts";
+
+const BATCH = 100; // tasks processed per invocation; the rest catch the next minute
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+/** Next scheduled time strictly after `from`, in the task's timezone. Null if invalid. */
+function nextRun(cron: string, timezone: string, from: Date): Date | null {
+  try {
+    return new Cron(cron, { timezone: timezone || "UTC" }).nextRun(from);
+  } catch {
+    return null;
+  }
+}
+
+Deno.serve(async (req: Request) => {
+  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token || token !== service) return json({ error: "unauthorized" }, 401);
+
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, service);
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  // Only active recurring tasks that are due now or not yet scheduled.
+  const { data: tasks, error } = await admin
+    .from("tasks")
+    .select("id, team_id, title, instructions, schedule_cron, timezone, status, next_run_at")
+    .eq("status", "active")
+    .not("schedule_cron", "is", null)
+    .or(`next_run_at.lte.${nowIso},next_run_at.is.null`)
+    .order("next_run_at", { ascending: true, nullsFirst: true })
+    .limit(BATCH);
+
+  if (error) return json({ error: error.message }, 500);
+
+  let ran = 0;
+  let initialized = 0;
+  let failed = 0;
+
+  for (const task of (tasks ?? []) as (TaskRow & { next_run_at: string | null })[]) {
+    const next = nextRun(task.schedule_cron!, task.timezone, now);
+
+    // Claim the task by advancing next_run_at BEFORE running, so an overlapping
+    // invocation can't dispatch it twice. A bad cron expression parks it (null).
+    await admin
+      .from("tasks")
+      .update({ next_run_at: next ? next.toISOString() : null })
+      .eq("id", task.id);
+
+    // First time we see a task (no next_run_at yet): just schedule it, don't run.
+    if (task.next_run_at === null) {
+      initialized++;
+      continue;
+    }
+
+    const result = await runTaskOnce(admin, task);
+    if (result.status === "succeeded") ran++;
+    else if (result.status === "failed") failed++;
+  }
+
+  return json({ checked: tasks?.length ?? 0, ran, initialized, failed, at: nowIso });
+});

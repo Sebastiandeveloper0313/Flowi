@@ -1,0 +1,113 @@
+import { Link } from "@tanstack/react-router";
+import { Activity, Bot, CheckCheck, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plug, Settings } from "lucide-react";
+import { useState } from "react";
+
+import { useUser } from "@/auth/hooks";
+import { useChats } from "@/features/chat/hooks";
+
+import { FlowyLogo } from "./brand";
+import { approvals } from "./mock";
+
+const NAV = [
+  { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
+  { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/activity", label: "Activity", icon: Activity },
+  { to: "/approvals", label: "Approvals", icon: CheckCheck, badge: approvals.length },
+  { to: "/integrations", label: "Integrations", icon: Plug },
+  { to: "/settings", label: "Settings", icon: Settings },
+] as const;
+
+const STORAGE_KEY = "flowy.sidebar.collapsed";
+
+export function Sidebar() {
+  const { data: user } = useUser();
+  const { data: chats } = useChats();
+  const initial = (user?.email ?? "?").charAt(0).toUpperCase();
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggle = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+
+  return (
+    <aside className={`flowy-sidebar${collapsed ? " collapsed" : ""}`}>
+      <div className="flowy-top">
+        <Link to="/dashboard" className="flowy-brand" title="Flowy">
+          <FlowyLogo />
+          <span className="wm">flowy</span>
+        </Link>
+        <button
+          type="button"
+          className="flowy-collapse"
+          onClick={toggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeftOpen className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
+        </button>
+      </div>
+
+      <nav className="flowy-nav">
+        {NAV.map(({ to, label, icon: Icon, badge, exact }) => (
+          <Link
+            key={to}
+            to={to}
+            search={to === "/dashboard" ? { c: undefined } : undefined}
+            title={label}
+            activeProps={{ className: "active" }}
+            activeOptions={exact ? { exact: true } : undefined}
+          >
+            <Icon className="nav-ico" />
+            <span className="nav-label">{label}</span>
+            {badge ? <span className="nav-badge">{badge}</span> : null}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="flowy-recent">
+        <div className="flowy-side-label">Recent chats</div>
+        {chats && chats.length > 0 ? (
+          chats.map((c) => (
+            <Link
+              key={c.id}
+              to="/dashboard"
+              search={{ c: c.id }}
+              className="flowy-recent-item"
+              activeProps={{ className: "flowy-recent-item active" }}
+              activeOptions={{ includeSearch: true }}
+              title={c.title}
+            >
+              <span className="truncate">{c.title}</span>
+            </Link>
+          ))
+        ) : (
+          <p className="flowy-recent-empty">No chats yet</p>
+        )}
+      </div>
+
+      <div className="flowy-side-foot">
+        <div className="flowy-user">
+          <span className="flowy-avatar">{initial}</span>
+          <span className="flowy-user-email truncate text-sm">{user?.email ?? "Account"}</span>
+        </div>
+        <Link to="/auth/logout" className="flowy-signout" title="Sign out">
+          Sign out
+        </Link>
+      </div>
+    </aside>
+  );
+}
