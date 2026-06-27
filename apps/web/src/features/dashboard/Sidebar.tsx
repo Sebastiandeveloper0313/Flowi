@@ -18,7 +18,7 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
@@ -129,6 +129,14 @@ function RecentChatItem({ chat }: { chat: ChatRow }) {
   const del = useDeleteChat();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(chat.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
 
   function commit() {
     const t = draft.trim();
@@ -146,9 +154,9 @@ function RecentChatItem({ chat }: { chat: ChatRow }) {
   if (editing) {
     return (
       <input
+        ref={inputRef}
         className="flowy-recent-edit"
         value={draft}
-        autoFocus
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") commit();
