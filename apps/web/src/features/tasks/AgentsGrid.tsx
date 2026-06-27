@@ -2,10 +2,29 @@ import { Link } from "@tanstack/react-router";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Bot, CalendarClock, ChevronDown, ChevronUp, Hash, Loader2, Pause, Play, Sparkles, Trash2 } from "lucide-react";
+import {
+  Bot,
+  CalendarClock,
+  ChevronDown,
+  ChevronUp,
+  Hash,
+  Loader2,
+  Pause,
+  Play,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
-import { channelLabel, scheduleLabel, useDeleteTask, useRuns, useRunTask, useSetTaskStatus, useTasks } from "./hooks";
+import {
+  channelLabel,
+  scheduleLabel,
+  useDeleteTask,
+  useRuns,
+  useRunTask,
+  useSetTaskStatus,
+  useTasks,
+} from "./hooks";
 import type { Task, TaskRun } from "./queries";
 
 export function AgentsGrid() {
@@ -31,9 +50,11 @@ export function AgentsGrid() {
           <Loader2 className="size-4 animate-spin" /> Loading your agents…
         </div>
       ) : !tasks || tasks.length === 0 ? (
-        <div className="text-muted-foreground rounded-2xl border border-dashed bg-card/60 px-6 py-12 text-center">
+        <div className="text-muted-foreground bg-card/60 rounded-2xl border border-dashed px-6 py-12 text-center">
           <Bot className="mx-auto mb-2 size-6 opacity-60" />
-          <p className="text-sm">No agents yet — describe a recurring job in the chat above to create one.</p>
+          <p className="text-sm">
+            No agents yet — describe a recurring job in the chat above to create one.
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -76,7 +97,11 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <Button size="sm" disabled={running} onClick={() => run.mutate(task.id)}>
-            {running ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {running ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5" />
+            )}
             {running ? "Running…" : "Run now"}
           </Button>
           <Button
@@ -102,7 +127,9 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
         </div>
 
         {run.isError && (
-          <p className="text-destructive text-xs">{(run.error as Error).message || "Run failed."}</p>
+          <p className="text-destructive text-xs">
+            {(run.error as Error).message || "Run failed."}
+          </p>
         )}
 
         {latestRun && (
@@ -127,7 +154,11 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
                   className="h-6 px-2 text-xs"
                   onClick={() => setShowOutput((v) => !v)}
                 >
-                  {showOutput ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                  {showOutput ? (
+                    <ChevronUp className="size-3" />
+                  ) : (
+                    <ChevronDown className="size-3" />
+                  )}
                   {showOutput ? "Hide" : "View"}
                 </Button>
               )}

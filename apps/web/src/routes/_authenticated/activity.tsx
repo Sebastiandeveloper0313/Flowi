@@ -26,7 +26,7 @@ function ActivityPage() {
           <Loader2 className="size-4 animate-spin" /> Loading activity…
         </div>
       ) : !runs || runs.length === 0 ? (
-        <div className="text-muted-foreground rounded-2xl border border-dashed bg-card/60 px-6 py-16 text-center text-sm">
+        <div className="text-muted-foreground bg-card/60 rounded-2xl border border-dashed px-6 py-16 text-center text-sm">
           No runs yet. Once your agents run, every result shows up here.
         </div>
       ) : (
@@ -60,7 +60,9 @@ function ActivityPage() {
                     {run.summary ?? run.error ?? runStatusLabel(run.status)}
                   </p>
                 </div>
-                <span className="text-muted-foreground shrink-0 text-xs">{formatWhen(run.created_at)}</span>
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  {formatWhen(run.created_at)}
+                </span>
               </div>
             );
           })}

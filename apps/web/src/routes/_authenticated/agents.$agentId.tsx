@@ -103,7 +103,11 @@ function AgentDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" disabled={running} onClick={() => run.mutate(agent.id)}>
-            {running ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {running ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
             {running ? "Running…" : "Run now"}
           </Button>
           <Button
@@ -132,7 +136,9 @@ function AgentDetailPage() {
       </header>
 
       {run.isError && (
-        <p className="text-destructive mb-4 text-sm">{(run.error as Error).message || "Run failed."}</p>
+        <p className="text-destructive mb-4 text-sm">
+          {(run.error as Error).message || "Run failed."}
+        </p>
       )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -153,7 +159,9 @@ function AgentDetailPage() {
             </CardHeader>
             <CardContent className="space-y-2.5">
               {!runs || runs.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No runs yet. Hit “Run now” to try it.</p>
+                <p className="text-muted-foreground text-sm">
+                  No runs yet. Hit “Run now” to try it.
+                </p>
               ) : (
                 runs.map((r, i) => <RunRow key={r.id} run={r} defaultOpen={i === 0} />)
               )}
@@ -212,9 +220,7 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
       >
         <RunDot status={run.status} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">
-            {run.summary ?? run.error ?? "Run"}
-          </div>
+          <div className="truncate text-sm font-medium">{run.summary ?? run.error ?? "Run"}</div>
           <div className="text-muted-foreground text-xs">{formatWhen(run.created_at)}</div>
         </div>
         {open ? (

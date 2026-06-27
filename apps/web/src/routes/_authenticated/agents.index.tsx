@@ -1,6 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { Bot, CalendarClock, ChevronRight, Clock, Hash, Loader2, MessageSquarePlus } from "lucide-react";
+import {
+  Bot,
+  CalendarClock,
+  ChevronRight,
+  Clock,
+  Hash,
+  Loader2,
+  MessageSquarePlus,
+} from "lucide-react";
 
 import { PageHeader } from "@/features/dashboard/ui";
 import { channelLabel, formatWhen, scheduleLabel, useTasks } from "@/features/tasks/hooks";
@@ -65,10 +73,12 @@ function AgentsPage() {
           <Loader2 className="size-4 animate-spin" /> Loading your agents…
         </div>
       ) : !tasks || tasks.length === 0 ? (
-        <div className="text-muted-foreground rounded-2xl border border-dashed bg-card/60 px-6 py-16 text-center">
+        <div className="text-muted-foreground bg-card/60 rounded-2xl border border-dashed px-6 py-16 text-center">
           <Bot className="mx-auto mb-3 size-7 opacity-60" />
-          <p className="font-medium text-foreground">No agents yet</p>
-          <p className="mt-1 text-sm">Describe a recurring job in the chat and Flowy sets it up for you.</p>
+          <p className="text-foreground font-medium">No agents yet</p>
+          <p className="mt-1 text-sm">
+            Describe a recurring job in the chat and Flowy sets it up for you.
+          </p>
           <Button asChild className="mt-5">
             <Link to="/dashboard" search={{ c: undefined }}>
               <MessageSquarePlus className="size-4" /> Start in chat

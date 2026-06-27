@@ -1,5 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, Bot, CheckCheck, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plug, Settings } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  CheckCheck,
+  MessageSquarePlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plug,
+  Settings,
+} from "lucide-react";
 import { useState } from "react";
 
 import { useUser } from "@/auth/hooks";
@@ -57,7 +66,11 @@ export function Sidebar() {
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <PanelLeftOpen className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
+          {collapsed ? (
+            <PanelLeftOpen className="size-[18px]" />
+          ) : (
+            <PanelLeftClose className="size-[18px]" />
+          )}
         </button>
       </div>
 

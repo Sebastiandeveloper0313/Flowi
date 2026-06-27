@@ -16,7 +16,10 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsPage() {
   return (
     <div className="flowy-page">
-      <PageHeader title="Settings" subtitle="Channels, what Flowy remembers, billing, and your account." />
+      <PageHeader
+        title="Settings"
+        subtitle="Channels, what Flowy remembers, billing, and your account."
+      />
 
       <Tabs defaultValue="memory">
         <TabsList className="mb-6">
@@ -56,7 +59,9 @@ function MemoryTab() {
     );
   const remove = (section: string, idx: number) =>
     setMem((m) =>
-      m.map((s) => (s.title === section ? { ...s, items: s.items.filter((_, i) => i !== idx) } : s)),
+      m.map((s) =>
+        s.title === section ? { ...s, items: s.items.filter((_, i) => i !== idx) } : s,
+      ),
     );
 
   return (
@@ -68,8 +73,8 @@ function MemoryTab() {
         <div>
           <p className="font-semibold">This is everything Flowy remembers about you.</p>
           <p className="text-muted-foreground text-sm">
-            It uses this to do your work the way you'd want. You're in control — edit or remove anything,
-            anytime.
+            It uses this to do your work the way you'd want. You're in control — edit or remove
+            anything, anytime.
           </p>
         </div>
       </div>
@@ -124,7 +129,10 @@ function ChannelsTab() {
       </CardHeader>
       <CardContent className="space-y-1">
         {channels.map((c, i) => (
-          <div key={c.key} className={`flex items-center justify-between py-3 ${i > 0 ? "border-t" : ""}`}>
+          <div
+            key={c.key}
+            className={`flex items-center justify-between py-3 ${i > 0 ? "border-t" : ""}`}
+          >
             <div>
               <div className="text-sm font-medium">{CHANNEL_LABELS[c.key]}</div>
               <div className="text-muted-foreground text-xs">{c.detail}</div>
@@ -202,8 +210,14 @@ function AccountTab() {
           <CardTitle className="text-base text-rose-600">Danger zone</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">Permanently delete your account and all agents.</p>
-          <Button variant="outline" size="sm" className="border-rose-200 text-rose-600 hover:bg-rose-50">
+          <p className="text-muted-foreground text-sm">
+            Permanently delete your account and all agents.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-rose-200 text-rose-600 hover:bg-rose-50"
+          >
             Delete account
           </Button>
         </CardContent>

@@ -62,7 +62,11 @@ function IntegrationsPage() {
                 <Button size="sm" variant="outline">
                   Manage
                 </Button>
-                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-destructive"
+                >
                   Disconnect
                 </Button>
               </div>

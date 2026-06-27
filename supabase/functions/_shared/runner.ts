@@ -142,10 +142,7 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
       .from("task_runs")
       .update({ status: "succeeded", summary, output, finished_at: new Date().toISOString() })
       .eq("id", run.id);
-    await admin
-      .from("tasks")
-      .update({ last_run_at: new Date().toISOString() })
-      .eq("id", task.id);
+    await admin.from("tasks").update({ last_run_at: new Date().toISOString() }).eq("id", task.id);
     return { status: "succeeded", run_id: run.id, summary };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

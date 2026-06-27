@@ -8,13 +8,26 @@ import { useEffect, useRef, useState } from "react";
 import { useUser } from "@/auth/hooks";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
 
-import { chatKeys, createChat, fetchChatMessages, saveMessage, touchChat, type ChatMessage, useChat } from "./hooks";
+import {
+  chatKeys,
+  createChat,
+  fetchChatMessages,
+  saveMessage,
+  touchChat,
+  type ChatMessage,
+  useChat,
+} from "./hooks";
 
 function FlowyAvatar() {
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6]">
       <svg viewBox="0 0 100 100" className="size-4" aria-hidden="true">
-        <path d="M34 32h34M34 50h27M34 68h18" stroke="white" strokeWidth={9} strokeLinecap="round" />
+        <path
+          d="M34 32h34M34 50h27M34 68h18"
+          stroke="white"
+          strokeWidth={9}
+          strokeLinecap="round"
+        />
       </svg>
     </span>
   );
@@ -92,7 +105,11 @@ export function Chat({ chatId }: { chatId?: string }) {
       next.map((m) => ({ role: m.role, content: m.content })),
       {
         onSuccess: async (data) => {
-          const reply: ChatMessage = { role: "assistant", content: data.reply, created: data.created };
+          const reply: ChatMessage = {
+            role: "assistant",
+            content: data.reply,
+            created: data.created,
+          };
           setMessages((m) => [...m, reply]);
           if (convoId && teamId) {
             try {
@@ -156,7 +173,11 @@ export function Chat({ chatId }: { chatId?: string }) {
           onClick={() => void send(input)}
           aria-label="Send"
         >
-          {chat.isPending ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+          {chat.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <ArrowUp className="size-4" />
+          )}
         </Button>
       </div>
     </div>
@@ -181,48 +202,48 @@ export function Chat({ chatId }: { chatId?: string }) {
   return (
     <div className="flex h-screen flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 pt-16 pb-6">
-            <div className="mx-auto flex max-w-2xl flex-col gap-5">
-              {messages.map((m, i) =>
-                m.role === "user" ? (
-                  <div key={i} className="flex justify-end">
-                    <div className="bg-primary max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm text-white">
-                      {m.content}
-                    </div>
-                  </div>
-                ) : (
-                  <div key={i} className="flex gap-3">
-                    <FlowyAvatar />
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
-                      {m.created?.map((a) => (
-                        <div
-                          key={a.id}
-                          className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
-                        >
-                          <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ),
-              )}
-              {chat.isPending && (
-                <div className="text-muted-foreground flex items-center gap-3 text-sm">
-                  <FlowyAvatar />
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="size-4 animate-spin" /> Flowy is working…
-                  </span>
+        <div className="mx-auto flex max-w-2xl flex-col gap-5">
+          {messages.map((m, i) =>
+            m.role === "user" ? (
+              <div key={i} className="flex justify-end">
+                <div className="bg-primary max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm text-white">
+                  {m.content}
                 </div>
-              )}
+              </div>
+            ) : (
+              <div key={i} className="flex gap-3">
+                <FlowyAvatar />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+                  {m.created?.map((a) => (
+                    <div
+                      key={a.id}
+                      className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                    >
+                      <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ),
+          )}
+          {chat.isPending && (
+            <div className="text-muted-foreground flex items-center gap-3 text-sm">
+              <FlowyAvatar />
+              <span className="flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" /> Flowy is working…
+              </span>
             </div>
-          </div>
-          <div className="px-2 pt-2 pb-6">
-            {composer}
-            <p className="text-muted-foreground mt-2 text-center text-xs">
-              <Sparkles className="mr-1 inline size-3" />
-              Flowy can answer, or set up agents that run on their own.
-            </p>
-          </div>
+          )}
+        </div>
+      </div>
+      <div className="px-2 pt-2 pb-6">
+        {composer}
+        <p className="text-muted-foreground mt-2 text-center text-xs">
+          <Sparkles className="mr-1 inline size-3" />
+          Flowy can answer, or set up agents that run on their own.
+        </p>
+      </div>
     </div>
   );
 }

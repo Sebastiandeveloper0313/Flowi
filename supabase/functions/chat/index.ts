@@ -48,7 +48,10 @@ const TOOL = {
         description:
           "5-field cron expression (e.g. '0 12 * * *' for daily at noon). Omit for a one-time task.",
       },
-      timezone: { type: "string", description: "IANA timezone, e.g. 'America/New_York'. Default 'UTC'." },
+      timezone: {
+        type: "string",
+        description: "IANA timezone, e.g. 'America/New_York'. Default 'UTC'.",
+      },
       channel: {
         type: "string",
         enum: ["discord", "telegram", "slack", "whatsapp", "dashboard"],
@@ -76,7 +79,9 @@ Deno.serve(async (req: Request) => {
     const url = Deno.env.get("SUPABASE_URL")!;
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization") ?? "";
-    const userClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
+    const userClient = createClient(url, anon, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const {
       data: { user },
@@ -115,7 +120,11 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < 6; i++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+        },
         body: JSON.stringify({
           model: "claude-opus-4-8",
           max_tokens: 2048,

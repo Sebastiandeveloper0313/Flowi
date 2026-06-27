@@ -17,7 +17,11 @@ export function FlowyLogo({ size = 26 }: { size?: number }) {
 export function FlowySky() {
   return (
     <div className="flowy-app-sky" aria-hidden="true">
-      <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
           <linearGradient id="dsky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#bcd6f2" />
@@ -37,7 +41,11 @@ export function FlowySky() {
               stitchTiles="stitch"
               result="t"
             />
-            <feColorMatrix in="t" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -1.6 1.35" />
+            <feColorMatrix
+              in="t"
+              type="matrix"
+              values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -1.6 1.35"
+            />
           </filter>
         </defs>
         <rect width="1440" height="900" fill="url(#dsky)" />

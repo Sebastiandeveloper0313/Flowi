@@ -28,7 +28,9 @@ export const chatKeys = {
 };
 
 /** Ask Flowy for a reply (and possibly spin up agents). Stateless AI call. */
-export async function sendChat(messages: { role: string; content: string }[]): Promise<ChatResponse> {
+export async function sendChat(
+  messages: { role: string; content: string }[],
+): Promise<ChatResponse> {
   const { data, error } = await supabase.functions.invoke("chat", { body: { messages } });
   if (error) throw error;
   return data as ChatResponse;
