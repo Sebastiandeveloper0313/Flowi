@@ -2,6 +2,8 @@
 // and the scheduler (run-due-tasks), so the two paths can never drift.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
+import { fetchWorkspaceContext, runnerSystem, type WorkspaceContext } from "./marketing.ts";
+
 export interface TaskRow {
   id: string;
   team_id: string;
@@ -20,7 +22,10 @@ export interface RunResult {
 }
 
 /** Produce the finished work for a task (real Claude call, or a preview when no key is set). */
-export async function executeTask(task: TaskRow): Promise<{ summary: string; output: string }> {
+export async function executeTask(
+  task: TaskRow,
+  ws: WorkspaceContext | null = null,
+): Promise<{ summary: string; output: string }> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
 
   if (!key) {
@@ -36,16 +41,7 @@ export async function executeTask(task: TaskRow): Promise<{ summary: string; out
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 150_000); // hard cap
   try {
-    const system =
-      "You are Flowy, an AI employee. You are handed a recurring task to do for the user. " +
-      "Actually do the task and return the finished result directly — not a plan, not a list of steps, " +
-      "not advice. Deliver something ready to use. Be clear and concise. " +
-      "Whenever the task needs current, real-world, or external information (news, prices, " +
-      "competitors, trends, anything time-sensitive), use the web_search tool to look it up — " +
-      "never guess or say you lack access. Base your result on what you find. " +
-      "Do not narrate your process (no 'let me search', no step-by-step commentary) — reply with the " +
-      "finished deliverable only. Flowy automatically delivers your reply to the user's chosen channel, " +
-      "so never try to post/send it yourself and never ask for webhooks, links, or credentials.";
+    const system = runnerSystem(ws);
 
     // Web search is an Anthropic-hosted (server-side) tool: the API runs the
     // searches itself and returns the finished answer. We only loop to resume
@@ -68,7 +64,7 @@ export async function executeTask(task: TaskRow): Promise<{ summary: string; out
           model: "claude-opus-4-8",
           max_tokens: 4096,
           system,
-          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 10 }],
+          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
           messages,
         }),
       });
@@ -137,7 +133,8 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
   }
 
   try {
-    const { summary, output } = await executeTask(task);
+    const ws = await fetchWorkspaceContext(admin, task.team_id);
+    const { summary, output } = await executeTask(task, ws);
     await admin
       .from("task_runs")
       .update({ status: "succeeded", summary, output, finished_at: new Date().toISOString() })
