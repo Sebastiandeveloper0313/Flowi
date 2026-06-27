@@ -317,25 +317,58 @@ export type Database = {
       };
       teams: {
         Row: {
+          business_categories: string[];
+          business_context: Json | null;
+          business_description: string | null;
+          business_model: string | null;
           created_at: string;
           created_by: string;
           id: string;
+          logo_url: string | null;
+          monthly_revenue: string | null;
           name: string;
+          onboarding_completed: boolean;
+          onboarding_step: number;
+          owner_role: string | null;
+          team_size: string | null;
           updated_at: string;
+          website_url: string | null;
         };
         Insert: {
+          business_categories?: string[];
+          business_context?: Json | null;
+          business_description?: string | null;
+          business_model?: string | null;
           created_at?: string;
           created_by: string;
           id?: string;
+          logo_url?: string | null;
+          monthly_revenue?: string | null;
           name: string;
+          onboarding_completed?: boolean;
+          onboarding_step?: number;
+          owner_role?: string | null;
+          team_size?: string | null;
           updated_at?: string;
+          website_url?: string | null;
         };
         Update: {
+          business_categories?: string[];
+          business_context?: Json | null;
+          business_description?: string | null;
+          business_model?: string | null;
           created_at?: string;
           created_by?: string;
           id?: string;
+          logo_url?: string | null;
+          monthly_revenue?: string | null;
           name?: string;
+          onboarding_completed?: boolean;
+          onboarding_step?: number;
+          owner_role?: string | null;
+          team_size?: string | null;
           updated_at?: string;
+          website_url?: string | null;
         };
         Relationships: [];
       };

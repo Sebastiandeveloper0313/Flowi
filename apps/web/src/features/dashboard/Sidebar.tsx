@@ -1,18 +1,27 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import {
   Activity,
   Bot,
   CheckCheck,
   MessageSquarePlus,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
   Plug,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 
 import { useUser } from "@/auth/hooks";
-import { useChats } from "@/features/chat/hooks";
+import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
 
 import { FlowyLogo } from "./brand";
 import { approvals } from "./mock";
@@ -94,19 +103,7 @@ export function Sidebar() {
       <div className="flowy-recent">
         <div className="flowy-side-label">Recent chats</div>
         {chats && chats.length > 0 ? (
-          chats.map((c) => (
-            <Link
-              key={c.id}
-              to="/dashboard"
-              search={{ c: c.id }}
-              className="flowy-recent-item"
-              activeProps={{ className: "flowy-recent-item active" }}
-              activeOptions={{ includeSearch: true }}
-              title={c.title}
-            >
-              <span className="truncate">{c.title}</span>
-            </Link>
-          ))
+          chats.map((c) => <RecentChatItem key={c.id} chat={c} />)
         ) : (
           <p className="flowy-recent-empty">No chats yet</p>
         )}
@@ -122,5 +119,81 @@ export function Sidebar() {
         </Link>
       </div>
     </aside>
+  );
+}
+
+function RecentChatItem({ chat }: { chat: ChatRow }) {
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { c?: string };
+  const rename = useRenameChat();
+  const del = useDeleteChat();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(chat.title);
+
+  function commit() {
+    const t = draft.trim();
+    setEditing(false);
+    if (t && t !== chat.title) rename.mutate({ id: chat.id, title: t });
+    else setDraft(chat.title);
+  }
+
+  function onDelete() {
+    if (!confirm(`Delete “${chat.title}”? This can't be undone.`)) return;
+    del.mutate(chat.id);
+    if (search?.c === chat.id) void navigate({ to: "/dashboard", search: { c: undefined } });
+  }
+
+  if (editing) {
+    return (
+      <input
+        className="flowy-recent-edit"
+        value={draft}
+        autoFocus
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setDraft(chat.title);
+            setEditing(false);
+          }
+        }}
+        onBlur={commit}
+      />
+    );
+  }
+
+  return (
+    <div className="flowy-recent-row">
+      <Link
+        to="/dashboard"
+        search={{ c: chat.id }}
+        className="flowy-recent-item"
+        activeProps={{ className: "flowy-recent-item active" }}
+        activeOptions={{ includeSearch: true }}
+        title={chat.title}
+      >
+        <span className="truncate">{chat.title}</span>
+      </Link>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="flowy-recent-menu" aria-label="Chat options">
+            <MoreHorizontal className="size-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuItem
+            onSelect={() => {
+              setDraft(chat.title);
+              setEditing(true);
+            }}
+          >
+            <Pencil className="size-4" /> Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>
+            <Trash2 className="size-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

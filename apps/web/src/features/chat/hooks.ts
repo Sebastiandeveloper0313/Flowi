@@ -121,3 +121,31 @@ export async function saveMessage(
 export async function touchChat(chatId: string): Promise<void> {
   await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", chatId);
 }
+
+/** Rename a conversation. */
+export async function renameChat(chatId: string, title: string): Promise<void> {
+  const { error } = await supabase.from("chats").update({ title }).eq("id", chatId);
+  if (error) throw error;
+}
+
+/** Delete a conversation (its messages cascade away). */
+export async function deleteChat(chatId: string): Promise<void> {
+  const { error } = await supabase.from("chats").delete().eq("id", chatId);
+  if (error) throw error;
+}
+
+export function useRenameChat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) => renameChat(id, title),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: chatKeys.list }),
+  });
+}
+
+export function useDeleteChat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteChat(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: chatKeys.list }),
+  });
+}
