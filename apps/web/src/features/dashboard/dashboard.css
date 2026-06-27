@@ -1,0 +1,305 @@
+/* Flowy app shell — light, branded, scoped to .flowy-app. Re-skins shadcn tokens. */
+
+.flowy-app {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  isolation: isolate;
+  background: #f3f6fb;
+  color: #160f24;
+  font-family: "Inter", system-ui, sans-serif;
+
+  /* scoped shadcn token overrides */
+  --primary: #3d82f5;
+  --primary-foreground: #ffffff;
+  --ring: #4286f5;
+  --radius: 1rem;
+  --secondary: #e9f1fd;
+  --secondary-foreground: #1f3a66;
+  --muted: #eef4fd;
+  --muted-foreground: #5b6b86;
+  --accent: #e9f1fd;
+  --accent-foreground: #1f3a66;
+  --border: rgba(30, 60, 110, 0.1);
+  --input: rgba(30, 60, 110, 0.14);
+}
+
+.flowy-app-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+.flowy-app-sky svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.flowy-app > :not(.flowy-app-sky):not(.flowy-sidebar) {
+  position: relative;
+  z-index: 1;
+}
+
+.flowy-app h1,
+.flowy-app h2,
+.flowy-app h3,
+.flowy-app [data-slot="card-title"] {
+  font-family: "Gabarito", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* premium light cards */
+.flowy-app [data-slot="card"] {
+  border-radius: 1.1rem;
+  border: 1px solid rgba(30, 60, 110, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 30px 60px -44px rgba(16, 48, 120, 0.4);
+}
+.flowy-app [data-slot="button"].bg-primary {
+  background-image: linear-gradient(180deg, #5a9bff, #3d82f5);
+}
+
+/* portal'd dialog */
+[data-slot="dialog-content"] {
+  --primary: #3d82f5;
+  --primary-foreground: #ffffff;
+  --ring: #4286f5;
+  --radius: 1rem;
+  border-radius: 1.25rem;
+  font-family: "Inter", system-ui, sans-serif;
+}
+[data-slot="dialog-content"] [data-slot="dialog-title"] {
+  font-family: "Gabarito", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* ---------------- sidebar ---------------- */
+.flowy-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  align-self: flex-start;
+  height: 100vh;
+  width: 256px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-right: 1px solid rgba(30, 60, 110, 0.08);
+  padding: 0.85rem 0.7rem;
+}
+.flowy-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.3rem 0.2rem 0.85rem;
+}
+.flowy-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.3rem;
+  text-decoration: none;
+  min-width: 0;
+}
+.flowy-collapse {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: #5b6b86;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.flowy-collapse:hover {
+  background: rgba(30, 60, 110, 0.06);
+  color: #160f24;
+}
+.flowy-brand .wm {
+  font-family: "Gabarito", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: -0.04em;
+  color: #160f24;
+}
+.flowy-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.flowy-nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.7rem;
+  color: #3a4358;
+  font-weight: 500;
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.flowy-nav a:hover {
+  background: rgba(30, 60, 110, 0.06);
+  color: #160f24;
+}
+.flowy-nav a.active {
+  background: rgba(66, 134, 245, 0.13);
+  color: #1f5fd6;
+  font-weight: 600;
+}
+.flowy-nav .nav-ico {
+  width: 18px;
+  height: 18px;
+}
+.flowy-nav .nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.flowy-recent {
+  margin-top: 1.2rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.flowy-side-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #8a93a6;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem 0.4rem;
+}
+.flowy-recent-item {
+  display: block;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.6rem;
+  font-size: 0.86rem;
+  color: #5b6b86;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.flowy-recent-item:hover {
+  background: rgba(30, 60, 110, 0.06);
+  color: #160f24;
+}
+.flowy-recent-item.active {
+  background: rgba(66, 134, 245, 0.12);
+  color: #1f5fd6;
+  font-weight: 600;
+}
+.flowy-recent-empty {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  color: #9aa3b5;
+}
+
+.flowy-side-foot {
+  margin-top: auto;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(30, 60, 110, 0.08);
+}
+.flowy-user {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  color: #2a3346;
+}
+.flowy-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #5aa6ff, #1566e6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.flowy-signout {
+  display: block;
+  margin-top: 0.2rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.6rem;
+  font-size: 0.85rem;
+  color: #5b6b86;
+  text-decoration: none;
+}
+.flowy-signout:hover {
+  background: rgba(30, 60, 110, 0.06);
+  color: #160f24;
+}
+
+/* ---------------- collapsed sidebar ---------------- */
+.flowy-sidebar {
+  transition: width 0.2s ease;
+}
+.flowy-sidebar.collapsed {
+  width: 72px;
+  padding: 0.85rem 0.6rem;
+}
+.flowy-sidebar.collapsed .flowy-top {
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.15rem 0 0.85rem;
+}
+.flowy-sidebar.collapsed .wm,
+.flowy-sidebar.collapsed .nav-label,
+.flowy-sidebar.collapsed .nav-badge,
+.flowy-sidebar.collapsed .flowy-recent,
+.flowy-sidebar.collapsed .flowy-user-email,
+.flowy-sidebar.collapsed .flowy-signout {
+  display: none;
+}
+.flowy-sidebar.collapsed .flowy-brand {
+  justify-content: center;
+  padding: 0;
+}
+.flowy-sidebar.collapsed .flowy-nav a {
+  justify-content: center;
+  padding: 0.6rem;
+}
+.flowy-sidebar.collapsed .flowy-side-foot {
+  display: flex;
+  justify-content: center;
+}
+.flowy-sidebar.collapsed .flowy-user {
+  justify-content: center;
+  padding: 0.4rem 0;
+}
+
+/* ---------------- main / pages ---------------- */
+.flowy-main {
+  flex: 1;
+  min-width: 0;
+}
+.flowy-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+}

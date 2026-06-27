@@ -1,42 +1,32 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Button } from "@workspace/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { useUser } from "@/auth/hooks";
+import { Chat } from "@/features/chat/Chat";
+import { AgentsGrid } from "@/features/tasks/AgentsGrid";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  component: DashboardPage,
+  validateSearch: (search: Record<string, unknown>): { c?: string } => ({
+    c: typeof search.c === "string" ? search.c : undefined,
+  }),
+  component: ChatPage,
 });
 
-function DashboardPage() {
-  const { data: user } = useUser();
+function ChatPage() {
+  const { c } = Route.useSearch();
+  const inConversation = Boolean(c);
 
+  // Keep <Chat /> mounted across the landing <-> conversation switch: the wrapper
+  // is stable and Chat decides its own layout (centered landing vs full-height
+  // conversation). Remounting it here would drop the just-sent message.
   return (
-    <div className="container mx-auto max-w-4xl py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button variant="outline" asChild>
-          <Link to="/auth/logout">Sign out</Link>
-        </Button>
+    <div className="px-6 lg:px-12">
+      <div className="mx-auto w-full max-w-3xl">
+        <Chat chatId={c} />
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>You are signed in as {user?.email}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            This is a protected page. Start building your app from here.
-          </p>
-        </CardContent>
-      </Card>
+      {!inConversation && (
+        <section className="mx-auto w-full max-w-5xl pb-20">
+          <AgentsGrid />
+        </section>
+      )}
     </div>
   );
 }
