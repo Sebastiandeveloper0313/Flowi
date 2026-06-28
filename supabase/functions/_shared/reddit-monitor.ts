@@ -1,15 +1,29 @@
-// Reddit lead-monitor pipeline: search Reddit for the agent's keywords, drop
-// anything we've already captured, have Claude judge which posts are genuine
-// leads and draft a helpful on-brand reply, then persist them for review.
+// Reddit lead-monitor pipeline. Three context-driven stages:
+//  1. SELECT  — derive buyer-intent search phrases + subreddits from the business
+//               context (the words real buyers type), unless the user pinned their own.
+//  2. FILTER  — judge which posts are genuine leads for this company's ICP.
+//  3. DRAFT   — write a helpful, on-brand reply that never pitches a competitor.
+// All three compose from the shared operator persona + quality bar + context block.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { contextBlock, QUALITY_STANDARDS, type WorkspaceContext } from "./marketing.ts";
+import {
+  companyName,
+  contextBlock,
+  operatorPersona,
+  QUALITY_STANDARDS,
+  type WorkspaceContext,
+} from "./marketing.ts";
 import { redditConnected, type RedditPost, searchReddit } from "./reddit.ts";
 import type { TaskRow } from "./runner.ts";
+
+const MODEL = "claude-opus-4-8";
+const ANTHROPIC = "https://api.anthropic.com/v1/messages";
 
 interface MonitorConfig {
   keywords?: string[];
   subreddits?: string[];
+  keywords_source?: "user" | "derived";
+  derived_sig?: string;
   min_relevance?: number;
   max_leads?: number;
   time?: "day" | "week" | "month" | "year";
@@ -23,42 +37,106 @@ interface Judged {
   draft_reply: string;
 }
 
-/** Pull the largest JSON array out of a model response. */
-function extractJsonArray(text: string): unknown[] {
-  const start = text.indexOf("[");
-  const end = text.lastIndexOf("]");
-  if (start === -1 || end <= start) return [];
+/** Stable, cheap signature of the business context, to re-derive only when it changes. */
+function contextSig(ws: WorkspaceContext | null): string {
+  const s = JSON.stringify(ws?.business_context ?? {}) + "|" + (ws?.name ?? "");
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+
+async function callClaude(system: string, user: string, maxTokens: number): Promise<string> {
+  const key = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!key) return "";
+  const res = await fetch(ANTHROPIC, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: "user", content: user }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Claude error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  return (data.content ?? [])
+    .filter((b: { type: string }) => b.type === "text")
+    .map((b: { text: string }) => b.text)
+    .join("\n");
+}
+
+function extractJson<T>(text: string, open: "[" | "{"): T | null {
+  const close = open === "[" ? "]" : "}";
+  const start = text.indexOf(open);
+  const end = text.lastIndexOf(close);
+  if (start === -1 || end <= start) return null;
   try {
-    return JSON.parse(text.slice(start, end + 1));
+    return JSON.parse(text.slice(start, end + 1)) as T;
   } catch {
-    return [];
+    return null;
   }
 }
 
-/** Ask Claude to score each post as a lead and draft a reply for the strong ones. */
+/**
+ * STAGE 1 — derive the actual words real buyers type when they have the problem
+ * this company solves (not the brand's own themes), plus subreddits they post in.
+ */
+async function deriveQueries(
+  ws: WorkspaceContext | null,
+  seeds: string[],
+): Promise<{ keywords: string[]; subreddits: string[] }> {
+  const system =
+    "You plan a Reddit search strategy for a lead-finding agent working inside this company." +
+    contextBlock(ws) +
+    "\n\nGive the exact phrases real potential BUYERS type on Reddit when they have the problem this company solves: " +
+    'their words, not the brand\'s marketing terms. Think complaints, "looking for", "alternative to", "how do I", ' +
+    '"recommend a tool for", direct comparisons, and the pain itself stated plainly. ' +
+    "Avoid this company's own brand or product names, and avoid broad one-word terms that return noise. " +
+    "Also name the subreddits where these buyers actually post.";
+  const user =
+    (seeds.length
+      ? `Optional seed terms the user mentioned (incorporate if useful): ${seeds.join(", ")}.\n\n`
+      : "") +
+    'Return ONLY JSON, no prose: {"keywords": ["6-10 buyer-intent search phrases"], "subreddits": ["4-8 subreddit names, no r/ prefix"]}';
+
+  const text = await callClaude(system, user, 1024);
+  const parsed = extractJson<{ keywords?: unknown; subreddits?: unknown }>(text, "{");
+  const clean = (v: unknown, max: number) =>
+    Array.isArray(v)
+      ? [...new Set(v.map((x) => String(x).trim().replace(/^r\//i, "")).filter(Boolean))].slice(
+          0,
+          max,
+        )
+      : [];
+  return { keywords: clean(parsed?.keywords, 10), subreddits: clean(parsed?.subreddits, 8) };
+}
+
+/** STAGES 2+3 — score each post as an ICP-fit lead and draft an on-brand reply. */
 async function scoreAndDraft(
   posts: RedditPost[],
   ws: WorkspaceContext | null,
   minRel: number,
 ): Promise<Judged[]> {
-  const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) return [];
-
   const system =
-    "You are Flowy, a senior marketing operator hunting for genuine sales leads on Reddit for this company." +
-    contextBlock(ws) +
-    "\n\n" +
+    operatorPersona(ws) +
+    "\n\nYou are scanning Reddit for genuine sales leads for this company and drafting replies.\n" +
+    "A real lead is someone describing a problem this company solves, asking for a recommendation, comparing " +
+    "options, or frustrated with an alternative. Be strict: most posts are NOT leads. " +
+    `Score each post 0-100 by how well the author fits ${companyName(ws)}'s ICP (the audience above) and their buying intent. ` +
+    `Only score ${minRel} or higher when there is a real fit.\n` +
+    `For any post scoring ${minRel}+, write the reply as a real person leaving a helpful comment: lead with the genuinely ` +
+    "useful answer, and bring up this company's product only if it truly fits the conversation (often it should not appear at all).\n\n" +
     QUALITY_STANDARDS +
-    "\n\nA real lead is someone describing a problem this company solves, asking for a recommendation, " +
-    "comparing options, or frustrated with an alternative. Be strict: most posts are NOT leads. " +
-    "Score 0-100 by how well the author fits the company's ICP and buying intent. " +
-    `For any post scoring ${minRel} or higher, write a reply that helps first and mentions the product only ` +
-    "naturally and honestly (often not at all). Reddit hates ads: no pitch, no marketing voice, no links unless " +
-    "genuinely useful. Sound like a real, knowledgeable person leaving a helpful comment.";
+    contextBlock(ws);
 
   const list = posts
     .map(
-      (p) => `[${p.external_id}] r/${p.subreddit} — ${p.title}\n${p.snippet || "(no body text)"}`,
+      (p) => `[${p.external_id}] r/${p.subreddit} - ${p.title}\n${p.snippet || "(no body text)"}`,
     )
     .join("\n\n");
   const user =
@@ -67,29 +145,9 @@ async function scoreAndDraft(
     '[{"external_id":"t3_...","is_lead":true|false,"relevance":0-100,"reason":"one short line",' +
     '"draft_reply":"the reply, or empty string if not a lead"}]';
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-opus-4-8",
-      max_tokens: 4096,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) throw new Error(`Claude error ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
-  const text = (data.content ?? [])
-    .filter((b: { type: string }) => b.type === "text")
-    .map((b: { text: string }) => b.text)
-    .join("\n");
-
-  return extractJsonArray(text)
-    .map((r) => r as Partial<Judged>)
+  const text = await callClaude(system, user, 4096);
+  const arr = extractJson<Partial<Judged>[]>(text, "[") ?? [];
+  return arr
     .filter((r): r is Judged => typeof r?.external_id === "string")
     .map((r) => ({
       external_id: r.external_id,
@@ -98,6 +156,53 @@ async function scoreAndDraft(
       reason: String(r.reason ?? "").slice(0, 280),
       draft_reply: String(r.draft_reply ?? ""),
     }));
+}
+
+/**
+ * Resolve which keywords/subreddits to search. User-pinned terms always win.
+ * Otherwise derive from the business context, and persist the result back onto
+ * the agent's config (so it shows in "Watching" and is editable). Re-derives
+ * only when the context changes, so steady-state runs cost no extra model call.
+ */
+async function resolveQueries(
+  admin: SupabaseClient,
+  task: TaskRow,
+  ws: WorkspaceContext | null,
+  cfg: MonitorConfig,
+): Promise<{ keywords: string[]; subreddits: string[] }> {
+  const pinned = cfg.keywords_source === "user" && (cfg.keywords?.length ?? 0) > 0;
+  if (pinned) {
+    return {
+      keywords: (cfg.keywords ?? []).map(String),
+      subreddits: (cfg.subreddits ?? []).map(String),
+    };
+  }
+
+  const sig = contextSig(ws);
+  const haveFresh = (cfg.keywords?.length ?? 0) > 0 && cfg.derived_sig === sig;
+  if (haveFresh) {
+    return {
+      keywords: (cfg.keywords ?? []).map(String),
+      subreddits: (cfg.subreddits ?? []).map(String),
+    };
+  }
+
+  const derived = await deriveQueries(ws, (cfg.keywords ?? []).map(String));
+  if (derived.keywords.length) {
+    await admin
+      .from("tasks")
+      .update({
+        config: {
+          ...cfg,
+          keywords: derived.keywords,
+          subreddits: derived.subreddits,
+          keywords_source: "derived",
+          derived_sig: sig,
+        },
+      })
+      .eq("id", task.id);
+  }
+  return derived;
 }
 
 /** Run a reddit_monitor agent once. Returns a run summary; persists new leads. */
@@ -116,30 +221,27 @@ export async function runRedditMonitor(
   }
 
   const cfg = (task.config ?? {}) as MonitorConfig;
-  let keywords = (cfg.keywords ?? []).map((k) => String(k).trim()).filter(Boolean);
-  if (!keywords.length) {
-    const kw = (ws?.business_context as { keywords?: unknown })?.keywords;
-    if (Array.isArray(kw)) keywords = kw.map(String).slice(0, 4);
-  }
+  const { keywords, subreddits } = await resolveQueries(admin, task, ws, cfg);
   if (!keywords.length) {
     return {
-      summary: "No keywords configured",
-      output: "Add keywords to this agent so it knows what to watch for on Reddit.",
+      summary: "No keywords to search",
+      output:
+        "This agent could not derive search terms. Connect your website in onboarding so it knows " +
+        "who to look for, or add keywords on the agent.",
     };
   }
 
-  const subreddits = (cfg.subreddits ?? []).map((s) => String(s).trim()).filter(Boolean);
   const minRel = cfg.min_relevance ?? 60;
   const maxLeads = cfg.max_leads ?? 10;
   const time = cfg.time ?? "week";
 
-  // 1. gather candidate posts across keyword × subreddit queries
+  // 1. gather candidate posts across keyword x subreddit queries
   const seen = new Set<string>();
   const candidates: RedditPost[] = [];
   const queries = subreddits.length
     ? keywords.flatMap((q) => subreddits.map((sub) => ({ q, sub })))
     : keywords.map((q) => ({ q, sub: undefined as string | undefined }));
-  for (const { q, sub } of queries.slice(0, 8)) {
+  for (const { q, sub } of queries.slice(0, 12)) {
     try {
       const posts = await searchReddit(q, { subreddit: sub, time, limit: 15, sort: "new" });
       for (const p of posts) {

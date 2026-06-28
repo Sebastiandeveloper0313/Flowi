@@ -54,7 +54,7 @@ const TOOL = {
         type: "array",
         items: { type: "string" },
         description:
-          "For reddit_monitor: search phrases that signal a potential customer (problems they solve, competitor names, 'X alternative', 'recommend a tool for Y'). Infer good ones from the business if the user doesn't specify.",
+          "For reddit_monitor: OPTIONAL seed search phrases. The agent auto-derives buyer-intent terms from the business context each run, so only pass this if the user explicitly names specific terms they want watched.",
       },
       subreddits: {
         type: "array",

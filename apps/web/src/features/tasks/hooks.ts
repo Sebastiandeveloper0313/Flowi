@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createTask, deleteTask, runTask, setTaskStatus } from "./mutations";
+import { createTask, deleteTask, runTask, setTaskStatus, updateTaskConfig } from "./mutations";
 import {
   myTeamQueryOptions,
   runsQueryOptions,
@@ -58,6 +58,15 @@ export function useDeleteTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteTask,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+export function useUpdateTaskConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, config }: { id: string; config: Record<string, unknown> }) =>
+      updateTaskConfig(id, config),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   });
 }

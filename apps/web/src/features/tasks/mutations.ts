@@ -44,6 +44,12 @@ export async function setTaskStatus(id: string, status: "active" | "paused") {
   if (error) throw error;
 }
 
+/** Update an agent's config (e.g. pin reddit_monitor keywords/subreddits). */
+export async function updateTaskConfig(id: string, config: Record<string, unknown>) {
+  const { error } = await supabase.from("tasks").update({ config }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteTask(id: string) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;

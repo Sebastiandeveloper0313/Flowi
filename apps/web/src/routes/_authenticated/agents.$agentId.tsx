@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Input } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
 import {
   ArrowLeft,
   CalendarClock,
+  Check,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -13,11 +15,13 @@ import {
   Loader2,
   MessageSquare,
   Pause,
+  Pencil,
   Play,
   Sparkles,
   Target,
   Trash2,
   Wrench,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -31,8 +35,9 @@ import {
   useSetTaskStatus,
   useTaskRuns,
   useTasks,
+  useUpdateTaskConfig,
 } from "@/features/tasks/hooks";
-import type { TaskRun } from "@/features/tasks/queries";
+import type { Task, TaskRun } from "@/features/tasks/queries";
 import { RunDot, TaskStatusBadge } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/agents/$agentId")({
@@ -76,9 +81,6 @@ function AgentDetailPage() {
   const paused = agent.status === "paused";
   const running = run.isPending || (runs ?? []).some((r) => r.status === "running");
   const isReddit = agent.kind === "reddit_monitor";
-  const keywords = isReddit
-    ? ((agent.config as { keywords?: string[] } | null)?.keywords ?? [])
-    : [];
 
   return (
     <div className="flowy-page">
@@ -203,36 +205,22 @@ function AgentDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                {isReddit ? <Target className="size-4" /> : <Wrench className="size-4" />}
-                {isReddit ? "Watching" : "Tools"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {isReddit ? (
-                keywords.length > 0 ? (
-                  keywords.map((k) => (
-                    <span
-                      key={k}
-                      className="bg-muted inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium"
-                    >
-                      {k}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground text-xs">
-                    Using your business keywords.
-                  </span>
-                )
-              ) : (
+          {isReddit ? (
+            <WatchingCard agent={agent} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Wrench className="size-4" /> Tools
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
                 <span className="bg-muted inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium">
                   <Globe className="size-3.5" /> Web search
                 </span>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Button variant="outline" className="w-full" asChild>
             <Link to="/dashboard" search={{ c: undefined }}>
@@ -272,6 +260,116 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
         </pre>
       )}
     </div>
+  );
+}
+
+function WatchingCard({ agent }: { agent: Task }) {
+  const update = useUpdateTaskConfig();
+  const cfg = (agent.config ?? {}) as {
+    keywords?: string[];
+    subreddits?: string[];
+    keywords_source?: string;
+  };
+  const keywords = cfg.keywords ?? [];
+  const subreddits = cfg.subreddits ?? [];
+  const custom = cfg.keywords_source === "user";
+
+  const [editing, setEditing] = useState(false);
+  const [kw, setKw] = useState(keywords.join(", "));
+  const [subs, setSubs] = useState(subreddits.join(", "));
+
+  function startEdit() {
+    setKw(keywords.join(", "));
+    setSubs(subreddits.join(", "));
+    setEditing(true);
+  }
+
+  function save() {
+    const nextKw = kw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const nextSubs = subs
+      .split(",")
+      .map((s) => s.trim().replace(/^r\//i, ""))
+      .filter(Boolean);
+    update.mutate(
+      {
+        id: agent.id,
+        config: { ...cfg, keywords: nextKw, subreddits: nextSubs, keywords_source: "user" },
+      },
+      { onSuccess: () => setEditing(false) },
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Target className="size-4" /> Watching
+          </CardTitle>
+          {!editing && (
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={startEdit}>
+              <Pencil className="size-3.5" /> Edit
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {editing ? (
+          <>
+            <div>
+              <span className="text-muted-foreground mb-1 block text-xs font-medium">
+                Keywords (comma separated)
+              </span>
+              <Input value={kw} onChange={(e) => setKw(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <span className="text-muted-foreground mb-1 block text-xs font-medium">
+                Subreddits (optional, comma separated)
+              </span>
+              <Input value={subs} onChange={(e) => setSubs(e.target.value)} className="text-sm" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={save} disabled={update.isPending}>
+                <Check className="size-4" /> Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                <X className="size-4" /> Cancel
+              </Button>
+            </div>
+          </>
+        ) : keywords.length === 0 ? (
+          <p className="text-muted-foreground text-xs">
+            Derived automatically from your business context on the first run. Edit to set your own.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {keywords.map((k) => (
+                <span
+                  key={k}
+                  className="bg-muted inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium"
+                >
+                  {k}
+                </span>
+              ))}
+            </div>
+            {subreddits.length > 0 && (
+              <div className="text-muted-foreground flex flex-wrap gap-1.5 text-xs">
+                {subreddits.map((s) => (
+                  <span key={s}>r/{s}</span>
+                ))}
+              </div>
+            )}
+            <p className="text-muted-foreground text-xs">
+              {custom ? "Custom (you set these)." : "Auto from your business context."}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
