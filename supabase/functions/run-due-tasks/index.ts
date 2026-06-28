@@ -36,7 +36,9 @@ Deno.serve(async (req: Request) => {
   // Only active recurring tasks that are due now or not yet scheduled.
   const { data: tasks, error } = await admin
     .from("tasks")
-    .select("id, team_id, title, instructions, schedule_cron, timezone, status, next_run_at")
+    .select(
+      "id, team_id, title, instructions, schedule_cron, timezone, status, kind, config, next_run_at",
+    )
     .eq("status", "active")
     .not("schedule_cron", "is", null)
     .or(`next_run_at.lte.${nowIso},next_run_at.is.null`)

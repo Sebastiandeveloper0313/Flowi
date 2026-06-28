@@ -44,6 +44,24 @@ const TOOL = {
         enum: ["discord", "telegram", "slack", "whatsapp", "dashboard"],
         description: "Where to deliver the result. Default 'dashboard'.",
       },
+      kind: {
+        type: "string",
+        enum: ["content", "reddit_monitor"],
+        description:
+          "Capability. 'content' (default) produces a written deliverable. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies — use this whenever the user wants to find leads/prospects or monitor Reddit.",
+      },
+      keywords: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "For reddit_monitor: search phrases that signal a potential customer (problems they solve, competitor names, 'X alternative', 'recommend a tool for Y'). Infer good ones from the business if the user doesn't specify.",
+      },
+      subreddits: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "For reddit_monitor: optional subreddits to focus on (names without 'r/'). Omit to search all of Reddit.",
+      },
     },
     required: ["title", "instructions"],
   },
@@ -147,6 +165,14 @@ Deno.serve(async (req: Request) => {
                 cron = null;
               }
             }
+            const kind = inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+            const config =
+              kind === "reddit_monitor"
+                ? {
+                    keywords: Array.isArray(inp.keywords) ? inp.keywords.map(String) : [],
+                    subreddits: Array.isArray(inp.subreddits) ? inp.subreddits.map(String) : [],
+                  }
+                : {};
             const { data: task, error } = await userClient
               .from("tasks")
               .insert({
@@ -158,6 +184,8 @@ Deno.serve(async (req: Request) => {
                 schedule_cron: cron,
                 timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
                 status: "active",
+                kind,
+                config,
               })
               .select("id, title")
               .single();

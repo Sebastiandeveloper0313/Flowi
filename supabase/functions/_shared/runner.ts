@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { fetchWorkspaceContext, runnerSystem, type WorkspaceContext } from "./marketing.ts";
+import { runRedditMonitor } from "./reddit-monitor.ts";
 
 export interface TaskRow {
   id: string;
@@ -12,6 +13,8 @@ export interface TaskRow {
   schedule_cron: string | null;
   timezone: string;
   status: string;
+  kind?: string;
+  config?: Record<string, unknown> | null;
 }
 
 export interface RunResult {
@@ -134,7 +137,10 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
 
   try {
     const ws = await fetchWorkspaceContext(admin, task.team_id);
-    const { summary, output } = await executeTask(task, ws);
+    const { summary, output } =
+      task.kind === "reddit_monitor"
+        ? await runRedditMonitor(admin, task, ws)
+        : await executeTask(task, ws);
     await admin
       .from("task_runs")
       .update({ status: "succeeded", summary, output, finished_at: new Date().toISOString() })
