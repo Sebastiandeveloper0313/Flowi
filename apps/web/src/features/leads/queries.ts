@@ -10,17 +10,19 @@ export const leadKeys = {
   all: ["leads"] as const,
 };
 
-/** All leads the user can see (RLS scopes to their team); strongest first. */
-export const leadsQueryOptions = queryOptions({
-  queryKey: leadKeys.all,
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("relevance", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw error;
-    return data;
-  },
-});
+/** Leads found by one agent (RLS-scoped); strongest first. */
+export const leadsByTaskQueryOptions = (taskId: string) =>
+  queryOptions({
+    queryKey: [...leadKeys.all, taskId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("task_id", taskId)
+        .order("relevance", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data;
+    },
+  });

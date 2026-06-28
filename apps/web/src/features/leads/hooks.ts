@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { setLeadStatus, updateLeadDraft } from "./mutations";
-import { leadKeys, type LeadStatus, leadsQueryOptions } from "./queries";
+import { leadKeys, type LeadStatus, leadsByTaskQueryOptions } from "./queries";
 
-export function useLeads() {
-  return useQuery(leadsQueryOptions);
+export function useAgentLeads(taskId: string) {
+  return useQuery(leadsByTaskQueryOptions(taskId));
 }
 
 export function useSetLeadStatus() {

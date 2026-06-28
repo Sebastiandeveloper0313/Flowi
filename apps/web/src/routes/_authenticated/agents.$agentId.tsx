@@ -15,11 +15,13 @@ import {
   Pause,
   Play,
   Sparkles,
+  Target,
   Trash2,
   Wrench,
 } from "lucide-react";
 import { useState } from "react";
 
+import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import {
   channelLabel,
   formatWhen,
@@ -73,6 +75,10 @@ function AgentDetailPage() {
 
   const paused = agent.status === "paused";
   const running = run.isPending || (runs ?? []).some((r) => r.status === "running");
+  const isReddit = agent.kind === "reddit_monitor";
+  const keywords = isReddit
+    ? ((agent.config as { keywords?: string[] } | null)?.keywords ?? [])
+    : [];
 
   return (
     <div className="flowy-page">
@@ -142,8 +148,21 @@ function AgentDetailPage() {
       )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        {/* left: instruction + run history */}
+        {/* left: leads (reddit) + instruction + run history */}
         <div className="space-y-5">
+          {isReddit && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Target className="size-4" /> Leads
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LeadsPanel taskId={agent.id} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Instruction</CardTitle>
@@ -187,13 +206,31 @@ function AgentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Wrench className="size-4" /> Tools
+                {isReddit ? <Target className="size-4" /> : <Wrench className="size-4" />}
+                {isReddit ? "Watching" : "Tools"}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              <span className="bg-muted inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium">
-                <Globe className="size-3.5" /> Web search
-              </span>
+              {isReddit ? (
+                keywords.length > 0 ? (
+                  keywords.map((k) => (
+                    <span
+                      key={k}
+                      className="bg-muted inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium"
+                    >
+                      {k}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground text-xs">
+                    Using your business keywords.
+                  </span>
+                )
+              ) : (
+                <span className="bg-muted inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium">
+                  <Globe className="size-3.5" /> Web search
+                </span>
+              )}
             </CardContent>
           </Card>
 

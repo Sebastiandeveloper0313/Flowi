@@ -16,7 +16,6 @@ import {
   Pencil,
   Plug,
   Settings,
-  Target,
   Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -30,7 +29,6 @@ import { approvals } from "./mock";
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
   { to: "/agents", label: "Agents", icon: Bot },
-  { to: "/leads", label: "Leads", icon: Target },
   { to: "/activity", label: "Activity", icon: Activity },
   { to: "/approvals", label: "Approvals", icon: CheckCheck, badge: approvals.length },
   { to: "/integrations", label: "Integrations", icon: Plug },
