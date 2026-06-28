@@ -1,8 +1,8 @@
 // Reddit lead-monitor pipeline. Three context-driven stages:
-//  1. SELECT  — derive buyer-intent search phrases + subreddits from the business
-//               context (the words real buyers type), unless the user pinned their own.
-//  2. FILTER  — judge which posts are genuine leads for this company's ICP.
-//  3. DRAFT   — write a helpful, on-brand reply that never pitches a competitor.
+//  1. SELECT: derive buyer-intent search phrases + subreddits from the business
+//     context (the words real buyers type), unless the user pinned their own.
+//  2. FILTER: judge which posts are genuine leads for this company's ICP.
+//  3. DRAFT:  write a helpful, on-brand reply that never pitches a competitor.
 // All three compose from the shared operator persona + quality bar + context block.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
@@ -83,7 +83,7 @@ function extractJson<T>(text: string, open: "[" | "{"): T | null {
 }
 
 /**
- * STAGE 1 — derive the actual words real buyers type when they have the problem
+ * STAGE 1 - derive the actual words real buyers type when they have the problem
  * this company solves (not the brand's own themes), plus subreddits they post in.
  */
 async function deriveQueries(
@@ -116,7 +116,7 @@ async function deriveQueries(
   return { keywords: clean(parsed?.keywords, 10), subreddits: clean(parsed?.subreddits, 8) };
 }
 
-/** STAGES 2+3 — score each post as an ICP-fit lead and draft an on-brand reply. */
+/** STAGES 2+3 - score each post as an ICP-fit lead and draft an on-brand reply. */
 async function scoreAndDraft(
   posts: RedditPost[],
   ws: WorkspaceContext | null,

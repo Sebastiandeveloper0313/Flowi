@@ -33,7 +33,7 @@ export async function executeTask(
 
   if (!key) {
     return {
-      summary: "Preview run — connect an AI key to make this real",
+      summary: "Preview run - connect an AI key to make this real",
       output:
         `Flowy received the task “${task.title}”.\n\n` +
         `It would now carry out:\n${task.instructions}\n\n` +
@@ -86,7 +86,7 @@ export async function executeTask(
       break;
     }
 
-    // Keep only the text produced after the last tool activity — that's the
+    // Keep only the text produced after the last tool activity - that's the
     // finished answer, without the interleaved "let me search..." narration.
     let lastToolIdx = -1;
     content.forEach((b, idx) => {
@@ -108,7 +108,7 @@ export async function executeTask(
 /**
  * Run one task once: record a run row, execute, and persist the outcome.
  * `admin` must be a service-role client (writes bypass RLS). Authorization is
- * the caller's responsibility — this function trusts that the task is allowed.
+ * the caller's responsibility - this function trusts that the task is allowed.
  */
 export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise<RunResult> {
   // Avoid piling up duplicate concurrent runs for the same task.

@@ -54,7 +54,7 @@ export function contextBlock(ws: WorkspaceContext | null): string {
   }
   if (!lines.length) return "";
   return (
-    "\n\nWHO YOU WORK FOR — ground everything in this. Output that could apply to any company is a failure:\n" +
+    "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
     lines.map((l) => `- ${l}`).join("\n")
   );
 }

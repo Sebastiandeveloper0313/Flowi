@@ -1,4 +1,4 @@
-// Flowy — on-demand task runner ("Run now").
+// Flowy - on-demand task runner ("Run now").
 // Authorizes the caller via their JWT + RLS, then runs the task once.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 

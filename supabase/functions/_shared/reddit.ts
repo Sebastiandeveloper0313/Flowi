@@ -1,5 +1,5 @@
 // Reddit read client. Uses app-only OAuth (one Flowy app, env creds) to search
-// public Reddit reliably — Reddit blocks unauthenticated/HTML-scraping requests.
+// public Reddit reliably - Reddit blocks unauthenticated/HTML-scraping requests.
 // Per-user OAuth (for posting on the user's behalf) comes later via `connections`.
 
 const UA = "web:flowy-lead-monitor:0.1 (by /u/flowy-app)";
