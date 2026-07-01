@@ -102,7 +102,9 @@ export async function executeComposioTool(
     method: "POST",
     body: JSON.stringify({ user_id: userId, arguments: args ?? {} }),
   });
-  return JSON.stringify(d).slice(0, 6000);
+  // Generous cap: big enough to carry a batch of emails with bodies, bounded so a
+  // huge tool result can't blow the model's context.
+  return JSON.stringify(d).slice(0, 24000);
 }
 
 /** True if a tool name belongs to Composio (vs. our own tools / server tools). */
