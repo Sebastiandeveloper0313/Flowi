@@ -41,6 +41,49 @@ function extractJson(text: string): Record<string, unknown> | null {
   }
 }
 
+const FIRECRAWL_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+
+function normalizeUrl(u: string): string {
+  let s = u.trim();
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  return s.replace(/\/+$/, "");
+}
+
+/** Scrape one page to clean markdown via Firecrawl. Empty string on any failure. */
+async function scrapeOne(url: string): Promise<string> {
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${FIRECRAWL_KEY}`,
+      },
+      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) return "";
+    const d = await res.json();
+    const md = d?.data?.markdown;
+    return typeof md === "string" ? md : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Scrape the homepage plus a couple of common pages (about, pricing) with
+ * Firecrawl, in parallel, and return the combined markdown. Empty if Firecrawl
+ * isn't configured or every scrape fails (caller falls back to Claude web_fetch).
+ */
+async function scrapeSite(rawUrl: string): Promise<string> {
+  if (!FIRECRAWL_KEY) return "";
+  const base = normalizeUrl(rawUrl);
+  const targets = [base, `${base}/about`, `${base}/pricing`];
+  const results = await Promise.all(targets.map(scrapeOne));
+  const combined = results.filter(Boolean).join("\n\n----\n\n");
+  return combined.slice(0, 40_000);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -73,9 +116,29 @@ Deno.serve(async (req: Request) => {
     const key = Deno.env.get("ANTHROPIC_API_KEY");
     if (!key) return json({ error: "AI is not configured on the server." }, 503);
 
-    const userMessage = url
-      ? `Research and build the brief for this company website: ${url}`
-      : `Build the brief from this description of the business:\n\n${desc}`;
+    // Prefer Firecrawl: scrape the site to clean markdown, then extract with a
+    // cheaper model. Fall back to Claude's own web_fetch when Firecrawl is off
+    // or returns nothing, and use the description directly when there's no URL.
+    const scraped = url ? await scrapeSite(url) : "";
+    let model: string;
+    let userMessage: string;
+    let tools: { type: string; name: string; max_uses: number }[] | undefined;
+    if (scraped) {
+      model = "claude-sonnet-5";
+      userMessage = `Build the brief from these scraped pages of the company's website (${url}):\n\n${scraped}`;
+      tools = undefined;
+    } else if (url) {
+      model = "claude-opus-4-8";
+      userMessage = `Research and build the brief for this company website: ${url}`;
+      tools = [
+        { type: "web_fetch_20260209", name: "web_fetch", max_uses: 5 },
+        { type: "web_search_20260209", name: "web_search", max_uses: 3 },
+      ];
+    } else {
+      model = "claude-opus-4-8";
+      userMessage = `Build the brief from this description of the business:\n\n${desc}`;
+      tools = undefined;
+    }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120_000);
@@ -84,12 +147,6 @@ Deno.serve(async (req: Request) => {
       const messages: { role: string; content: unknown }[] = [
         { role: "user", content: userMessage },
       ];
-      const tools = url
-        ? [
-            { type: "web_fetch_20260209", name: "web_fetch", max_uses: 5 },
-            { type: "web_search_20260209", name: "web_search", max_uses: 3 },
-          ]
-        : undefined;
 
       for (let i = 0; i < 5; i++) {
         const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -101,7 +158,7 @@ Deno.serve(async (req: Request) => {
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-opus-4-8",
+            model,
             max_tokens: 2048,
             system: SYSTEM,
             ...(tools ? { tools } : {}),
