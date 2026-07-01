@@ -17,6 +17,7 @@ import {
   type ChatMessage,
   useChat,
 } from "./hooks";
+import { ChatMarkdown } from "./Markdown";
 
 function FlowyAvatar() {
   return (
@@ -214,7 +215,7 @@ export function Chat({ chatId }: { chatId?: string }) {
               <div key={i} className="flex gap-3">
                 <FlowyAvatar />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+                  <ChatMarkdown>{m.content}</ChatMarkdown>
                   {m.created?.map((a) => (
                     <div
                       key={a.id}
