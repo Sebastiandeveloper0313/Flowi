@@ -2,13 +2,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUp, Check, CheckCircle2, Copy, Mic, Paperclip, Sparkles, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  Copy,
+  FileText,
+  Mic,
+  Paperclip,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
 
 import {
+  type Attachment,
   chatKeys,
   createChat,
   fetchChatMessages,
@@ -18,6 +30,7 @@ import {
   useChat,
 } from "./hooks";
 import { ChatMarkdown } from "./Markdown";
+import { useVoiceInput } from "./useVoiceInput";
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -61,6 +74,29 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
+
+function fileToAttachment(file: File): Promise<Attachment> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      const data = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
+      const kind: Attachment["kind"] = file.type === "application/pdf" ? "document" : "image";
+      resolve({
+        id: `${file.name}-${file.size}-${file.lastModified}`,
+        name: file.name,
+        kind,
+        mediaType: file.type,
+        data,
+        url: kind === "image" ? dataUrl : undefined,
+      });
+    };
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function FlowyAvatar() {
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6]">
@@ -86,8 +122,31 @@ export function Chat({ chatId }: { chatId?: string }) {
   const [status, setStatus] = useState("Thinking");
   // when a new reply arrives, reveal it character by character; null once fully shown
   const [typing, setTyping] = useState<number | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const voice = useVoiceInput(setInput);
+
+  async function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-picking the same file
+    const accepted: Attachment[] = [];
+    for (const f of files) {
+      const ok = f.type.startsWith("image/") || f.type === "application/pdf";
+      if (!ok || f.size > MAX_FILE_BYTES) continue;
+      try {
+        accepted.push(await fileToAttachment(f));
+      } catch {
+        /* skip unreadable file */
+      }
+    }
+    if (accepted.length) setAttachments((a) => [...a, ...accepted]);
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((a) => a.filter((x) => x.id !== id));
+  }
   // the conversation whose state we already manage live; lets us tell
   // "open an existing chat" apart from "we just created this one" so we
   // never re-hydrate over an in-flight reply.
@@ -144,12 +203,15 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   async function send(text: string) {
     const t = text.trim();
-    if (!t || chat.isPending) return;
+    if ((!t && attachments.length === 0) || chat.isPending) return;
 
-    const userMsg: ChatMessage = { role: "user", content: t };
+    const files = attachments;
+    const label = t || files.map((f) => f.name).join(", ");
+    const userMsg: ChatMessage = { role: "user", content: label };
     const next = [...messages, userMsg];
     setMessages(next);
     setInput("");
+    setAttachments([]);
 
     // ensure a persisted conversation exists, then save the user's message
     let convoId = chatId ?? ownedRef.current;
@@ -177,6 +239,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         messages: next.map((m) => ({ role: m.role, content: m.content })),
         signal: controller.signal,
         onStatus: setStatus,
+        attachments: files,
       },
       {
         onSuccess: async (data) => {
@@ -217,6 +280,39 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   const composer = (
     <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[1.7rem] border p-4 shadow-[0_24px_60px_-32px_rgba(16,48,120,0.4)] transition focus-within:ring-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        className="hidden"
+        onChange={onPickFiles}
+      />
+      {attachments.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2 px-1">
+          {attachments.map((a) => (
+            <div
+              key={a.id}
+              className="bg-muted flex items-center gap-2 rounded-lg py-1 pr-1 pl-1.5 text-xs"
+            >
+              {a.url ? (
+                <img src={a.url} alt="" className="size-7 rounded object-cover" />
+              ) : (
+                <FileText className="size-4 opacity-70" />
+              )}
+              <span className="max-w-[10rem] truncate">{a.name}</span>
+              <button
+                type="button"
+                onClick={() => removeAttachment(a.id)}
+                className="hover:bg-accent grid size-5 place-items-center rounded"
+                aria-label={`Remove ${a.name}`}
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <Textarea
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -234,20 +330,28 @@ export function Chat({ chatId }: { chatId?: string }) {
         <div className="text-muted-foreground flex items-center gap-0.5">
           <button
             type="button"
+            onClick={() => fileInputRef.current?.click()}
             className="hover:bg-accent hover:text-foreground grid size-9 place-items-center rounded-full transition"
             aria-label="Attach a file"
-            title="Attach a file"
+            title="Attach image or PDF"
           >
             <Paperclip className="size-[1.05rem]" />
           </button>
-          <button
-            type="button"
-            className="hover:bg-accent hover:text-foreground grid size-9 place-items-center rounded-full transition"
-            aria-label="Voice input"
-            title="Voice input"
-          >
-            <Mic className="size-[1.05rem]" />
-          </button>
+          {voice.supported && (
+            <button
+              type="button"
+              onClick={() => voice.toggle(input)}
+              className={`grid size-9 place-items-center rounded-full transition ${
+                voice.listening
+                  ? "bg-destructive/10 text-destructive animate-pulse"
+                  : "hover:bg-accent hover:text-foreground"
+              }`}
+              aria-label={voice.listening ? "Stop voice input" : "Voice input"}
+              title={voice.listening ? "Stop listening" : "Voice input"}
+            >
+              <Mic className="size-[1.05rem]" />
+            </button>
+          )}
         </div>
         {chat.isPending ? (
           <Button
@@ -263,7 +367,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           <Button
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            disabled={!input.trim()}
+            disabled={!input.trim() && attachments.length === 0}
             onClick={() => void send(input)}
             aria-label="Send"
           >
