@@ -305,7 +305,7 @@ export function Chat({ chatId }: { chatId?: string }) {
               <span className="animate-pulse">
                 <FlowyAvatar />
               </span>
-              <span className="text-muted-foreground animate-pulse text-sm">{status}…</span>
+              <span className="flowy-shimmer text-sm font-medium">{status}…</span>
             </div>
           )}
         </div>

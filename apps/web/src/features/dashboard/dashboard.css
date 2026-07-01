@@ -367,3 +367,29 @@
   letter-spacing: -0.04em;
   color: #160f24;
 }
+
+/* live "thinking" shimmer: a highlight wave sweeping across the status text */
+@keyframes flowy-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.flowy-shimmer {
+  background: linear-gradient(
+    90deg,
+    #9aa6b8 0%,
+    #9aa6b8 35%,
+    #1e293b 50%,
+    #9aa6b8 65%,
+    #9aa6b8 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: flowy-shimmer 1.6s linear infinite;
+}
