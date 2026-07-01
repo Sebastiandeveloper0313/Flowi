@@ -84,6 +84,8 @@ export function Chat({ chatId }: { chatId?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("Thinking");
+  // when a new reply arrives, reveal it character by character; null once fully shown
+  const [typing, setTyping] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // the conversation whose state we already manage live; lets us tell
@@ -117,7 +119,28 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, chat.isPending]);
+  }, [messages, chat.isPending, typing]);
+
+  // typewriter: advance the reveal for the last (just-arrived) assistant message
+  useEffect(() => {
+    if (typing === null) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") {
+      setTyping(null);
+      return;
+    }
+    if (typing >= last.content.length) {
+      setTyping(null);
+      return;
+    }
+    // reveal in small chunks so long replies still finish quickly (~1s)
+    const step = Math.max(1, Math.ceil(last.content.length / 120));
+    const id = setTimeout(
+      () => setTyping((s) => Math.min(last.content.length, (s ?? 0) + step)),
+      14,
+    );
+    return () => clearTimeout(id);
+  }, [typing, messages]);
 
   async function send(text: string) {
     const t = text.trim();
@@ -163,6 +186,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             created: data.created,
           };
           setMessages((m) => [...m, reply]);
+          setTyping(0); // reveal the new reply character by character
           if (convoId && teamId) {
             try {
               await saveMessage(convoId, teamId, reply);
@@ -284,18 +308,28 @@ export function Chat({ chatId }: { chatId?: string }) {
               <div key={i} className="group flex gap-3">
                 <FlowyAvatar />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <ChatMarkdown>{m.content}</ChatMarkdown>
-                  {m.created?.map((a) => (
-                    <div
-                      key={a.id}
-                      className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
-                    >
-                      <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
+                  {typing !== null && i === messages.length - 1 ? (
+                    // revealing character by character: plain text + caret, format on finish
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {m.content.slice(0, typing)}
+                      <span className="bg-foreground/70 ml-0.5 inline-block h-[1em] w-[2px] animate-pulse align-text-bottom" />
                     </div>
-                  ))}
-                  <div className="pt-0.5">
-                    <CopyButton text={m.content} />
-                  </div>
+                  ) : (
+                    <>
+                      <ChatMarkdown>{m.content}</ChatMarkdown>
+                      {m.created?.map((a) => (
+                        <div
+                          key={a.id}
+                          className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                        >
+                          <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
+                        </div>
+                      ))}
+                      <div className="pt-0.5">
+                        <CopyButton text={m.content} />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ),
