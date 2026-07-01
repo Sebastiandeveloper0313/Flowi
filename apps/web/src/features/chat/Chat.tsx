@@ -2,7 +2,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUp, CheckCircle2, Loader2, Mic, Paperclip, Sparkles } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  Mic,
+  Paperclip,
+  Sparkles,
+  Square,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
@@ -17,6 +27,49 @@ import {
   type ChatMessage,
   useChat,
 } from "./hooks";
+import { ChatMarkdown } from "./Markdown";
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // fallback for older browsers / non-secure contexts
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        if (await copyText(text)) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }
+      }}
+      className="text-muted-foreground hover:text-foreground inline-flex items-center transition"
+      aria-label={copied ? "Copied" : "Copy message"}
+      title={copied ? "Copied" : "Copy"}
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
+  );
+}
 
 function FlowyAvatar() {
   return (
@@ -41,6 +94,7 @@ export function Chat({ chatId }: { chatId?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   // the conversation whose state we already manage live; lets us tell
   // "open an existing chat" apart from "we just created this one" so we
   // never re-hydrate over an in-flight reply.
@@ -101,8 +155,13 @@ export function Chat({ chatId }: { chatId?: string }) {
       // persistence is best-effort; the chat still works in-session
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     chat.mutate(
-      next.map((m) => ({ role: m.role, content: m.content })),
+      {
+        messages: next.map((m) => ({ role: m.role, content: m.content })),
+        signal: controller.signal,
+      },
       {
         onSuccess: async (data) => {
           const reply: ChatMessage = {
@@ -121,13 +180,20 @@ export function Chat({ chatId }: { chatId?: string }) {
             }
           }
         },
-        onError: (e) =>
+        onError: (e) => {
+          // user hit stop: leave their message, add no error
+          if (controller.signal.aborted || (e as Error).name === "AbortError") return;
           setMessages((m) => [
             ...m,
             { role: "assistant", content: `Something went wrong: ${(e as Error).message}` },
-          ]),
+          ]);
+        },
       },
     );
+  }
+
+  function stop() {
+    abortRef.current?.abort();
   }
 
   const empty = messages.length === 0;
@@ -166,19 +232,27 @@ export function Chat({ chatId }: { chatId?: string }) {
             <Mic className="size-[1.05rem]" />
           </button>
         </div>
-        <Button
-          size="icon"
-          className="size-9 shrink-0 rounded-full"
-          disabled={!input.trim() || chat.isPending}
-          onClick={() => void send(input)}
-          aria-label="Send"
-        >
-          {chat.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
+        {chat.isPending ? (
+          <Button
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            onClick={stop}
+            aria-label="Stop generating"
+            title="Stop"
+          >
+            <Square className="size-3.5 fill-current" />
+          </Button>
+        ) : (
+          <Button
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            disabled={!input.trim()}
+            onClick={() => void send(input)}
+            aria-label="Send"
+          >
             <ArrowUp className="size-4" />
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -205,16 +279,19 @@ export function Chat({ chatId }: { chatId?: string }) {
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="flex justify-end">
+              <div key={i} className="group flex flex-col items-end gap-1">
                 <div className="bg-primary max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm text-white">
                   {m.content}
                 </div>
+                <div className="px-1">
+                  <CopyButton text={m.content} />
+                </div>
               </div>
             ) : (
-              <div key={i} className="flex gap-3">
+              <div key={i} className="group flex gap-3">
                 <FlowyAvatar />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+                  <ChatMarkdown>{m.content}</ChatMarkdown>
                   {m.created?.map((a) => (
                     <div
                       key={a.id}
@@ -223,6 +300,9 @@ export function Chat({ chatId }: { chatId?: string }) {
                       <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
                     </div>
                   ))}
+                  <div className="pt-0.5">
+                    <CopyButton text={m.content} />
+                  </div>
                 </div>
               </div>
             ),
