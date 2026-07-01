@@ -1,6 +1,7 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@workspace/supabase/types";
 
+import { env } from "@/env";
 import { taskKeys } from "@/features/tasks/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,19 +28,44 @@ export const chatKeys = {
   messages: (id: string) => ["chat-messages", id] as const,
 };
 
-/** Ask Flowy for a reply (and possibly spin up agents). Stateless AI call. */
+/**
+ * Ask Flowy for a reply (and possibly spin up agents). Stateless AI call.
+ * Uses fetch (not functions.invoke) so an in-flight request can be aborted.
+ */
 export async function sendChat(
   messages: { role: string; content: string }[],
+  signal?: AbortSignal,
 ): Promise<ChatResponse> {
-  const { data, error } = await supabase.functions.invoke("chat", { body: { messages } });
-  if (error) throw error;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session?.access_token ?? env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data?.error) {
+    throw new Error(data?.error ?? `Chat failed (${res.status})`);
+  }
   return data as ChatResponse;
 }
 
 export function useChat() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: sendChat,
+    mutationFn: ({
+      messages,
+      signal,
+    }: {
+      messages: { role: string; content: string }[];
+      signal?: AbortSignal;
+    }) => sendChat(messages, signal),
     // a created agent should show up in the list immediately
     onSuccess: (data) => {
       if (data.created?.length) {

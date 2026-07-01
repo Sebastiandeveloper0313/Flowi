@@ -11,6 +11,7 @@ import {
   Mic,
   Paperclip,
   Sparkles,
+  Square,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -93,6 +94,7 @@ export function Chat({ chatId }: { chatId?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   // the conversation whose state we already manage live; lets us tell
   // "open an existing chat" apart from "we just created this one" so we
   // never re-hydrate over an in-flight reply.
@@ -153,8 +155,13 @@ export function Chat({ chatId }: { chatId?: string }) {
       // persistence is best-effort; the chat still works in-session
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     chat.mutate(
-      next.map((m) => ({ role: m.role, content: m.content })),
+      {
+        messages: next.map((m) => ({ role: m.role, content: m.content })),
+        signal: controller.signal,
+      },
       {
         onSuccess: async (data) => {
           const reply: ChatMessage = {
@@ -173,13 +180,20 @@ export function Chat({ chatId }: { chatId?: string }) {
             }
           }
         },
-        onError: (e) =>
+        onError: (e) => {
+          // user hit stop: leave their message, add no error
+          if (controller.signal.aborted || (e as Error).name === "AbortError") return;
           setMessages((m) => [
             ...m,
             { role: "assistant", content: `Something went wrong: ${(e as Error).message}` },
-          ]),
+          ]);
+        },
       },
     );
+  }
+
+  function stop() {
+    abortRef.current?.abort();
   }
 
   const empty = messages.length === 0;
@@ -218,19 +232,27 @@ export function Chat({ chatId }: { chatId?: string }) {
             <Mic className="size-[1.05rem]" />
           </button>
         </div>
-        <Button
-          size="icon"
-          className="size-9 shrink-0 rounded-full"
-          disabled={!input.trim() || chat.isPending}
-          onClick={() => void send(input)}
-          aria-label="Send"
-        >
-          {chat.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
+        {chat.isPending ? (
+          <Button
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            onClick={stop}
+            aria-label="Stop generating"
+            title="Stop"
+          >
+            <Square className="size-3.5 fill-current" />
+          </Button>
+        ) : (
+          <Button
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            disabled={!input.trim()}
+            onClick={() => void send(input)}
+            aria-label="Send"
+          >
             <ArrowUp className="size-4" />
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
     </div>
   );
