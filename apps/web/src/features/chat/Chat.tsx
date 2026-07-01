@@ -302,10 +302,8 @@ export function Chat({ chatId }: { chatId?: string }) {
           )}
           {chat.isPending && (
             <div className="flex items-center gap-3">
-              <span className="animate-pulse">
-                <FlowyAvatar />
-              </span>
-              <span className="text-muted-foreground animate-pulse text-sm">{status}…</span>
+              <FlowyAvatar />
+              <span className="flowy-shimmer text-sm font-medium">{status}…</span>
             </div>
           )}
         </div>
