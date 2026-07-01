@@ -123,6 +123,7 @@ export function Chat({ chatId }: { chatId?: string }) {
   // when a new reply arrives, reveal it character by character; null once fully shown
   const [typing, setTyping] = useState<number | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [preview, setPreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,6 +195,16 @@ export function Chat({ chatId }: { chatId?: string }) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, chat.isPending, typing]);
+
+  // close the image preview on Escape
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview]);
 
   // typewriter: advance the reveal for the last (just-arrived) assistant message
   useEffect(() => {
@@ -293,6 +304,22 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   const empty = messages.length === 0;
 
+  const lightbox = preview ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-zoom-out"
+        aria-label="Close preview"
+        onClick={() => setPreview(null)}
+      />
+      <img
+        src={preview}
+        alt=""
+        className="relative max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+      />
+    </div>
+  ) : null;
+
   const composer = (
     <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[1.7rem] border p-4 shadow-[0_24px_60px_-32px_rgba(16,48,120,0.4)] transition focus-within:ring-4">
       <input
@@ -305,27 +332,45 @@ export function Chat({ chatId }: { chatId?: string }) {
       />
       {attachments.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2 px-1">
-          {attachments.map((a) => (
-            <div
-              key={a.id}
-              className="bg-muted flex items-center gap-2 rounded-lg py-1 pr-1 pl-1.5 text-xs"
-            >
-              {a.url ? (
-                <img src={a.url} alt="" className="size-7 rounded object-cover" />
-              ) : (
-                <FileText className="size-4 opacity-70" />
-              )}
-              <span className="max-w-[10rem] truncate">{a.name}</span>
-              <button
-                type="button"
-                onClick={() => removeAttachment(a.id)}
-                className="hover:bg-accent grid size-5 place-items-center rounded"
-                aria-label={`Remove ${a.name}`}
+          {attachments.map((a) =>
+            a.url ? (
+              <div key={a.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPreview(a.url ?? null)}
+                  className="block size-16 cursor-zoom-in overflow-hidden rounded-lg border"
+                  aria-label="View image"
+                  title="View image"
+                >
+                  <img src={a.url} alt="" className="size-full object-cover" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(a.id)}
+                  className="bg-foreground/70 hover:bg-foreground absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full text-white transition"
+                  aria-label="Remove attachment"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <div
+                key={a.id}
+                className="bg-muted flex items-center gap-2 rounded-lg py-1 pr-1 pl-2 text-xs"
               >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ))}
+                <FileText className="size-4 opacity-70" />
+                <span className="max-w-[10rem] truncate">{a.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(a.id)}
+                  className="hover:bg-accent grid size-5 place-items-center rounded"
+                  aria-label={`Remove ${a.name}`}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ),
+          )}
         </div>
       )}
       <Textarea
@@ -406,6 +451,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           </p>
           {composer}
         </div>
+        {lightbox}
       </div>
     );
   }
@@ -469,6 +515,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           Flowy can answer, or set up agents that run on their own.
         </p>
       </div>
+      {lightbox}
     </div>
   );
 }
