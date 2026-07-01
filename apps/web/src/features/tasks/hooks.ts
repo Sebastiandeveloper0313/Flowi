@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type AgentProposalInput,
+  bulkDeleteTasks,
   createAgentFromProposal,
   createTask,
   deleteTask,
   runTask,
   setTaskStatus,
   updateTaskConfig,
+  updateTaskSchedule,
 } from "./mutations";
 import {
   myTeamQueryOptions,
@@ -75,6 +77,23 @@ export function useDeleteTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteTask,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+export function useBulkDeleteTasks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => bulkDeleteTasks(ids),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+export function useUpdateTaskSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, scheduleCron }: { id: string; scheduleCron: string | null }) =>
+      updateTaskSchedule(id, scheduleCron),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   });
 }

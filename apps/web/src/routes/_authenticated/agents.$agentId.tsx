@@ -2,6 +2,13 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { Separator } from "@workspace/ui/components/separator";
 import {
   ArrowLeft,
@@ -30,6 +37,7 @@ import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import {
   channelLabel,
   formatWhen,
+  SCHEDULES,
   scheduleLabel,
   useDeleteTask,
   useRunTask,
@@ -37,6 +45,7 @@ import {
   useTaskRuns,
   useTasks,
   useUpdateTaskConfig,
+  useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { RunDot, TaskStatusBadge } from "@/features/tasks/ui";
@@ -203,7 +212,7 @@ function AgentDetailPage() {
               <CardTitle className="text-base">Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <Row label="Schedule" value={scheduleLabel(agent.schedule_cron)} />
+              <ScheduleEditor agent={agent} />
               <Row label="Next run" value={formatWhen(agent.next_run_at)} />
               <Row label="Last run" value={formatWhen(agent.last_run_at)} />
               <Separator />
@@ -385,6 +394,40 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+/** Editable schedule: pick a preset and it saves immediately. */
+function ScheduleEditor({ agent }: { agent: Task }) {
+  const update = useUpdateTaskSchedule();
+  const current = agent.schedule_cron ?? "once";
+  // If the agent's cron isn't one of the presets, keep it selectable.
+  const options = SCHEDULES.some((s) => s.value === current)
+    ? SCHEDULES
+    : [{ value: current, label: scheduleLabel(agent.schedule_cron) }, ...SCHEDULES];
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">Schedule</span>
+      <Select
+        value={current}
+        disabled={update.isPending}
+        onValueChange={(v) =>
+          update.mutate({ id: agent.id, scheduleCron: v === "once" ? null : v })
+        }
+      >
+        <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {options.map((s) => (
+            <SelectItem key={s.value} value={s.value}>
+              {s.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
