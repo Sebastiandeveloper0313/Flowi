@@ -1,15 +1,20 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
 import {
   ArrowUp,
+  Bot,
+  CalendarClock,
   Check,
   CheckCircle2,
   Copy,
   FileText,
+  Hash,
+  Loader2,
   Mic,
   Paperclip,
+  Plus,
   Sparkles,
   Square,
   X,
@@ -18,9 +23,11 @@ import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } fr
 
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
+import { channelLabel, scheduleLabel, useCreateAgentFromProposal } from "@/features/tasks/hooks";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
 
 import {
+  type AgentProposal,
   type Attachment,
   chatKeys,
   createChat,
@@ -110,6 +117,90 @@ function FlowyAvatar() {
         />
       </svg>
     </span>
+  );
+}
+
+/** A proposed agent shown in chat, with a Create button that spins it up. */
+function ProposalCard({ proposal }: { proposal: AgentProposal }) {
+  const { data: teamId } = useQuery(myTeamQueryOptions);
+  const create = useCreateAgentFromProposal();
+  const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
+
+  const isReddit = proposal.kind === "reddit_monitor";
+
+  function onCreate() {
+    if (!teamId) return;
+    create.mutate(
+      {
+        teamId,
+        proposal: {
+          title: proposal.title,
+          instructions: proposal.instructions,
+          channel: proposal.channel,
+          schedule_cron: proposal.schedule_cron,
+          timezone: proposal.timezone,
+          kind: proposal.kind,
+          keywords: proposal.keywords,
+          subreddits: proposal.subreddits,
+        },
+      },
+      { onSuccess: (data) => setCreated(data) },
+    );
+  }
+
+  return (
+    <div className="border-primary/15 bg-card mt-1 max-w-md overflow-hidden rounded-2xl border shadow-sm">
+      <div className="flex items-start gap-3 p-4">
+        <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+          <Bot className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] leading-snug font-semibold">{proposal.title}</p>
+          <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-relaxed">
+            {proposal.instructions}
+          </p>
+          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+            <span className="flex items-center gap-1">
+              <CalendarClock className="size-3" /> {scheduleLabel(proposal.schedule_cron)}
+            </span>
+            <span className="flex items-center gap-1">
+              <Hash className="size-3" />{" "}
+              {isReddit ? "Reddit leads" : channelLabel(proposal.channel)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="bg-muted/30 border-t px-4 py-2.5">
+        {created ? (
+          <Link
+            to="/agents/$agentId"
+            params={{ agentId: created.id }}
+            className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
+          >
+            <CheckCircle2 className="size-3.5" /> Agent created, open it
+          </Link>
+        ) : (
+          <Button
+            size="sm"
+            className="h-8 w-full rounded-lg text-xs"
+            disabled={create.isPending || !teamId}
+            onClick={onCreate}
+          >
+            {create.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Plus className="size-3.5" />
+            )}
+            Create agent
+          </Button>
+        )}
+        {create.isError && !created && (
+          <p className="text-destructive mt-1.5 text-[11px]">
+            {(create.error as Error).message || "Couldn't create it. Try again."}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -274,6 +365,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             role: "assistant",
             content: data.reply,
             created: data.created,
+            proposals: data.proposals,
           };
           setMessages((m) => [...m, reply]);
           setTyping(0); // reveal the new reply character by character
@@ -499,6 +591,9 @@ export function Chat({ chatId }: { chatId?: string }) {
                         >
                           <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
                         </div>
+                      ))}
+                      {m.proposals?.map((p) => (
+                        <ProposalCard key={p.id} proposal={p} />
                       ))}
                       <div className="pt-0.5">
                         <CopyButton text={m.content} />

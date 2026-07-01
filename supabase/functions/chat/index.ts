@@ -27,9 +27,9 @@ function json(body: unknown, status = 200) {
 }
 
 const TOOL = {
-  name: "create_recurring_task",
+  name: "propose_agent",
   description:
-    "Create a recurring task (an 'agent') that Flowy runs automatically on a schedule and delivers the finished result. Use whenever the user asks you to take care of a recurring job or set something up on a schedule.",
+    "Propose a recurring task (an 'agent') that Flowy would run automatically on a schedule. This does NOT create it: the user sees a card summarizing the agent and clicks Create to set it up. Use whenever the user asks you to take care of a recurring job, OR proactively when you notice something worth automating for them. You can propose more than one.",
   input_schema: {
     type: "object",
     properties: {
@@ -96,6 +96,19 @@ const SET_AUTONOMY_TOOL = {
 interface Msg {
   role: "user" | "assistant";
   content: unknown;
+}
+
+/** A proposed agent the user confirms (client creates it on the "Create agent" button). */
+interface AgentProposal {
+  id: string;
+  title: string;
+  instructions: string;
+  channel: string;
+  schedule_cron: string | null;
+  timezone: string;
+  kind: "content" | "reddit_monitor";
+  keywords: string[];
+  subreddits: string[];
 }
 
 /** Friendly "what I'm doing" text for a tool call, shown live in the chat. */
@@ -204,6 +217,7 @@ Deno.serve(async (req: Request) => {
           controller.enqueue(enc.encode(`data: ${JSON.stringify(o)}\n\n`));
         const working: Msg[] = [...convo];
         const created: Array<{ id: string; title: string }> = [];
+        const proposals: AgentProposal[] = [];
         let reply = "";
         try {
           for (let i = 0; i < 10; i++) {
@@ -238,8 +252,8 @@ Deno.serve(async (req: Request) => {
               const toolResults: unknown[] = [];
               for (const block of data.content ?? []) {
                 if (block.type !== "tool_use") continue;
-                if (block.name === "create_recurring_task") {
-                  send({ type: "status", text: "Setting up an agent" });
+                if (block.name === "propose_agent") {
+                  send({ type: "status", text: "Designing an agent" });
                   const inp = block.input ?? {};
                   let cron: string | null =
                     typeof inp.schedule_cron === "string" && inp.schedule_cron.trim()
@@ -253,46 +267,32 @@ Deno.serve(async (req: Request) => {
                     }
                   }
                   const kind = inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
-                  const config =
-                    kind === "reddit_monitor"
-                      ? {
-                          keywords: Array.isArray(inp.keywords) ? inp.keywords.map(String) : [],
-                          subreddits: Array.isArray(inp.subreddits)
-                            ? inp.subreddits.map(String)
-                            : [],
-                        }
-                      : {};
-                  const { data: task, error } = await userClient
-                    .from("tasks")
-                    .insert({
-                      team_id: teamId,
-                      created_by: user.id,
-                      title: String(inp.title ?? "Untitled task").slice(0, 200),
-                      instructions: String(inp.instructions ?? ""),
-                      channel: typeof inp.channel === "string" ? inp.channel : "dashboard",
-                      schedule_cron: cron,
-                      timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
-                      status: "active",
-                      kind,
-                      config,
-                    })
-                    .select("id, title")
-                    .single();
-                  if (error) {
-                    toolResults.push({
-                      type: "tool_result",
-                      tool_use_id: block.id,
-                      content: `Failed to create agent: ${error.message}`,
-                      is_error: true,
-                    });
-                  } else {
-                    created.push(task);
-                    toolResults.push({
-                      type: "tool_result",
-                      tool_use_id: block.id,
-                      content: `Agent "${task.title}" created (id ${task.id}). It is now active.`,
-                    });
-                  }
+                  const proposal = {
+                    id: block.id,
+                    title: String(inp.title ?? "Untitled agent").slice(0, 200),
+                    instructions: String(inp.instructions ?? ""),
+                    channel: typeof inp.channel === "string" ? inp.channel : "dashboard",
+                    schedule_cron: cron,
+                    timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
+                    kind,
+                    keywords:
+                      kind === "reddit_monitor" && Array.isArray(inp.keywords)
+                        ? inp.keywords.map(String)
+                        : [],
+                    subreddits:
+                      kind === "reddit_monitor" && Array.isArray(inp.subreddits)
+                        ? inp.subreddits.map(String)
+                        : [],
+                  };
+                  proposals.push(proposal);
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content:
+                      `Proposed the agent "${proposal.title}" to the user. They now see a card and ` +
+                      `click Create to set it up. Do not say it is created, active, or running; it ` +
+                      `is only a proposal until they create it. Keep your reply to a short line.`,
+                  });
                 } else if (block.name === "set_autonomy_mode") {
                   const next = block.input?.mode === "auto" ? "auto" : "ask";
                   const { error } = await userClient
@@ -371,7 +371,7 @@ Deno.serve(async (req: Request) => {
           }
           // Honor the no-em-dash rule regardless of the model.
           reply = reply.replace(/\s*—\s*/g, ", ");
-          send({ type: "done", reply: reply || "Done.", created });
+          send({ type: "done", reply: reply || "Done.", created, proposals });
         } catch (e) {
           send({ type: "error", error: e instanceof Error ? e.message : String(e) });
         } finally {
