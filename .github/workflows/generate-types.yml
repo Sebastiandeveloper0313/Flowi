@@ -19,12 +19,36 @@ jobs:
         with:
           version: latest
 
+      # Both steps below pull Docker images from a public registry that
+      # occasionally rate-limits the GitHub runners ("toomanyrequests"),
+      # failing the job in a few seconds. Retry with backoff so a transient
+      # rate-limit self-recovers instead of red-X'ing the PR.
       - name: Start Supabase
-        run: supabase db start
+        run: |
+          for attempt in 1 2 3 4; do
+            if supabase db start; then
+              exit 0
+            fi
+            echo "::warning::supabase db start failed (attempt ${attempt}/4), likely a transient registry rate-limit. Retrying..."
+            supabase stop --no-backup >/dev/null 2>&1 || true
+            sleep $((attempt * 20))
+          done
+          echo "::error::supabase db start failed after 4 attempts"
+          exit 1
 
       - name: Verify generated types match Postgres schema
         run: |
-          supabase gen types typescript --local > apps/web/src/integrations/supabase/types.gen.ts
+          for attempt in 1 2 3 4; do
+            if supabase gen types typescript --local > apps/web/src/integrations/supabase/types.gen.ts; then
+              break
+            fi
+            if [ "${attempt}" = "4" ]; then
+              echo "::error::gen types failed after 4 attempts"
+              exit 1
+            fi
+            echo "::warning::gen types failed (attempt ${attempt}/4), likely a transient registry rate-limit. Retrying..."
+            sleep $((attempt * 20))
+          done
           if ! git diff --ignore-space-at-eol --exit-code --quiet apps/web/src/integrations/supabase/types.gen.ts; then
             echo "Detected uncommitted changes after build. See status below:"
             git diff
