@@ -28,13 +28,23 @@ export const chatKeys = {
   messages: (id: string) => ["chat-messages", id] as const,
 };
 
+interface StreamEvent {
+  type: "status" | "done" | "error";
+  text?: string;
+  reply?: string;
+  created?: CreatedAgent[];
+  error?: string;
+}
+
 /**
- * Ask Flowy for a reply (and possibly spin up agents). Stateless AI call.
- * Uses fetch (not functions.invoke) so an in-flight request can be aborted.
+ * Ask Flowy for a reply (and possibly spin up agents). Streams "what I'm doing"
+ * status events (onStatus) while it works, then resolves with the final reply.
+ * Uses fetch (not functions.invoke) so it can stream and be aborted.
  */
 export async function sendChat(
   messages: { role: string; content: string }[],
   signal?: AbortSignal,
+  onStatus?: (text: string) => void,
 ): Promise<ChatResponse> {
   const {
     data: { session },
@@ -49,11 +59,41 @@ export async function sendChat(
     body: JSON.stringify({ messages }),
     signal,
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data?.error) {
-    throw new Error(data?.error ?? `Chat failed (${res.status})`);
+
+  // Non-streaming path (validation errors, or the "no AI key" fallback).
+  if (!res.headers.get("content-type")?.includes("text/event-stream") || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as Partial<ChatResponse> & { error?: string };
+    if (!res.ok || data.error) throw new Error(data.error ?? `Chat failed (${res.status})`);
+    return { reply: data.reply ?? "Done.", created: data.created ?? [] };
   }
-  return data as ChatResponse;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let result: ChatResponse | null = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const parts = buf.split("\n\n");
+    buf = parts.pop() ?? "";
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data:")) continue;
+      let evt: StreamEvent;
+      try {
+        evt = JSON.parse(line.slice(5).trim());
+      } catch {
+        continue;
+      }
+      if (evt.type === "status" && evt.text) onStatus?.(evt.text);
+      else if (evt.type === "done")
+        result = { reply: evt.reply ?? "Done.", created: evt.created ?? [] };
+      else if (evt.type === "error") throw new Error(evt.error ?? "Chat failed");
+    }
+  }
+  if (!result) throw new Error("No response from Flowy.");
+  return result;
 }
 
 export function useChat() {
@@ -62,10 +102,12 @@ export function useChat() {
     mutationFn: ({
       messages,
       signal,
+      onStatus,
     }: {
       messages: { role: string; content: string }[];
       signal?: AbortSignal;
-    }) => sendChat(messages, signal),
+      onStatus?: (text: string) => void;
+    }) => sendChat(messages, signal, onStatus),
     // a created agent should show up in the list immediately
     onSuccess: (data) => {
       if (data.created?.length) {

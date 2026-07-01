@@ -78,6 +78,23 @@ interface Msg {
   content: unknown;
 }
 
+/** Friendly "what I'm doing" text for a tool call, shown live in the chat. */
+function statusForTool(slug: string): string {
+  const map: Record<string, string> = {
+    GMAIL_FETCH_EMAILS: "Reading your inbox",
+    GMAIL_FETCH_MESSAGE_BY_THREAD_ID: "Reading the thread",
+    GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: "Reading the email",
+    GMAIL_LIST_THREADS: "Scanning your inbox",
+    GMAIL_GET_PROFILE: "Checking your account",
+    GMAIL_CREATE_EMAIL_DRAFT: "Drafting a reply",
+    GMAIL_SEND_EMAIL: "Sending an email",
+    GMAIL_SEARCH_PEOPLE: "Searching contacts",
+  };
+  if (map[slug]) return map[slug];
+  const toolkit = slug.split("_")[0] ?? "";
+  return toolkit ? `Working in ${toolkit.charAt(0) + toolkit.slice(1).toLowerCase()}` : "Working";
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -131,126 +148,150 @@ Deno.serve(async (req: Request) => {
       )
       .map((m: Msg) => ({ role: m.role, content: m.content }));
 
-    const working: Msg[] = [...convo];
-    const created: Array<{ id: string; title: string }> = [];
-    let reply = "";
-
-    for (let i = 0; i < 10; i++) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": key,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-opus-4-8",
-          max_tokens: 2048,
-          system,
-          tools: [TOOL, ...connectedTools],
-          messages: working,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        return json({ error: `Claude API error ${res.status}: ${body.slice(0, 300)}` }, 502);
-      }
-      const data = await res.json();
-
-      if (data.stop_reason === "tool_use") {
-        working.push({ role: "assistant", content: data.content });
-        const toolResults: unknown[] = [];
-        for (const block of data.content ?? []) {
-          if (block.type !== "tool_use") continue;
-          if (block.name === "create_recurring_task") {
-            const inp = block.input ?? {};
-            let cron: string | null =
-              typeof inp.schedule_cron === "string" && inp.schedule_cron.trim()
-                ? inp.schedule_cron.trim()
-                : null;
-            if (cron) {
-              try {
-                new Cron(cron);
-              } catch {
-                cron = null;
-              }
-            }
-            const kind = inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
-            const config =
-              kind === "reddit_monitor"
-                ? {
-                    keywords: Array.isArray(inp.keywords) ? inp.keywords.map(String) : [],
-                    subreddits: Array.isArray(inp.subreddits) ? inp.subreddits.map(String) : [],
-                  }
-                : {};
-            const { data: task, error } = await userClient
-              .from("tasks")
-              .insert({
-                team_id: teamId,
-                created_by: user.id,
-                title: String(inp.title ?? "Untitled task").slice(0, 200),
-                instructions: String(inp.instructions ?? ""),
-                channel: typeof inp.channel === "string" ? inp.channel : "dashboard",
-                schedule_cron: cron,
-                timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
-                status: "active",
-                kind,
-                config,
-              })
-              .select("id, title")
-              .single();
-            if (error) {
-              toolResults.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content: `Failed to create agent: ${error.message}`,
-                is_error: true,
-              });
-            } else {
-              created.push(task);
-              toolResults.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content: `Agent "${task.title}" created (id ${task.id}). It is now active.`,
-              });
-            }
-          } else if (isComposioTool(block.name)) {
-            // A connected-tool call (Gmail, etc.): execute against this team's account.
-            try {
-              const out = await executeComposioTool(teamId, block.name, block.input ?? {});
-              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: out });
-            } catch (e) {
-              toolResults.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content: `Error: ${e instanceof Error ? e.message : String(e)}`,
-                is_error: true,
-              });
-            }
-          } else {
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              content: "Unknown tool.",
-              is_error: true,
+    // Stream "what I'm doing" status events as Flowy works, then the final reply.
+    const enc = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (o: unknown) =>
+          controller.enqueue(enc.encode(`data: ${JSON.stringify(o)}\n\n`));
+        const working: Msg[] = [...convo];
+        const created: Array<{ id: string; title: string }> = [];
+        let reply = "";
+        try {
+          for (let i = 0; i < 10; i++) {
+            send({ type: "status", text: "Thinking" });
+            const res = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+              },
+              body: JSON.stringify({
+                model: "claude-opus-4-8",
+                max_tokens: 2048,
+                system,
+                tools: [TOOL, ...connectedTools],
+                messages: working,
+              }),
             });
+            if (!res.ok) {
+              const body = await res.text();
+              send({
+                type: "error",
+                error: `Claude API error ${res.status}: ${body.slice(0, 300)}`,
+              });
+              return;
+            }
+            const data = await res.json();
+
+            if (data.stop_reason === "tool_use") {
+              working.push({ role: "assistant", content: data.content });
+              const toolResults: unknown[] = [];
+              for (const block of data.content ?? []) {
+                if (block.type !== "tool_use") continue;
+                if (block.name === "create_recurring_task") {
+                  send({ type: "status", text: "Setting up an agent" });
+                  const inp = block.input ?? {};
+                  let cron: string | null =
+                    typeof inp.schedule_cron === "string" && inp.schedule_cron.trim()
+                      ? inp.schedule_cron.trim()
+                      : null;
+                  if (cron) {
+                    try {
+                      new Cron(cron);
+                    } catch {
+                      cron = null;
+                    }
+                  }
+                  const kind = inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+                  const config =
+                    kind === "reddit_monitor"
+                      ? {
+                          keywords: Array.isArray(inp.keywords) ? inp.keywords.map(String) : [],
+                          subreddits: Array.isArray(inp.subreddits)
+                            ? inp.subreddits.map(String)
+                            : [],
+                        }
+                      : {};
+                  const { data: task, error } = await userClient
+                    .from("tasks")
+                    .insert({
+                      team_id: teamId,
+                      created_by: user.id,
+                      title: String(inp.title ?? "Untitled task").slice(0, 200),
+                      instructions: String(inp.instructions ?? ""),
+                      channel: typeof inp.channel === "string" ? inp.channel : "dashboard",
+                      schedule_cron: cron,
+                      timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
+                      status: "active",
+                      kind,
+                      config,
+                    })
+                    .select("id, title")
+                    .single();
+                  if (error) {
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: `Failed to create agent: ${error.message}`,
+                      is_error: true,
+                    });
+                  } else {
+                    created.push(task);
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: `Agent "${task.title}" created (id ${task.id}). It is now active.`,
+                    });
+                  }
+                } else if (isComposioTool(block.name)) {
+                  send({ type: "status", text: statusForTool(block.name) });
+                  try {
+                    const out = await executeComposioTool(teamId, block.name, block.input ?? {});
+                    toolResults.push({ type: "tool_result", tool_use_id: block.id, content: out });
+                  } catch (e) {
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: `Error: ${e instanceof Error ? e.message : String(e)}`,
+                      is_error: true,
+                    });
+                  }
+                } else {
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: "Unknown tool.",
+                    is_error: true,
+                  });
+                }
+              }
+              working.push({ role: "user", content: toolResults });
+              continue;
+            }
+
+            reply = (data.content ?? [])
+              .filter((b: { type: string }) => b.type === "text")
+              .map((b: { text: string }) => b.text)
+              .join("\n")
+              .trim();
+            break;
           }
+          // Honor the no-em-dash rule regardless of the model.
+          reply = reply.replace(/\s*—\s*/g, ", ");
+          send({ type: "done", reply: reply || "Done.", created });
+        } catch (e) {
+          send({ type: "error", error: e instanceof Error ? e.message : String(e) });
+        } finally {
+          controller.close();
         }
-        working.push({ role: "user", content: toolResults });
-        continue;
-      }
+      },
+    });
 
-      reply = (data.content ?? [])
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
-        .join("\n")
-        .trim();
-      break;
-    }
-
-    // Honor the no-em-dash rule regardless of the model.
-    reply = reply.replace(/\s*—\s*/g, ", ");
-    return json({ reply: reply || "Done.", created });
+    return new Response(stream, {
+      headers: { ...cors, "content-type": "text/event-stream", "cache-control": "no-cache" },
+    });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }

@@ -2,17 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import {
-  ArrowUp,
-  Check,
-  CheckCircle2,
-  Copy,
-  Loader2,
-  Mic,
-  Paperclip,
-  Sparkles,
-  Square,
-} from "lucide-react";
+import { ArrowUp, Check, CheckCircle2, Copy, Mic, Paperclip, Sparkles, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
@@ -93,6 +83,7 @@ export function Chat({ chatId }: { chatId?: string }) {
   const { data: user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [status, setStatus] = useState("Thinking");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // the conversation whose state we already manage live; lets us tell
@@ -157,10 +148,12 @@ export function Chat({ chatId }: { chatId?: string }) {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    setStatus("Thinking");
     chat.mutate(
       {
         messages: next.map((m) => ({ role: m.role, content: m.content })),
         signal: controller.signal,
+        onStatus: setStatus,
       },
       {
         onSuccess: async (data) => {
@@ -308,11 +301,11 @@ export function Chat({ chatId }: { chatId?: string }) {
             ),
           )}
           {chat.isPending && (
-            <div className="text-muted-foreground flex items-center gap-3 text-sm">
-              <FlowyAvatar />
-              <span className="flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" /> Flowy is working…
+            <div className="flex items-center gap-3">
+              <span className="animate-pulse">
+                <FlowyAvatar />
               </span>
+              <span className="text-muted-foreground animate-pulse text-sm">{status}…</span>
             </div>
           )}
         </div>
