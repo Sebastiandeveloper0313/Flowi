@@ -138,12 +138,14 @@ export async function executeTask(
     content.forEach((b, idx) => {
       if (b.type !== "text") lastToolIdx = idx;
     });
-    const output: string = content
+    const raw: string = content
       .slice(lastToolIdx + 1)
       .filter((b) => b.type === "text")
       .map((b) => b.text ?? "")
       .join("\n")
       .trim();
+    // Deterministically honor the no-em-dash rule regardless of the model.
+    const output = raw.replace(/\s*—\s*/g, ", ");
     const firstLine = output.split("\n").find((l) => l.trim()) ?? "Done";
     return { summary: firstLine.slice(0, 140), output: output || "(empty response)" };
   } finally {

@@ -4,6 +4,12 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { Cron } from "npm:croner@9";
 
+import {
+  composioEnabled,
+  executeComposioTool,
+  isComposioTool,
+  toolsForUser,
+} from "../_shared/composio.ts";
 import { chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
 
 const cors = {
@@ -113,6 +119,10 @@ Deno.serve(async (req: Request) => {
     const ws = await fetchWorkspaceContext(userClient, teamId);
     const system = chatSystem(ws);
 
+    // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
+    // not just talk. Executed against this team's own accounts via Composio.
+    const connectedTools = composioEnabled() ? await toolsForUser(teamId).catch(() => []) : [];
+
     // Only trust plain {role, content:string} turns from the client.
     const convo: Msg[] = messages
       .filter(
@@ -125,7 +135,7 @@ Deno.serve(async (req: Request) => {
     const created: Array<{ id: string; title: string }> = [];
     let reply = "";
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 10; i++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -137,7 +147,7 @@ Deno.serve(async (req: Request) => {
           model: "claude-opus-4-8",
           max_tokens: 2048,
           system,
-          tools: [TOOL],
+          tools: [TOOL, ...connectedTools],
           messages: working,
         }),
       });
@@ -204,6 +214,19 @@ Deno.serve(async (req: Request) => {
                 content: `Agent "${task.title}" created (id ${task.id}). It is now active.`,
               });
             }
+          } else if (isComposioTool(block.name)) {
+            // A connected-tool call (Gmail, etc.): execute against this team's account.
+            try {
+              const out = await executeComposioTool(teamId, block.name, block.input ?? {});
+              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: out });
+            } catch (e) {
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: `Error: ${e instanceof Error ? e.message : String(e)}`,
+                is_error: true,
+              });
+            }
           } else {
             toolResults.push({
               type: "tool_result",
@@ -225,6 +248,8 @@ Deno.serve(async (req: Request) => {
       break;
     }
 
+    // Honor the no-em-dash rule regardless of the model.
+    reply = reply.replace(/\s*—\s*/g, ", ");
     return json({ reply: reply || "Done.", created });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
