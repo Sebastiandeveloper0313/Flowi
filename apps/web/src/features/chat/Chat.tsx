@@ -2,7 +2,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUp, CheckCircle2, Loader2, Mic, Paperclip, Sparkles } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  Mic,
+  Paperclip,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
@@ -18,6 +27,55 @@ import {
   useChat,
 } from "./hooks";
 import { ChatMarkdown } from "./Markdown";
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // fallback for older browsers / non-secure contexts
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        if (await copyText(text)) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }
+      }}
+      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs transition"
+      aria-label="Copy message"
+    >
+      {copied ? (
+        <>
+          <Check className="size-3.5" /> Copied
+        </>
+      ) : (
+        <>
+          <Copy className="size-3.5" /> Copy
+        </>
+      )}
+    </button>
+  );
+}
 
 function FlowyAvatar() {
   return (
@@ -206,13 +264,16 @@ export function Chat({ chatId }: { chatId?: string }) {
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="flex justify-end">
+              <div key={i} className="group flex flex-col items-end gap-1">
                 <div className="bg-primary max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm text-white">
                   {m.content}
                 </div>
+                <div className="px-1">
+                  <CopyButton text={m.content} />
+                </div>
               </div>
             ) : (
-              <div key={i} className="flex gap-3">
+              <div key={i} className="group flex gap-3">
                 <FlowyAvatar />
                 <div className="min-w-0 flex-1 space-y-2">
                   <ChatMarkdown>{m.content}</ChatMarkdown>
@@ -224,6 +285,9 @@ export function Chat({ chatId }: { chatId?: string }) {
                       <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
                     </div>
                   ))}
+                  <div className="pt-0.5">
+                    <CopyButton text={m.content} />
+                  </div>
                 </div>
               </div>
             ),
