@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createTask, deleteTask, runTask, setTaskStatus, updateTaskConfig } from "./mutations";
+import {
+  type AgentProposalInput,
+  createAgentFromProposal,
+  createTask,
+  deleteTask,
+  runTask,
+  setTaskStatus,
+  updateTaskConfig,
+} from "./mutations";
 import {
   myTeamQueryOptions,
   runsQueryOptions,
@@ -41,6 +49,15 @@ export function useCreateTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createTask,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+export function useCreateAgentFromProposal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, proposal }: { teamId: string; proposal: AgentProposalInput }) =>
+      createAgentFromProposal(teamId, proposal),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   });
 }

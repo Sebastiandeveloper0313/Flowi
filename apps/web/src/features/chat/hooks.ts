@@ -12,15 +12,29 @@ export interface CreatedAgent {
   title: string;
 }
 
+export interface AgentProposal {
+  id: string;
+  title: string;
+  instructions: string;
+  channel: string;
+  schedule_cron: string | null;
+  timezone: string;
+  kind: "content" | "reddit_monitor";
+  keywords: string[];
+  subreddits: string[];
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created?: CreatedAgent[];
+  proposals?: AgentProposal[];
 }
 
 export interface ChatResponse {
   reply: string;
   created: CreatedAgent[];
+  proposals: AgentProposal[];
 }
 
 export interface Attachment {
@@ -44,6 +58,7 @@ interface StreamEvent {
   text?: string;
   reply?: string;
   created?: CreatedAgent[];
+  proposals?: AgentProposal[];
   error?: string;
 }
 
@@ -81,7 +96,7 @@ export async function sendChat(
   if (!res.headers.get("content-type")?.includes("text/event-stream") || !res.body) {
     const data = (await res.json().catch(() => ({}))) as Partial<ChatResponse> & { error?: string };
     if (!res.ok || data.error) throw new Error(data.error ?? `Chat failed (${res.status})`);
-    return { reply: data.reply ?? "Done.", created: data.created ?? [] };
+    return { reply: data.reply ?? "Done.", created: data.created ?? [], proposals: [] };
   }
 
   const reader = res.body.getReader();
@@ -105,7 +120,11 @@ export async function sendChat(
       }
       if (evt.type === "status" && evt.text) onStatus?.(evt.text);
       else if (evt.type === "done")
-        result = { reply: evt.reply ?? "Done.", created: evt.created ?? [] };
+        result = {
+          reply: evt.reply ?? "Done.",
+          created: evt.created ?? [],
+          proposals: evt.proposals ?? [],
+        };
       else if (evt.type === "error") throw new Error(evt.error ?? "Chat failed");
     }
   }

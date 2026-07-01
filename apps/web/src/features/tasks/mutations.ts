@@ -31,6 +31,47 @@ export async function createTask(input: CreateTaskInput) {
   return data;
 }
 
+export interface AgentProposalInput {
+  title: string;
+  instructions: string;
+  channel: string;
+  schedule_cron: string | null;
+  timezone: string;
+  kind: "content" | "reddit_monitor";
+  keywords: string[];
+  subreddits: string[];
+}
+
+/** Create a real agent from a chat proposal (the "Create agent" button). */
+export async function createAgentFromProposal(teamId: string, p: AgentProposalInput) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const config =
+    p.kind === "reddit_monitor" ? { keywords: p.keywords, subreddits: p.subreddits } : {};
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert({
+      team_id: teamId,
+      created_by: user.id,
+      title: p.title.slice(0, 200),
+      instructions: p.instructions,
+      channel: p.channel,
+      schedule_cron: p.schedule_cron,
+      timezone: p.timezone,
+      status: "active",
+      kind: p.kind,
+      config,
+    })
+    .select("id, title")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function runTask(taskId: string) {
   const { data, error } = await supabase.functions.invoke("run-task", {
     body: { task_id: taskId },
