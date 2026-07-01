@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useConfirm } from "@/components/useConfirm";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import {
   channelLabel,
@@ -52,6 +53,7 @@ function AgentDetailPage() {
   const run = useRunTask();
   const setStatus = useSetTaskStatus();
   const remove = useDeleteTask();
+  const { confirm, dialog } = useConfirm();
 
   const agent = tasks?.find((t) => t.id === agentId);
 
@@ -132,10 +134,14 @@ function AgentDetailPage() {
             variant="ghost"
             className="text-muted-foreground hover:text-destructive"
             disabled={remove.isPending}
-            onClick={() => {
-              if (confirm(`Delete “${agent.title}”? This can't be undone.`)) {
-                remove.mutate(agent.id, { onSuccess: () => navigate({ to: "/agents" }) });
-              }
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Delete agent?",
+                description: `“${agent.title}” will be permanently deleted. This can't be undone.`,
+                confirmLabel: "Delete",
+                destructive: true,
+              });
+              if (ok) remove.mutate(agent.id, { onSuccess: () => navigate({ to: "/agents" }) });
             }}
           >
             <Trash2 className="size-4" />
@@ -229,6 +235,7 @@ function AgentDetailPage() {
           </Button>
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

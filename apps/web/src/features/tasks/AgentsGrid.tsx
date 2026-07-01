@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useConfirm } from "@/components/useConfirm";
+
 import {
   channelLabel,
   scheduleLabel,
@@ -71,109 +73,121 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
   const setStatus = useSetTaskStatus();
   const remove = useDeleteTask();
   const run = useRunTask();
+  const { confirm, dialog } = useConfirm();
   const [showOutput, setShowOutput] = useState(false);
   const paused = task.status === "paused";
   const running = run.isPending || latestRun?.status === "running";
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-base leading-snug">{task.title}</CardTitle>
-          <Badge variant={paused ? "secondary" : "default"}>{paused ? "Paused" : "Active"}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-muted-foreground line-clamp-3 text-sm">{task.instructions}</p>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-base leading-snug">{task.title}</CardTitle>
+            <Badge variant={paused ? "secondary" : "default"}>{paused ? "Paused" : "Active"}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground line-clamp-3 text-sm">{task.instructions}</p>
 
-        <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          <span className="flex items-center gap-1.5">
-            <CalendarClock className="size-3.5" /> {scheduleLabel(task.schedule_cron)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Hash className="size-3.5" /> {channelLabel(task.channel)}
-          </span>
-        </div>
+          <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <span className="flex items-center gap-1.5">
+              <CalendarClock className="size-3.5" /> {scheduleLabel(task.schedule_cron)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Hash className="size-3.5" /> {channelLabel(task.channel)}
+            </span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Button size="sm" disabled={running} onClick={() => run.mutate(task.id)}>
-            {running ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="size-3.5" />
-            )}
-            {running ? "Running…" : "Run now"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={setStatus.isPending}
-            onClick={() => setStatus.mutate({ id: task.id, status: paused ? "active" : "paused" })}
-          >
-            {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-            {paused ? "Resume" : "Pause"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive"
-            disabled={remove.isPending}
-            onClick={() => {
-              if (confirm(`Delete “${task.title}”? This can't be undone.`)) remove.mutate(task.id);
-            }}
-          >
-            <Trash2 className="size-3.5" /> Delete
-          </Button>
-        </div>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Button size="sm" disabled={running} onClick={() => run.mutate(task.id)}>
+              {running ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              {running ? "Running…" : "Run now"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={setStatus.isPending}
+              onClick={() =>
+                setStatus.mutate({ id: task.id, status: paused ? "active" : "paused" })
+              }
+            >
+              {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+              {paused ? "Resume" : "Pause"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              disabled={remove.isPending}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: "Delete agent?",
+                  description: `“${task.title}” will be permanently deleted. This can't be undone.`,
+                  confirmLabel: "Delete",
+                  destructive: true,
+                });
+                if (ok) remove.mutate(task.id);
+              }}
+            >
+              <Trash2 className="size-3.5" /> Delete
+            </Button>
+          </div>
 
-        {run.isError && (
-          <p className="text-destructive text-xs">
-            {(run.error as Error).message || "Run failed."}
-          </p>
-        )}
+          {run.isError && (
+            <p className="text-destructive text-xs">
+              {(run.error as Error).message || "Run failed."}
+            </p>
+          )}
 
-        {latestRun && (
-          <div className="bg-muted/50 rounded-lg border p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2 text-sm font-medium">
-                <span
-                  className={`size-2 rounded-full ${
-                    latestRun.status === "succeeded"
-                      ? "bg-green-500"
-                      : latestRun.status === "failed"
-                        ? "bg-destructive"
-                        : "bg-amber-500"
-                  }`}
-                />
-                Latest result
-              </span>
-              {latestRun.output && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => setShowOutput((v) => !v)}
-                >
-                  {showOutput ? (
-                    <ChevronUp className="size-3" />
-                  ) : (
-                    <ChevronDown className="size-3" />
-                  )}
-                  {showOutput ? "Hide" : "View"}
-                </Button>
+          {latestRun && (
+            <div className="bg-muted/50 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <span
+                    className={`size-2 rounded-full ${
+                      latestRun.status === "succeeded"
+                        ? "bg-green-500"
+                        : latestRun.status === "failed"
+                          ? "bg-destructive"
+                          : "bg-amber-500"
+                    }`}
+                  />
+                  Latest result
+                </span>
+                {latestRun.output && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setShowOutput((v) => !v)}
+                  >
+                    {showOutput ? (
+                      <ChevronUp className="size-3" />
+                    ) : (
+                      <ChevronDown className="size-3" />
+                    )}
+                    {showOutput ? "Hide" : "View"}
+                  </Button>
+                )}
+              </div>
+              <p className="text-muted-foreground mt-1.5 text-sm">
+                {latestRun.error ?? latestRun.summary ?? "No summary."}
+              </p>
+              {showOutput && latestRun.output && (
+                <pre className="text-muted-foreground mt-2 max-h-60 overflow-auto border-t pt-2 text-xs whitespace-pre-wrap">
+                  {latestRun.output}
+                </pre>
               )}
             </div>
-            <p className="text-muted-foreground mt-1.5 text-sm">
-              {latestRun.error ?? latestRun.summary ?? "No summary."}
-            </p>
-            {showOutput && latestRun.output && (
-              <pre className="text-muted-foreground mt-2 max-h-60 overflow-auto border-t pt-2 text-xs whitespace-pre-wrap">
-                {latestRun.output}
-              </pre>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+      {dialog}
+    </>
   );
 }
