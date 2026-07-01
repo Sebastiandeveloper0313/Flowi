@@ -126,10 +126,15 @@ async function scoreAndDraft(
   const system =
     operatorPersona(ws) +
     "\n\nYou are scanning Reddit for genuine sales leads for this company and drafting replies.\n" +
-    "A real lead is someone describing a problem this company solves, asking for a recommendation, comparing " +
-    "options, or frustrated with an alternative. Be strict: most posts are NOT leads. " +
-    `Score each post 0-100 by how well the author fits ${companyName(ws)}'s ICP (the audience above) and their buying intent. ` +
-    `Only score ${minRel} or higher when there is a real fit.\n` +
+    "A real lead is someone who has the problem this company solves and shows intent to fix it: asking for a " +
+    "recommendation, comparing options, frustrated with their current tool, or plainly describing the pain. " +
+    "Score mostly on that, the PROBLEM and their INTENT, not on whether they perfectly match the ideal customer " +
+    `profile. Treat ${companyName(ws)}'s ICP as a bonus signal, not a gate: someone with a clear, relevant problem ` +
+    "and real intent is still a good lead even if you cannot tell they match the ICP exactly, so do not reject them " +
+    "just because they look like a small business or a solo founder rather than the ideal profile. Still be honest: " +
+    "off-topic posts, people offering a solution, and idle chatter are NOT leads.\n" +
+    `Score each post 0-100 (problem + intent, plus a bump for ICP fit) and score ${minRel} or higher whenever they ` +
+    "genuinely have a relevant problem and some intent.\n" +
     `For any post scoring ${minRel}+, write the reply as a real person leaving a helpful comment: lead with the genuinely ` +
     "useful answer, and bring up this company's product only if it truly fits the conversation (often it should not appear at all).\n\n" +
     QUALITY_STANDARDS +
@@ -146,7 +151,7 @@ async function scoreAndDraft(
     '[{"external_id":"t3_...","is_lead":true|false,"relevance":0-100,"reason":"one short line",' +
     '"draft_reply":"the reply, or empty string if not a lead"}]';
 
-  const text = await callClaude(system, user, 4096);
+  const text = await callClaude(system, user, 6000);
   const arr = extractJson<Partial<Judged>[]>(text, "[") ?? [];
   return arr
     .filter((r): r is Judged => typeof r?.external_id === "string")
@@ -235,24 +240,30 @@ export async function runRedditMonitor(
     };
   }
 
-  const minRel = cfg.min_relevance ?? 60;
+  const minRel = cfg.min_relevance ?? 55;
   const maxLeads = cfg.max_leads ?? 10;
 
   // 1. gather candidate posts. Composio search is Reddit-wide, so we search each
   // buyer-intent keyword globally; the derived subreddits still steer scoring.
+  // Two passes per keyword, "relevance" (the best matches, at any age) and "new"
+  // (the freshest), so niche phrases still surface plenty to score. All searches
+  // run in parallel so the extra breadth doesn't slow the run.
+  const queries: { q: string; sort: "relevance" | "new" }[] = [];
+  for (const q of keywords.slice(0, 10)) {
+    for (const sort of ["relevance", "new"] as const) queries.push({ q, sort });
+  }
+  const results = await Promise.allSettled(
+    queries.map(({ q, sort }) => redditSearch(task.team_id, q, { sort, limit: 40 })),
+  );
   const seen = new Set<string>();
   const candidates: RedditPost[] = [];
-  for (const q of keywords.slice(0, 12)) {
-    try {
-      const posts = await redditSearch(task.team_id, q, { sort: "new", limit: 15 });
-      for (const p of posts) {
-        if (!seen.has(p.external_id)) {
-          seen.add(p.external_id);
-          candidates.push(p);
-        }
+  for (const r of results) {
+    if (r.status !== "fulfilled") continue; // a bad/slow query shouldn't kill the run
+    for (const p of r.value) {
+      if (!seen.has(p.external_id)) {
+        seen.add(p.external_id);
+        candidates.push(p);
       }
-    } catch {
-      // one bad query shouldn't kill the run
     }
   }
   if (!candidates.length) {
@@ -271,7 +282,7 @@ export async function runRedditMonitor(
     .eq("source", "reddit")
     .in("external_id", ids);
   const have = new Set((existing ?? []).map((r: { external_id: string }) => r.external_id));
-  const fresh = candidates.filter((c) => !have.has(c.external_id)).slice(0, 25);
+  const fresh = candidates.filter((c) => !have.has(c.external_id)).slice(0, 40);
   if (!fresh.length) {
     return {
       summary: "No new leads (all already seen)",

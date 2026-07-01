@@ -181,6 +181,7 @@ export async function redditSearch(
 ): Promise<RedditPost[]> {
   const d = await composio(`/tools/execute/REDDIT_SEARCH_ACROSS_SUBREDDITS`, {
     method: "POST",
+    signal: AbortSignal.timeout(20_000), // don't let one slow query hang the run
     body: JSON.stringify({
       user_id: userId,
       arguments: {
