@@ -28,6 +28,88 @@ export type Database = {
   };
   public: {
     Tables: {
+      approvals: {
+        Row: {
+          agent_title: string | null;
+          created_at: string;
+          created_by: string | null;
+          decided_at: string | null;
+          decided_by: string | null;
+          detail: string | null;
+          id: string;
+          result: string | null;
+          run_id: string | null;
+          source: string;
+          status: string;
+          task_id: string | null;
+          team_id: string;
+          title: string;
+          tool_args: Json;
+          tool_slug: string;
+          updated_at: string;
+        };
+        Insert: {
+          agent_title?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          detail?: string | null;
+          id?: string;
+          result?: string | null;
+          run_id?: string | null;
+          source?: string;
+          status?: string;
+          task_id?: string | null;
+          team_id: string;
+          title: string;
+          tool_args?: Json;
+          tool_slug: string;
+          updated_at?: string;
+        };
+        Update: {
+          agent_title?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          detail?: string | null;
+          id?: string;
+          result?: string | null;
+          run_id?: string | null;
+          source?: string;
+          status?: string;
+          task_id?: string | null;
+          team_id?: string;
+          title?: string;
+          tool_args?: Json;
+          tool_slug?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "approvals_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "task_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "approvals_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "approvals_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       chat_messages: {
         Row: {
           chat_id: string;

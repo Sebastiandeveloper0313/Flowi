@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/r
 import type { Tables } from "@workspace/supabase/types";
 
 import { env } from "@/env";
+import { approvalKeys } from "@/features/approvals/queries";
 import { taskKeys } from "@/features/tasks/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -125,11 +126,14 @@ export function useChat() {
       onStatus?: (text: string) => void;
       attachments?: Attachment[];
     }) => sendChat(messages, signal, onStatus, attachments),
-    // a created agent should show up in the list immediately
+    // a created agent should show up in the list immediately; a chat turn may
+    // also have queued an action for approval, so refresh those too.
     onSuccess: (data) => {
       if (data.created?.length) {
         void queryClient.invalidateQueries({ queryKey: taskKeys.all });
       }
+      void queryClient.invalidateQueries({ queryKey: approvalKeys.all });
+      void queryClient.invalidateQueries({ queryKey: approvalKeys.pendingCount });
     },
   });
 }

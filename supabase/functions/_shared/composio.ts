@@ -9,8 +9,8 @@ const AUTH_CONFIGS: Record<string, string> = {
   gmail: "ac_v7EeY-JplVT0",
 };
 
-// Curated, safe toolset per toolkit: read + draft only, never auto-send. High-stakes
-// actions (sending) stay behind explicit user action for now, like Viktor's confirms.
+// Curated toolset per toolkit. Read + draft tools run instantly; write tools
+// (see WRITE_TOOLS) reach the outside world and are gated behind a human approval.
 const CURATED_TOOLS: Record<string, string[]> = {
   gmail: [
     "GMAIL_FETCH_EMAILS",
@@ -18,8 +18,50 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "GMAIL_LIST_THREADS",
     "GMAIL_GET_PROFILE",
     "GMAIL_CREATE_EMAIL_DRAFT",
+    "GMAIL_SEND_EMAIL",
   ],
 };
+
+// High-stakes tools that reach the outside world. When the model calls one of
+// these we never execute it directly; we queue an approval and let the user
+// decide. Everything not listed here is a safe read/draft that runs instantly.
+const WRITE_TOOLS = new Set<string>(["GMAIL_SEND_EMAIL"]);
+
+/** True if a tool takes a real, outward-facing action that needs user approval. */
+export function isWriteTool(slug: string): boolean {
+  return WRITE_TOOLS.has(slug);
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+/**
+ * A human title + detail for a proposed write action, shown on the approval card.
+ * Falls back to a generic description for tools we don't specifically format.
+ */
+export function describeToolCall(
+  slug: string,
+  // deno-lint-ignore no-explicit-any
+  args: Record<string, any>,
+): { title: string; detail: string } {
+  if (slug === "GMAIL_SEND_EMAIL") {
+    const to = str(args.recipient_email || args.to || args.recipient).trim();
+    const subject = str(args.subject).trim();
+    const body = str(args.body || args.message_body || args.message).trim();
+    const preview = body.length > 280 ? `${body.slice(0, 280)}…` : body;
+    return {
+      title: to ? `Send email to ${to}` : "Send an email",
+      detail: [subject && `Subject: ${subject}`, preview].filter(Boolean).join("\n\n"),
+    };
+  }
+  const toolkit = slug.split("_")[0] ?? "";
+  const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
+  return {
+    title: `Run ${slug}`,
+    detail: `Flowy wants to take an action in ${nice}.`,
+  };
+}
 
 export const SUPPORTED_TOOLKITS = Object.keys(AUTH_CONFIGS);
 

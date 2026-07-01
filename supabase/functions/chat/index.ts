@@ -4,10 +4,12 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { Cron } from "npm:croner@9";
 
+import { queueApproval } from "../_shared/approvals.ts";
 import {
   composioEnabled,
   executeComposioTool,
   isComposioTool,
+  isWriteTool,
   toolsForUser,
 } from "../_shared/composio.ts";
 import { chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
@@ -272,6 +274,21 @@ Deno.serve(async (req: Request) => {
                       content: `Agent "${task.title}" created (id ${task.id}). It is now active.`,
                     });
                   }
+                } else if (isComposioTool(block.name) && isWriteTool(block.name)) {
+                  // High-stakes action: queue it for the user's approval, never send now.
+                  send({ type: "status", text: "Waiting for your approval" });
+                  const { message } = await queueApproval(userClient, {
+                    teamId,
+                    toolSlug: block.name,
+                    toolArgs: block.input ?? {},
+                    source: "chat",
+                    createdBy: user.id,
+                  });
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: message,
+                  });
                 } else if (isComposioTool(block.name)) {
                   send({ type: "status", text: statusForTool(block.name) });
                   try {

@@ -2,7 +2,14 @@
 // and the scheduler (run-due-tasks), so the two paths can never drift.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { composioEnabled, executeComposioTool, isComposioTool, toolsForUser } from "./composio.ts";
+import { queueApproval } from "./approvals.ts";
+import {
+  composioEnabled,
+  executeComposioTool,
+  isComposioTool,
+  isWriteTool,
+  toolsForUser,
+} from "./composio.ts";
 import { fetchWorkspaceContext, runnerSystem, type WorkspaceContext } from "./marketing.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 
@@ -25,10 +32,17 @@ export interface RunResult {
   error?: string;
 }
 
+/** How to gate write actions: the client to record approvals with and the run they belong to. */
+export interface ExecuteContext {
+  client: SupabaseClient;
+  runId?: string | null;
+}
+
 /** Produce the finished work for a task (real Claude call, or a preview when no key is set). */
 export async function executeTask(
   task: TaskRow,
   ws: WorkspaceContext | null = null,
+  ctx: ExecuteContext | null = null,
 ): Promise<{ summary: string; output: string }> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
 
@@ -113,6 +127,20 @@ export async function executeTask(
             });
             continue;
           }
+          // High-stakes actions never run unattended: queue them for approval.
+          if (isWriteTool(b.name) && ctx?.client) {
+            const { message } = await queueApproval(ctx.client, {
+              teamId: task.team_id,
+              toolSlug: b.name,
+              toolArgs: b.input ?? {},
+              source: "agent",
+              agentTitle: task.title,
+              taskId: task.id,
+              runId: ctx.runId ?? null,
+            });
+            results.push({ type: "tool_result", tool_use_id: b.id, content: message });
+            continue;
+          }
           try {
             const out = await executeComposioTool(task.team_id, b.name, b.input ?? {});
             results.push({ type: "tool_result", tool_use_id: b.id, content: out });
@@ -188,7 +216,7 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
     const { summary, output } =
       task.kind === "reddit_monitor"
         ? await runRedditMonitor(admin, task, ws)
-        : await executeTask(task, ws);
+        : await executeTask(task, ws, { client: admin, runId: run.id });
     await admin
       .from("task_runs")
       .update({ status: "succeeded", summary, output, finished_at: new Date().toISOString() })

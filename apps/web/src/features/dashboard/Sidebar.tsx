@@ -22,16 +22,16 @@ import { useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
 import { useConfirm } from "@/components/useConfirm";
+import { usePendingApprovalCount } from "@/features/approvals/hooks";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
 
 import { FlowyLogo } from "./brand";
-import { approvals } from "./mock";
 
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
   { to: "/agents", label: "Agents", icon: Bot },
   { to: "/activity", label: "Activity", icon: Activity },
-  { to: "/approvals", label: "Approvals", icon: CheckCheck, badge: approvals.length },
+  { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -41,6 +41,7 @@ const STORAGE_KEY = "flowy.sidebar.collapsed";
 export function Sidebar() {
   const { data: user } = useUser();
   const { data: chats } = useChats();
+  const { data: pendingApprovals } = usePendingApprovalCount();
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -85,20 +86,23 @@ export function Sidebar() {
       </div>
 
       <nav className="flowy-nav">
-        {NAV.map(({ to, label, icon: Icon, badge, exact }) => (
-          <Link
-            key={to}
-            to={to}
-            search={to === "/dashboard" ? { c: undefined } : undefined}
-            title={label}
-            activeProps={{ className: "active" }}
-            activeOptions={exact ? { exact: true } : undefined}
-          >
-            <Icon className="nav-ico" />
-            <span className="nav-label">{label}</span>
-            {badge ? <span className="nav-badge">{badge}</span> : null}
-          </Link>
-        ))}
+        {NAV.map(({ to, label, icon: Icon, exact }) => {
+          const badge = to === "/approvals" ? (pendingApprovals ?? 0) : 0;
+          return (
+            <Link
+              key={to}
+              to={to}
+              search={to === "/dashboard" ? { c: undefined } : undefined}
+              title={label}
+              activeProps={{ className: "active" }}
+              activeOptions={exact ? { exact: true } : undefined}
+            >
+              <Icon className="nav-ico" />
+              <span className="nav-label">{label}</span>
+              {badge ? <span className="nav-badge">{badge}</span> : null}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="flowy-recent">
