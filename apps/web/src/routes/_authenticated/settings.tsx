@@ -3,11 +3,18 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { Brain, Check, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Textarea } from "@workspace/ui/components/textarea";
+import { AlertTriangle, Brain, Check, Globe, Loader2, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { CHANNEL_LABELS, type Channel, memory as initialMemory } from "@/features/dashboard/mock";
+import { CHANNEL_LABELS, type Channel } from "@/features/dashboard/mock";
 import { PageHeader } from "@/features/dashboard/ui";
+import type { BusinessContext } from "@/features/onboarding/mutations";
+import {
+  useAnalyzeWebsite,
+  useSaveBusinessContext,
+  useWorkspace,
+} from "@/features/workspace/hooks";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -18,19 +25,19 @@ function SettingsPage() {
     <div className="flowy-page">
       <PageHeader
         title="Settings"
-        subtitle="Channels, what Flowy remembers, billing, and your account."
+        subtitle="What Flowy knows about your business, channels, billing, and your account."
       />
 
-      <Tabs defaultValue="memory">
+      <Tabs defaultValue="business">
         <TabsList className="mb-6">
-          <TabsTrigger value="memory">Memory</TabsTrigger>
+          <TabsTrigger value="business">Business</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="memory">
-          <MemoryTab />
+        <TabsContent value="business">
+          <BusinessTab />
         </TabsContent>
         <TabsContent value="channels">
           <ChannelsTab />
@@ -46,23 +53,64 @@ function SettingsPage() {
   );
 }
 
-function MemoryTab() {
-  const [mem, setMem] = useState(initialMemory);
+const FIELDS: { key: keyof BusinessContext; label: string; hint: string; rows: number }[] = [
+  { key: "summary", label: "Summary", hint: "What the business is, in a sentence or two", rows: 2 },
+  { key: "what_they_do", label: "What you do", hint: "What you actually sell or offer", rows: 2 },
+  { key: "product", label: "Product", hint: "The core product and its value", rows: 2 },
+  {
+    key: "audience",
+    label: "Audience (ICP)",
+    hint: "Who your customers are, specifically",
+    rows: 2,
+  },
+  {
+    key: "positioning",
+    label: "Positioning",
+    hint: "How you're different from alternatives",
+    rows: 2,
+  },
+];
 
-  const update = (section: string, idx: number, value: string) =>
-    setMem((m) =>
-      m.map((s) =>
-        s.title === section
-          ? { ...s, items: s.items.map((it, i) => (i === idx ? { ...it, value } : it)) }
-          : s,
-      ),
+function BusinessTab() {
+  const { data: ws, isLoading } = useWorkspace();
+  const analyze = useAnalyzeWebsite();
+  const save = useSaveBusinessContext();
+  const [url, setUrl] = useState("");
+  const [ctx, setCtx] = useState<BusinessContext>({});
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!ws) return;
+    setUrl(ws.website_url ?? "");
+    setCtx((ws.business_context as BusinessContext | null) ?? {});
+    setDirty(false);
+  }, [ws]);
+
+  function setField<K extends keyof BusinessContext>(k: K, v: BusinessContext[K]) {
+    setCtx((c) => ({ ...c, [k]: v }));
+    setDirty(true);
+  }
+
+  function onAnalyze() {
+    const u = url.trim();
+    if (!u) return;
+    analyze.mutate(u, {
+      onSuccess: (context) => {
+        setCtx(context);
+        setDirty(false);
+      },
+    });
+  }
+
+  function onSave() {
+    if (!ws) return;
+    save.mutate(
+      { teamId: ws.id, context: ctx, websiteUrl: url.trim() || undefined },
+      { onSuccess: () => setDirty(false) },
     );
-  const remove = (section: string, idx: number) =>
-    setMem((m) =>
-      m.map((s) =>
-        s.title === section ? { ...s, items: s.items.filter((_, i) => i !== idx) } : s,
-      ),
-    );
+  }
+
+  const hasContext = !!(ctx.summary || ctx.what_they_do || ctx.product || ctx.audience);
 
   return (
     <div className="space-y-5">
@@ -71,45 +119,154 @@ function MemoryTab() {
           <Brain className="size-5" />
         </span>
         <div>
-          <p className="font-semibold">This is everything Flowy remembers about you.</p>
+          <p className="font-semibold">This is what Flowy knows about your business.</p>
           <p className="text-muted-foreground text-sm">
-            It uses this to do your work the way you'd want. You're in control — edit or remove
-            anything, anytime.
+            Every agent and reply is grounded in this. Paste your website and Flowy reads it and
+            fills this in for you, or edit anything by hand.
           </p>
         </div>
       </div>
 
-      {mem.map((section) => (
-        <Card key={section.title}>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-base">{section.title}</CardTitle>
-            <Button size="sm" variant="ghost" className="text-muted-foreground">
-              <Plus className="size-4" /> Add
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Analyze your website</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <Globe className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onAnalyze();
+                }}
+                placeholder="https://yourcompany.com"
+                className="h-10 pl-9"
+                disabled={analyze.isPending}
+              />
+            </div>
+            <Button
+              className="h-10 sm:w-auto"
+              onClick={onAnalyze}
+              disabled={analyze.isPending || !url.trim()}
+            >
+              {analyze.isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Reading your site…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" /> Analyze
+                </>
+              )}
             </Button>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {section.items.map((it, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-muted-foreground w-36 shrink-0 text-sm">{it.label}</span>
+          </div>
+          {analyze.isPending && (
+            <p className="text-muted-foreground text-xs">
+              Flowy is reading your pages. This can take up to a minute.
+            </p>
+          )}
+          {analyze.isError && (
+            <p className="text-destructive flex items-center gap-1.5 text-xs">
+              <AlertTriangle className="size-3.5" />
+              {(analyze.error as Error).message || "Couldn't analyze that site. Try again."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-base">Business context</CardTitle>
+          <Button size="sm" onClick={onSave} disabled={!dirty || save.isPending || !ws}>
+            {save.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Check className="size-4" />
+            )}
+            Save
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoading ? (
+            <div className="text-muted-foreground flex items-center gap-2 py-6 text-sm">
+              <Loader2 className="size-4 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <>
+              {!hasContext && (
+                <p className="text-muted-foreground text-sm">
+                  Nothing yet. Paste your website above and Flowy will fill this in, or type it in
+                  manually.
+                </p>
+              )}
+
+              {FIELDS.map((f) => (
+                <div key={f.key} className="grid gap-1.5">
+                  <label htmlFor={`bc-${f.key}`} className="text-sm font-medium">
+                    {f.label}
+                  </label>
+                  <Textarea
+                    id={`bc-${f.key}`}
+                    value={(ctx[f.key] as string) ?? ""}
+                    onChange={(e) => setField(f.key, e.target.value)}
+                    placeholder={f.hint}
+                    rows={f.rows}
+                    className="resize-y text-sm"
+                  />
+                </div>
+              ))}
+
+              <div className="grid gap-1.5">
+                <label htmlFor="bc-voice" className="text-sm font-medium">
+                  Voice
+                </label>
                 <Input
-                  value={it.value}
-                  onChange={(e) => update(section.title, i, e.target.value)}
-                  className="h-9"
+                  id="bc-voice"
+                  value={ctx.voice ?? ""}
+                  onChange={(e) => setField("voice", e.target.value)}
+                  placeholder="e.g. bold, technical, no fluff"
+                  className="text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() => remove(section.title, i)}
-                  className="text-muted-foreground hover:text-destructive grid size-8 shrink-0 place-items-center rounded-lg transition"
-                  aria-label="Forget this"
-                  title="Forget this"
-                >
-                  <X className="size-4" />
-                </button>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
+
+              <div className="grid gap-1.5">
+                <label htmlFor="bc-keywords" className="text-sm font-medium">
+                  Keywords
+                </label>
+                <Input
+                  id="bc-keywords"
+                  value={(ctx.keywords ?? []).join(", ")}
+                  onChange={(e) =>
+                    setField(
+                      "keywords",
+                      e.target.value
+                        .split(",")
+                        .map((k) => k.trim())
+                        .filter(Boolean),
+                    )
+                  }
+                  placeholder="comma, separated, themes"
+                  className="text-sm"
+                />
+                {(ctx.keywords ?? []).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {(ctx.keywords ?? []).map((k) => (
+                      <span
+                        key={k}
+                        className="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 text-xs"
+                      >
+                        {k}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
