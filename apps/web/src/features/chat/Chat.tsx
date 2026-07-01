@@ -401,7 +401,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           {voice.supported && (
             <button
               type="button"
-              onClick={() => voice.toggle(input)}
+              onClick={() => void voice.toggle(input)}
               className={`grid size-9 place-items-center rounded-full transition ${
                 voice.listening
                   ? "bg-destructive/10 text-destructive animate-pulse"
@@ -436,6 +436,11 @@ export function Chat({ chatId }: { chatId?: string }) {
           </Button>
         )}
       </div>
+      {voice.error && (
+        <p className="text-destructive mt-1 px-2 text-xs" role="status">
+          {voice.error}
+        </p>
+      )}
     </div>
   );
 
