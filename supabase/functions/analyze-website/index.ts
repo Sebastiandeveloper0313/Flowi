@@ -1,4 +1,4 @@
-// Flowy — analyze-website. Turns a company URL (or a manual description) into
+// Flowy - analyze-website. Turns a company URL (or a manual description) into
 // structured business context the marketing operator uses to avoid generic output.
 // Uses Claude with the hosted web_fetch/web_search tools (no extra API key).
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -17,7 +17,7 @@ function json(body: unknown, status = 200) {
 
 const SYSTEM = `You are a senior marketing strategist building a brief on a company so an AI marketing operator can produce on-brand, non-generic work for it.
 
-Research the company from the provided website (use the web_fetch and web_search tools to read its pages) or from the description given. Then return ONLY a JSON object — no prose, no markdown fences — with exactly these keys:
+Research the company from the provided website (use the web_fetch and web_search tools to read its pages) or from the description given. Then return ONLY a JSON object - no prose, no markdown fences - with exactly these keys:
 {
   "summary": "2-3 sentence plain-English summary of the business",
   "what_they_do": "what the company actually does / sells",
@@ -28,7 +28,7 @@ Research the company from the provided website (use the web_fetch and web_search
   "keywords": ["5-10", "topical", "keywords", "and", "themes"]
 }
 
-Be specific and evidence-based from what you find — never generic filler. If a field is genuinely unknowable, use a best-effort inference and keep it concise.`;
+Be specific and evidence-based from what you find, never generic filler. If a field is genuinely unknowable, use a best-effort inference and keep it concise. Never use em dashes anywhere in the JSON values; use commas, periods, or parentheses.`;
 
 function extractJson(text: string): Record<string, unknown> | null {
   const start = text.indexOf("{");

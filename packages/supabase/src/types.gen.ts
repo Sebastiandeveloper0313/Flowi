@@ -149,6 +149,81 @@ export type Database = {
           },
         ];
       };
+      leads: {
+        Row: {
+          author: string | null;
+          created_at: string;
+          draft_reply: string | null;
+          external_id: string;
+          id: string;
+          reason: string | null;
+          relevance: number;
+          score: number | null;
+          snippet: string;
+          source: string;
+          status: string;
+          subreddit: string | null;
+          task_id: string | null;
+          team_id: string;
+          title: string;
+          updated_at: string;
+          url: string;
+        };
+        Insert: {
+          author?: string | null;
+          created_at?: string;
+          draft_reply?: string | null;
+          external_id: string;
+          id?: string;
+          reason?: string | null;
+          relevance?: number;
+          score?: number | null;
+          snippet?: string;
+          source?: string;
+          status?: string;
+          subreddit?: string | null;
+          task_id?: string | null;
+          team_id: string;
+          title?: string;
+          updated_at?: string;
+          url: string;
+        };
+        Update: {
+          author?: string | null;
+          created_at?: string;
+          draft_reply?: string | null;
+          external_id?: string;
+          id?: string;
+          reason?: string | null;
+          relevance?: number;
+          score?: number | null;
+          snippet?: string;
+          source?: string;
+          status?: string;
+          subreddit?: string | null;
+          task_id?: string | null;
+          team_id?: string;
+          title?: string;
+          updated_at?: string;
+          url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "leads_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
@@ -233,10 +308,12 @@ export type Database = {
       tasks: {
         Row: {
           channel: string;
+          config: Json;
           created_at: string;
           created_by: string;
           id: string;
           instructions: string;
+          kind: string;
           last_run_at: string | null;
           next_run_at: string | null;
           schedule_cron: string | null;
@@ -248,10 +325,12 @@ export type Database = {
         };
         Insert: {
           channel?: string;
+          config?: Json;
           created_at?: string;
           created_by: string;
           id?: string;
           instructions: string;
+          kind?: string;
           last_run_at?: string | null;
           next_run_at?: string | null;
           schedule_cron?: string | null;
@@ -263,10 +342,12 @@ export type Database = {
         };
         Update: {
           channel?: string;
+          config?: Json;
           created_at?: string;
           created_by?: string;
           id?: string;
           instructions?: string;
+          kind?: string;
           last_run_at?: string | null;
           next_run_at?: string | null;
           schedule_cron?: string | null;

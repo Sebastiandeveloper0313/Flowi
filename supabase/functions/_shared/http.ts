@@ -115,7 +115,7 @@ export function createRouter(functionName: string) {
 
 /**
  * Create a router that runs a context factory after route matching.
- * Use for authenticated routes — the factory can return a Response (e.g. 401)
+ * Use for authenticated routes - the factory can return a Response (e.g. 401)
  * to short-circuit, or a context value passed to every handler as the first arg.
  */
 export function createAuthRouter<T>(

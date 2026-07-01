@@ -1,4 +1,4 @@
-// Flowy — chat. The conversational way to create agents.
+// Flowy - chat. The conversational way to create agents.
 // The user talks to Claude; when they describe a recurring job, Claude calls the
 // create_recurring_task tool and Flowy spins up the agent. Authorized as the user.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -44,6 +44,24 @@ const TOOL = {
         enum: ["discord", "telegram", "slack", "whatsapp", "dashboard"],
         description: "Where to deliver the result. Default 'dashboard'.",
       },
+      kind: {
+        type: "string",
+        enum: ["content", "reddit_monitor"],
+        description:
+          "Capability. 'content' (default) produces a written deliverable. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies - use this whenever the user wants to find leads/prospects or monitor Reddit.",
+      },
+      keywords: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "For reddit_monitor: OPTIONAL seed search phrases. The agent auto-derives buyer-intent terms from the business context each run, so only pass this if the user explicitly names specific terms they want watched.",
+      },
+      subreddits: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "For reddit_monitor: optional subreddits to focus on (names without 'r/'). Omit to search all of Reddit.",
+      },
     },
     required: ["title", "instructions"],
   },
@@ -87,7 +105,7 @@ Deno.serve(async (req: Request) => {
     if (!key) {
       return json({
         reply:
-          "I'm not fully connected yet — an Anthropic API key needs to be set on the server. Once it is, I can answer and spin up agents for you.",
+          "I'm not fully connected yet - an Anthropic API key needs to be set on the server. Once it is, I can answer and spin up agents for you.",
         created: [],
       });
     }
@@ -147,6 +165,14 @@ Deno.serve(async (req: Request) => {
                 cron = null;
               }
             }
+            const kind = inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+            const config =
+              kind === "reddit_monitor"
+                ? {
+                    keywords: Array.isArray(inp.keywords) ? inp.keywords.map(String) : [],
+                    subreddits: Array.isArray(inp.subreddits) ? inp.subreddits.map(String) : [],
+                  }
+                : {};
             const { data: task, error } = await userClient
               .from("tasks")
               .insert({
@@ -158,6 +184,8 @@ Deno.serve(async (req: Request) => {
                 schedule_cron: cron,
                 timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
                 status: "active",
+                kind,
+                config,
               })
               .select("id, title")
               .single();
