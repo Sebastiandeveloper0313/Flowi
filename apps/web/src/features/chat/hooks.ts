@@ -21,6 +21,15 @@ export interface ChatResponse {
   created: CreatedAgent[];
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  kind: "image" | "document";
+  mediaType: string;
+  data: string; // base64, no data-url prefix
+  url?: string; // client-only preview url for images
+}
+
 export type ChatRow = Pick<Tables<"chats">, "id" | "title" | "updated_at">;
 
 export const chatKeys = {
@@ -45,10 +54,16 @@ export async function sendChat(
   messages: { role: string; content: string }[],
   signal?: AbortSignal,
   onStatus?: (text: string) => void,
+  attachments?: Attachment[],
 ): Promise<ChatResponse> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  const files = (attachments ?? []).map((a) => ({
+    kind: a.kind,
+    mediaType: a.mediaType,
+    data: a.data,
+  }));
   const res = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/chat`, {
     method: "POST",
     headers: {
@@ -56,7 +71,7 @@ export async function sendChat(
       apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session?.access_token ?? env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, attachments: files }),
     signal,
   });
 
@@ -103,11 +118,13 @@ export function useChat() {
       messages,
       signal,
       onStatus,
+      attachments,
     }: {
       messages: { role: string; content: string }[];
       signal?: AbortSignal;
       onStatus?: (text: string) => void;
-    }) => sendChat(messages, signal, onStatus),
+      attachments?: Attachment[];
+    }) => sendChat(messages, signal, onStatus, attachments),
     // a created agent should show up in the list immediately
     onSuccess: (data) => {
       if (data.created?.length) {

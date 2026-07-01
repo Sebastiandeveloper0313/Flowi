@@ -2,13 +2,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUp, Check, CheckCircle2, Copy, Mic, Paperclip, Sparkles, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  Copy,
+  FileText,
+  Mic,
+  Paperclip,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
+import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
 
 import {
+  type Attachment,
   chatKeys,
   createChat,
   fetchChatMessages,
@@ -18,6 +30,7 @@ import {
   useChat,
 } from "./hooks";
 import { ChatMarkdown } from "./Markdown";
+import { useVoiceInput } from "./useVoiceInput";
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -61,6 +74,29 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
+
+function fileToAttachment(file: File): Promise<Attachment> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      const data = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
+      const kind: Attachment["kind"] = file.type === "application/pdf" ? "document" : "image";
+      resolve({
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name,
+        kind,
+        mediaType: file.type,
+        data,
+        url: kind === "image" ? dataUrl : undefined,
+      });
+    };
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function FlowyAvatar() {
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6]">
@@ -84,8 +120,49 @@ export function Chat({ chatId }: { chatId?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("Thinking");
+  // when a new reply arrives, reveal it character by character; null once fully shown
+  const [typing, setTyping] = useState<number | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [preview, setPreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const voice = useVoiceInput(setInput);
+
+  async function addFiles(files: File[]) {
+    const accepted: Attachment[] = [];
+    for (const f of files) {
+      const ok = f.type.startsWith("image/") || f.type === "application/pdf";
+      if (!ok || f.size > MAX_FILE_BYTES) continue;
+      try {
+        accepted.push(await fileToAttachment(f));
+      } catch {
+        /* skip unreadable file */
+      }
+    }
+    if (accepted.length) setAttachments((a) => [...a, ...accepted]);
+  }
+
+  async function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-picking the same file
+    await addFiles(files);
+  }
+
+  // paste (Ctrl+V) an image straight into the composer
+  async function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const imgs = Array.from(e.clipboardData?.items ?? [])
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (!imgs.length) return;
+    e.preventDefault();
+    await addFiles(imgs);
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((a) => a.filter((x) => x.id !== id));
+  }
   // the conversation whose state we already manage live; lets us tell
   // "open an existing chat" apart from "we just created this one" so we
   // never re-hydrate over an in-flight reply.
@@ -117,16 +194,50 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, chat.isPending]);
+  }, [messages, chat.isPending, typing]);
+
+  // close the image preview on Escape
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview]);
+
+  // typewriter: advance the reveal for the last (just-arrived) assistant message
+  useEffect(() => {
+    if (typing === null) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") {
+      setTyping(null);
+      return;
+    }
+    if (typing >= last.content.length) {
+      setTyping(null);
+      return;
+    }
+    // reveal in small chunks so long replies still finish quickly (~1s)
+    const step = Math.max(1, Math.ceil(last.content.length / 120));
+    const id = setTimeout(
+      () => setTyping((s) => Math.min(last.content.length, (s ?? 0) + step)),
+      14,
+    );
+    return () => clearTimeout(id);
+  }, [typing, messages]);
 
   async function send(text: string) {
     const t = text.trim();
-    if (!t || chat.isPending) return;
+    if ((!t && attachments.length === 0) || chat.isPending) return;
 
-    const userMsg: ChatMessage = { role: "user", content: t };
+    const files = attachments;
+    const label = t || files.map((f) => f.name).join(", ");
+    const userMsg: ChatMessage = { role: "user", content: label };
     const next = [...messages, userMsg];
     setMessages(next);
     setInput("");
+    setAttachments([]);
 
     // ensure a persisted conversation exists, then save the user's message
     let convoId = chatId ?? ownedRef.current;
@@ -154,6 +265,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         messages: next.map((m) => ({ role: m.role, content: m.content })),
         signal: controller.signal,
         onStatus: setStatus,
+        attachments: files,
       },
       {
         onSuccess: async (data) => {
@@ -163,6 +275,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             created: data.created,
           };
           setMessages((m) => [...m, reply]);
+          setTyping(0); // reveal the new reply character by character
           if (convoId && teamId) {
             try {
               await saveMessage(convoId, teamId, reply);
@@ -191,8 +304,75 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   const empty = messages.length === 0;
 
+  const lightbox = preview ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-zoom-out"
+        aria-label="Close preview"
+        onClick={() => setPreview(null)}
+      />
+      <img
+        src={preview}
+        alt=""
+        className="relative max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+      />
+    </div>
+  ) : null;
+
   const composer = (
     <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[1.7rem] border p-4 shadow-[0_24px_60px_-32px_rgba(16,48,120,0.4)] transition focus-within:ring-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        className="hidden"
+        onChange={onPickFiles}
+      />
+      {attachments.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2 px-1">
+          {attachments.map((a) =>
+            a.url ? (
+              <div key={a.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPreview(a.url ?? null)}
+                  className="block size-16 cursor-zoom-in overflow-hidden rounded-lg border"
+                  aria-label="View image"
+                  title="View image"
+                >
+                  <img src={a.url} alt="" className="size-full object-cover" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(a.id)}
+                  className="bg-foreground/70 hover:bg-foreground absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full text-white transition"
+                  aria-label="Remove attachment"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <div
+                key={a.id}
+                className="bg-muted flex items-center gap-2 rounded-lg py-1 pr-1 pl-2 text-xs"
+              >
+                <FileText className="size-4 opacity-70" />
+                <span className="max-w-[10rem] truncate">{a.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(a.id)}
+                  className="hover:bg-accent grid size-5 place-items-center rounded"
+                  aria-label={`Remove ${a.name}`}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ),
+          )}
+        </div>
+      )}
       <Textarea
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -202,6 +382,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             void send(input);
           }
         }}
+        onPaste={onPaste}
         rows={1}
         placeholder="Tell Flowy what to do…  e.g. “every day at noon, 3 slides on menswear trends”"
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
@@ -210,20 +391,28 @@ export function Chat({ chatId }: { chatId?: string }) {
         <div className="text-muted-foreground flex items-center gap-0.5">
           <button
             type="button"
+            onClick={() => fileInputRef.current?.click()}
             className="hover:bg-accent hover:text-foreground grid size-9 place-items-center rounded-full transition"
             aria-label="Attach a file"
-            title="Attach a file"
+            title="Attach image or PDF"
           >
             <Paperclip className="size-[1.05rem]" />
           </button>
-          <button
-            type="button"
-            className="hover:bg-accent hover:text-foreground grid size-9 place-items-center rounded-full transition"
-            aria-label="Voice input"
-            title="Voice input"
-          >
-            <Mic className="size-[1.05rem]" />
-          </button>
+          {voice.supported && (
+            <button
+              type="button"
+              onClick={() => voice.toggle(input)}
+              className={`grid size-9 place-items-center rounded-full transition ${
+                voice.listening
+                  ? "bg-destructive/10 text-destructive animate-pulse"
+                  : "hover:bg-accent hover:text-foreground"
+              }`}
+              aria-label={voice.listening ? "Stop voice input" : "Voice input"}
+              title={voice.listening ? "Stop listening" : "Voice input"}
+            >
+              <Mic className="size-[1.05rem]" />
+            </button>
+          )}
         </div>
         {chat.isPending ? (
           <Button
@@ -239,7 +428,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           <Button
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            disabled={!input.trim()}
+            disabled={!input.trim() && attachments.length === 0}
             onClick={() => void send(input)}
             aria-label="Send"
           >
@@ -262,6 +451,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           </p>
           {composer}
         </div>
+        {lightbox}
       </div>
     );
   }
@@ -284,18 +474,28 @@ export function Chat({ chatId }: { chatId?: string }) {
               <div key={i} className="group flex gap-3">
                 <FlowyAvatar />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <ChatMarkdown>{m.content}</ChatMarkdown>
-                  {m.created?.map((a) => (
-                    <div
-                      key={a.id}
-                      className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
-                    >
-                      <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
+                  {typing !== null && i === messages.length - 1 ? (
+                    // revealing character by character: plain text + caret, format on finish
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {m.content.slice(0, typing)}
+                      <span className="bg-foreground/70 ml-0.5 inline-block h-[1em] w-[2px] animate-pulse align-text-bottom" />
                     </div>
-                  ))}
-                  <div className="pt-0.5">
-                    <CopyButton text={m.content} />
-                  </div>
+                  ) : (
+                    <>
+                      <ChatMarkdown>{m.content}</ChatMarkdown>
+                      {m.created?.map((a) => (
+                        <div
+                          key={a.id}
+                          className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                        >
+                          <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
+                        </div>
+                      ))}
+                      <div className="pt-0.5">
+                        <CopyButton text={m.content} />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ),
@@ -315,6 +515,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           Flowy can answer, or set up agents that run on their own.
         </p>
       </div>
+      {lightbox}
     </div>
   );
 }

@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   try {
-    const { messages } = await req.json().catch(() => ({}));
+    const { messages, attachments } = await req.json().catch(() => ({}));
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "messages array is required" }, 400);
     }
@@ -147,6 +147,33 @@ Deno.serve(async (req: Request) => {
           m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string",
       )
       .map((m: Msg) => ({ role: m.role, content: m.content }));
+
+    // Attach uploaded files (images / PDFs) to the latest user turn so Claude can see them.
+    if (Array.isArray(attachments) && attachments.length > 0 && convo.length > 0) {
+      const last = convo[convo.length - 1];
+      if (last.role === "user" && typeof last.content === "string") {
+        // deno-lint-ignore no-explicit-any
+        const blocks: any[] = [];
+        for (const a of attachments) {
+          if (!a?.data || typeof a.mediaType !== "string") continue;
+          if (a.kind === "image") {
+            blocks.push({
+              type: "image",
+              source: { type: "base64", media_type: a.mediaType, data: a.data },
+            });
+          } else if (a.kind === "document") {
+            blocks.push({
+              type: "document",
+              source: { type: "base64", media_type: a.mediaType, data: a.data },
+            });
+          }
+        }
+        if (blocks.length > 0) {
+          blocks.push({ type: "text", text: last.content });
+          convo[convo.length - 1] = { role: "user", content: blocks };
+        }
+      }
+    }
 
     // Stream "what I'm doing" status events as Flowy works, then the final reply.
     const enc = new TextEncoder();
