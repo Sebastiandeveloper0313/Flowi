@@ -14,7 +14,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
@@ -84,7 +84,7 @@ function fileToAttachment(file: File): Promise<Attachment> {
       const data = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
       const kind: Attachment["kind"] = file.type === "application/pdf" ? "document" : "image";
       resolve({
-        id: `${file.name}-${file.size}-${file.lastModified}`,
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
         name: file.name,
         kind,
         mediaType: file.type,
@@ -128,9 +128,7 @@ export function Chat({ chatId }: { chatId?: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voice = useVoiceInput(setInput);
 
-  async function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = ""; // allow re-picking the same file
+  async function addFiles(files: File[]) {
     const accepted: Attachment[] = [];
     for (const f of files) {
       const ok = f.type.startsWith("image/") || f.type === "application/pdf";
@@ -142,6 +140,23 @@ export function Chat({ chatId }: { chatId?: string }) {
       }
     }
     if (accepted.length) setAttachments((a) => [...a, ...accepted]);
+  }
+
+  async function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-picking the same file
+    await addFiles(files);
+  }
+
+  // paste (Ctrl+V) an image straight into the composer
+  async function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const imgs = Array.from(e.clipboardData?.items ?? [])
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (!imgs.length) return;
+    e.preventDefault();
+    await addFiles(imgs);
   }
 
   function removeAttachment(id: string) {
@@ -322,6 +337,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             void send(input);
           }
         }}
+        onPaste={onPaste}
         rows={1}
         placeholder="Tell Flowy what to do…  e.g. “every day at noon, 3 slides on menswear trends”"
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
