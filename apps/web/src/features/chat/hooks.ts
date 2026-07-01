@@ -3,6 +3,7 @@ import type { Tables } from "@workspace/supabase/types";
 
 import { env } from "@/env";
 import { approvalKeys } from "@/features/approvals/queries";
+import { autonomyKeys } from "@/features/autonomy/queries";
 import { taskKeys } from "@/features/tasks/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -134,6 +135,7 @@ export function useChat() {
       }
       void queryClient.invalidateQueries({ queryKey: approvalKeys.all });
       void queryClient.invalidateQueries({ queryKey: approvalKeys.pendingCount });
+      void queryClient.invalidateQueries({ queryKey: autonomyKeys.mode });
     },
   });
 }

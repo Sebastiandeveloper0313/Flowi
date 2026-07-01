@@ -8,6 +8,35 @@ export interface WorkspaceContext {
   business_context?: Record<string, unknown> | null;
   business_model?: string | null;
   business_categories?: string[] | null;
+  autonomy_mode?: "ask" | "auto" | null;
+}
+
+/** How much Flowy may do on its own. 'ask' is the safe default. */
+export function autonomyMode(ws: WorkspaceContext | null): "ask" | "auto" {
+  return ws?.autonomy_mode === "auto" ? "auto" : "ask";
+}
+
+/**
+ * Instruction block describing the current autonomy mode and how to behave.
+ * The hard gate is enforced in code; this tells the model how to act and phrase
+ * things, and to respect explicit in-conversation instructions on top of the mode.
+ */
+export function autonomyBlock(ws: WorkspaceContext | null): string {
+  if (autonomyMode(ws) === "auto") {
+    return (
+      "\n\nAutonomy: AUTO mode. You may carry out high-stakes actions that reach the " +
+      "outside world (sending an email, etc.) on your own; they run immediately. Still use " +
+      "judgment: if the user has told you to check with them before a particular action, or an " +
+      "action looks risky, irreversible, or not clearly what they asked for, do not just do it, " +
+      "confirm with them first and only proceed once they say so."
+    );
+  }
+  return (
+    "\n\nAutonomy: ASK mode. High-stakes actions that reach the outside world (sending an " +
+    "email, etc.) are not sent directly. When you call such a tool it is queued for the user's " +
+    "approval and runs only once they approve it on the Approvals page. Go ahead and take the " +
+    "action when asked, then tell the user it is waiting for their approval."
+  );
 }
 
 /** Fetch the marketing-relevant context for a team. Pass any client with read access. */
@@ -18,7 +47,7 @@ export async function fetchWorkspaceContext(
 ): Promise<WorkspaceContext | null> {
   const { data } = await client
     .from("teams")
-    .select("name, business_context, business_model, business_categories")
+    .select("name, business_context, business_model, business_categories, autonomy_mode")
     .eq("id", teamId)
     .maybeSingle();
   return data ?? null;
@@ -92,7 +121,8 @@ export function runnerSystem(ws: WorkspaceContext | null): string {
     "\n- Use the web_search tool for anything current or factual. Never invent facts, stats, names, prices, or quotes.\n" +
     "- Do not narrate your process. Reply with the finished deliverable only. Flowy delivers it to the user's chosen " +
     "channel, so never post it yourself or ask for webhooks or credentials.\n" +
-    "- High-stakes tool actions that reach the outside world (sending an email, etc.) are not executed immediately; they are queued for the user's approval. If the task calls for one, go ahead and call the tool, then note in the deliverable that it is awaiting approval." +
+    "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
+    autonomyBlock(ws) +
     contextBlock(ws)
   );
 }
@@ -106,7 +136,7 @@ export function chatSystem(ws: WorkspaceContext | null): string {
     "\n\nYou do three things:\n" +
     "1. Answer marketing questions directly and sharply, grounded in the business above.\n" +
     '2. When the user wants recurring work done (anything on a schedule, "every day/week", "take care of X", "set up an agent"), create it with the create_recurring_task tool. It spins up an agent that runs on its own and delivers the result.\n' +
-    "3. When the user asks you to do real work in a connected tool right now (check the inbox, summarize emails, search, send or draft a reply), actually call the tools and do it, then report what you did in a line or two. Reads happen instantly. High-stakes actions that reach the outside world (sending an email, etc.) are safe to call: they are not executed immediately, they are queued for the user's approval and only run once the user approves them on the Approvals page. So when the user asks you to send something, go ahead and call the send tool, then tell them it is waiting for their approval. If a tool you would need is not connected, say so and point them to Integrations.\n\n" +
+    "3. When the user asks you to do real work in a connected tool right now (check the inbox, summarize emails, search, send or draft a reply), actually call the tools and do it, then report what you did in a line or two. Reads happen instantly. High-stakes actions (sending an email, etc.) are always safe to call; how they are carried out depends on the autonomy mode described below. If a tool you would need is not connected, say so and point them to Integrations.\n\n" +
     "Capabilities you can create:\n" +
     '- Reddit lead monitoring: kind "reddit_monitor". The agent automatically derives buyer-intent search terms from the business context on every run, so you do not need to supply keywords. Only pass `keywords` if the user names specific terms they want. Use this whenever the user wants to find leads/prospects/customers or watch Reddit.\n' +
     "- Content work: anything that produces a written deliverable uses the default kind.\n\n" +
@@ -115,6 +145,10 @@ export function chatSystem(ws: WorkspaceContext | null): string {
     '- Default timezone to UTC. Pick a channel they mention (discord, telegram, slack, whatsapp) or default to "dashboard".\n' +
     "- If the request is genuinely ambiguous, ask one brief question. Otherwise just create it.\n\n" +
     QUALITY_STANDARDS +
+    autonomyBlock(ws) +
+    "\nThe user can switch how much you do on your own. If they ask you to stop asking and just handle " +
+    "things (or the reverse, to always check with them first), use the set_autonomy_mode tool to change it, " +
+    "then confirm in one short sentence." +
     "\nKeep replies concise and friendly. After creating an agent, confirm in one or two sentences what it does and when it runs."
   );
 }

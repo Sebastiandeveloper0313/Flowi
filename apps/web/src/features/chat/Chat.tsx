@@ -17,6 +17,7 @@ import {
 import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
+import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
 
 import {
@@ -414,27 +415,30 @@ export function Chat({ chatId }: { chatId?: string }) {
             </button>
           )}
         </div>
-        {chat.isPending ? (
-          <Button
-            size="icon"
-            className="size-9 shrink-0 rounded-full"
-            onClick={stop}
-            aria-label="Stop generating"
-            title="Stop"
-          >
-            <Square className="size-3.5 fill-current" />
-          </Button>
-        ) : (
-          <Button
-            size="icon"
-            className="size-9 shrink-0 rounded-full"
-            disabled={!input.trim() && attachments.length === 0}
-            onClick={() => void send(input)}
-            aria-label="Send"
-          >
-            <ArrowUp className="size-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <AutonomyToggle />
+          {chat.isPending ? (
+            <Button
+              size="icon"
+              className="size-9 shrink-0 rounded-full"
+              onClick={stop}
+              aria-label="Stop generating"
+              title="Stop"
+            >
+              <Square className="size-3.5 fill-current" />
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              className="size-9 shrink-0 rounded-full"
+              disabled={!input.trim() && attachments.length === 0}
+              onClick={() => void send(input)}
+              aria-label="Send"
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          )}
+        </div>
       </div>
       {voice.error && (
         <p className="text-destructive mt-1 px-2 text-xs" role="status">
