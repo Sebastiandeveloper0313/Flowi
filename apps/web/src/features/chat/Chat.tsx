@@ -61,18 +61,11 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         }
       }}
-      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs transition"
-      aria-label="Copy message"
+      className="text-muted-foreground hover:text-foreground inline-flex items-center transition"
+      aria-label={copied ? "Copied" : "Copy message"}
+      title={copied ? "Copied" : "Copy"}
     >
-      {copied ? (
-        <>
-          <Check className="size-3.5" /> Copied
-        </>
-      ) : (
-        <>
-          <Copy className="size-3.5" /> Copy
-        </>
-      )}
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
     </button>
   );
 }
