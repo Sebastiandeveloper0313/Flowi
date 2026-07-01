@@ -10,7 +10,12 @@ import {
   isWriteTool,
   toolsForUser,
 } from "./composio.ts";
-import { fetchWorkspaceContext, runnerSystem, type WorkspaceContext } from "./marketing.ts";
+import {
+  autonomyMode,
+  fetchWorkspaceContext,
+  runnerSystem,
+  type WorkspaceContext,
+} from "./marketing.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 
 export interface TaskRow {
@@ -127,8 +132,8 @@ export async function executeTask(
             });
             continue;
           }
-          // High-stakes actions never run unattended: queue them for approval.
-          if (isWriteTool(b.name) && ctx?.client) {
+          // High-stakes actions: run unattended only in auto mode; otherwise queue for approval.
+          if (isWriteTool(b.name) && autonomyMode(ws) === "ask" && ctx?.client) {
             const { message } = await queueApproval(ctx.client, {
               teamId: task.team_id,
               toolSlug: b.name,
