@@ -21,6 +21,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/auth/hooks";
+import { useConfirm } from "@/components/useConfirm";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
 
 import { FlowyLogo } from "./brand";
@@ -127,6 +128,7 @@ function RecentChatItem({ chat }: { chat: ChatRow }) {
   const search = useSearch({ strict: false }) as { c?: string };
   const rename = useRenameChat();
   const del = useDeleteChat();
+  const { confirm, dialog } = useConfirm();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(chat.title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,8 +147,14 @@ function RecentChatItem({ chat }: { chat: ChatRow }) {
     else setDraft(chat.title);
   }
 
-  function onDelete() {
-    if (!confirm(`Delete “${chat.title}”? This can't be undone.`)) return;
+  async function onDelete() {
+    const ok = await confirm({
+      title: "Delete chat?",
+      description: `“${chat.title}” will be permanently deleted. This can't be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     del.mutate(chat.id);
     if (search?.c === chat.id) void navigate({ to: "/dashboard", search: { c: undefined } });
   }
@@ -197,11 +205,15 @@ function RecentChatItem({ chat }: { chat: ChatRow }) {
           >
             <Pencil className="size-4" /> Rename
           </DropdownMenuItem>
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onSelect={() => void onDelete()}
+          >
             <Trash2 className="size-4" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {dialog}
     </div>
   );
 }
