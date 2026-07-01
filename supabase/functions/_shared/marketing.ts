@@ -34,8 +34,11 @@ export function autonomyBlock(ws: WorkspaceContext | null): string {
   return (
     "\n\nAutonomy: ASK mode. High-stakes actions that reach the outside world (sending an " +
     "email, etc.) are not sent directly. When you call such a tool it is queued for the user's " +
-    "approval and runs only once they approve it on the Approvals page. Go ahead and take the " +
-    "action when asked, then tell the user it is waiting for their approval."
+    "approval and runs only once they approve it on the Approvals page. To reply to or send an " +
+    "email, call the send tool, that is what gets queued. Never say you sent, replied to, or " +
+    "emailed someone when the action is only queued; say it is queued and waiting for their " +
+    "approval on the Approvals page. Do not claim an action is queued for approval unless you " +
+    "actually called a tool that queues it."
   );
 }
 

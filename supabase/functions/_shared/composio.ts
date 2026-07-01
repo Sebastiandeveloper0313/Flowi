@@ -9,15 +9,17 @@ const AUTH_CONFIGS: Record<string, string> = {
   gmail: "ac_v7EeY-JplVT0",
 };
 
-// Curated toolset per toolkit. Read + draft tools run instantly; write tools
-// (see WRITE_TOOLS) reach the outside world and are gated behind a human approval.
+// Curated toolset per toolkit. Read tools run instantly; write tools (see
+// WRITE_TOOLS) reach the outside world and are gated behind a human approval.
+// We intentionally omit GMAIL_CREATE_EMAIL_DRAFT: with the approval gate, ASK
+// mode already gives "review before it sends", so a separate draft path is
+// redundant and led the model to quietly draft instead of proposing a send.
 const CURATED_TOOLS: Record<string, string[]> = {
   gmail: [
     "GMAIL_FETCH_EMAILS",
     "GMAIL_FETCH_MESSAGE_BY_THREAD_ID",
     "GMAIL_LIST_THREADS",
     "GMAIL_GET_PROFILE",
-    "GMAIL_CREATE_EMAIL_DRAFT",
     "GMAIL_SEND_EMAIL",
   ],
 };
