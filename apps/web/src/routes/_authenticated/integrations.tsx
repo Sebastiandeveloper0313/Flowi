@@ -22,6 +22,12 @@ interface AppMeta {
 const APPS: AppMeta[] = [
   { slug: "gmail", name: "Gmail", description: "Read, search, and draft emails.", available: true },
   {
+    slug: "reddit",
+    name: "Reddit",
+    description: "Find leads in relevant subreddits and reply.",
+    available: true,
+  },
+  {
     slug: "hubspot",
     name: "HubSpot",
     description: "Sync contacts, deals, and activity.",
