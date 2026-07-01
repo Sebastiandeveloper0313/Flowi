@@ -2,6 +2,7 @@
 // and the scheduler (run-due-tasks), so the two paths can never drift.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
+import { composioEnabled, executeComposioTool, isComposioTool, toolsForUser } from "./composio.ts";
 import { fetchWorkspaceContext, runnerSystem, type WorkspaceContext } from "./marketing.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 
@@ -46,15 +47,26 @@ export async function executeTask(
   try {
     const system = runnerSystem(ws);
 
-    // Web search is an Anthropic-hosted (server-side) tool: the API runs the
-    // searches itself and returns the finished answer. We only loop to resume
-    // when a long turn pauses (stop_reason: "pause_turn").
+    // Tools available this run:
+    //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses
+    //    the turn (stop_reason "pause_turn") while it works.
+    //  - the workspace's connected tools (Gmail, etc.) via Composio: client-side
+    //    tools we execute (stop_reason "tool_use"), scoped to this team's accounts.
+    const connectedTools = composioEnabled()
+      ? await toolsForUser(task.team_id).catch(() => [])
+      : [];
+    const tools: unknown[] = [
+      { type: "web_search_20260209", name: "web_search", max_uses: 5 },
+      ...connectedTools,
+    ];
+
     const messages: { role: string; content: unknown }[] = [
       { role: "user", content: task.instructions },
     ];
-    let content: { type: string; text?: string }[] = [];
+    // deno-lint-ignore no-explicit-any
+    let content: any[] = [];
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         signal: controller.signal,
@@ -67,7 +79,7 @@ export async function executeTask(
           model: "claude-opus-4-8",
           max_tokens: 4096,
           system,
-          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
+          tools,
           messages,
         }),
       });
@@ -79,10 +91,44 @@ export async function executeTask(
 
       const data = await res.json();
       content = data.content ?? [];
+
+      // Server tool (web_search) in flight: resume the turn.
       if (data.stop_reason === "pause_turn") {
         messages.push({ role: "assistant", content });
         continue;
       }
+
+      // Client tool calls (Composio): execute each against this team's accounts.
+      if (data.stop_reason === "tool_use") {
+        messages.push({ role: "assistant", content });
+        const results: unknown[] = [];
+        for (const b of content) {
+          if (b.type !== "tool_use") continue;
+          if (!isComposioTool(b.name)) {
+            results.push({
+              type: "tool_result",
+              tool_use_id: b.id,
+              content: `Unknown tool: ${b.name}`,
+              is_error: true,
+            });
+            continue;
+          }
+          try {
+            const out = await executeComposioTool(task.team_id, b.name, b.input ?? {});
+            results.push({ type: "tool_result", tool_use_id: b.id, content: out });
+          } catch (e) {
+            results.push({
+              type: "tool_result",
+              tool_use_id: b.id,
+              content: `Error: ${e instanceof Error ? e.message : String(e)}`,
+              is_error: true,
+            });
+          }
+        }
+        messages.push({ role: "user", content: results });
+        continue;
+      }
+
       break;
     }
 
