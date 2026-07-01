@@ -6,6 +6,7 @@
 // All three compose from the shared operator persona + quality bar + context block.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
+import { connectedToolkits, redditSearch } from "./composio.ts";
 import {
   companyName,
   contextBlock,
@@ -13,7 +14,7 @@ import {
   QUALITY_STANDARDS,
   type WorkspaceContext,
 } from "./marketing.ts";
-import { redditConnected, type RedditPost, searchReddit } from "./reddit.ts";
+import type { RedditPost } from "./reddit.ts";
 import type { TaskRow } from "./runner.ts";
 
 const MODEL = "claude-opus-4-8";
@@ -211,17 +212,20 @@ export async function runRedditMonitor(
   task: TaskRow,
   ws: WorkspaceContext | null,
 ): Promise<{ summary: string; output: string }> {
-  if (!redditConnected()) {
+  const connected = await connectedToolkits(task.team_id).catch(() => [] as string[]);
+  if (!connected.includes("reddit")) {
     return {
       summary: "Reddit isn't connected yet",
       output:
-        "This agent needs Reddit connected. Add REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET to the " +
-        "function secrets (one free Reddit app), then run it again.",
+        "This agent needs your Reddit account connected. Open Integrations and connect Reddit, " +
+        "then run it again.",
     };
   }
 
   const cfg = (task.config ?? {}) as MonitorConfig;
-  const { keywords, subreddits } = await resolveQueries(admin, task, ws, cfg);
+  // resolveQueries also derives + persists subreddits (shown in "Watching");
+  // the Composio search itself is Reddit-wide, so only keywords drive it here.
+  const { keywords } = await resolveQueries(admin, task, ws, cfg);
   if (!keywords.length) {
     return {
       summary: "No keywords to search",
@@ -233,17 +237,14 @@ export async function runRedditMonitor(
 
   const minRel = cfg.min_relevance ?? 60;
   const maxLeads = cfg.max_leads ?? 10;
-  const time = cfg.time ?? "week";
 
-  // 1. gather candidate posts across keyword x subreddit queries
+  // 1. gather candidate posts. Composio search is Reddit-wide, so we search each
+  // buyer-intent keyword globally; the derived subreddits still steer scoring.
   const seen = new Set<string>();
   const candidates: RedditPost[] = [];
-  const queries = subreddits.length
-    ? keywords.flatMap((q) => subreddits.map((sub) => ({ q, sub })))
-    : keywords.map((q) => ({ q, sub: undefined as string | undefined }));
-  for (const { q, sub } of queries.slice(0, 12)) {
+  for (const q of keywords.slice(0, 12)) {
     try {
-      const posts = await searchReddit(q, { subreddit: sub, time, limit: 15, sort: "new" });
+      const posts = await redditSearch(task.team_id, q, { sort: "new", limit: 15 });
       for (const p of posts) {
         if (!seen.has(p.external_id)) {
           seen.add(p.external_id);

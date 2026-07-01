@@ -1,12 +1,15 @@
 // Composio client (REST, Deno-native). Gives agents real tools (Gmail, etc.)
 // scoped to each workspace's own connected accounts. The workspace's team_id is
 // the Composio user_id, so every team only ever touches its own connections.
+import { mapRedditChild, type RedditPost } from "./reddit.ts";
+
 const BASE = "https://backend.composio.dev/api/v3";
 
 // Auth configs are project-level blueprints (managed OAuth). Created once per
 // toolkit; ids are stable. TODO: create/store these dynamically as we add toolkits.
 const AUTH_CONFIGS: Record<string, string> = {
   gmail: "ac_v7EeY-JplVT0",
+  reddit: "ac_uSlAKR4JLASx",
 };
 
 // Curated toolset per toolkit. Read tools run instantly; write tools (see
@@ -22,12 +25,17 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "GMAIL_GET_PROFILE",
     "GMAIL_SEND_EMAIL",
   ],
+  reddit: [
+    "REDDIT_SEARCH_ACROSS_SUBREDDITS",
+    "REDDIT_RETRIEVE_POST_COMMENTS",
+    "REDDIT_POST_REDDIT_COMMENT",
+  ],
 };
 
 // High-stakes tools that reach the outside world. When the model calls one of
 // these we never execute it directly; we queue an approval and let the user
-// decide. Everything not listed here is a safe read/draft that runs instantly.
-const WRITE_TOOLS = new Set<string>(["GMAIL_SEND_EMAIL"]);
+// decide. Everything not listed here is a safe read that runs instantly.
+const WRITE_TOOLS = new Set<string>(["GMAIL_SEND_EMAIL", "REDDIT_POST_REDDIT_COMMENT"]);
 
 /** True if a tool takes a real, outward-facing action that needs user approval. */
 export function isWriteTool(slug: string): boolean {
@@ -56,6 +64,11 @@ export function describeToolCall(
       title: to ? `Send email to ${to}` : "Send an email",
       detail: [subject && `Subject: ${subject}`, preview].filter(Boolean).join("\n\n"),
     };
+  }
+  if (slug === "REDDIT_POST_REDDIT_COMMENT") {
+    const text = str(args.text || args.body).trim();
+    const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
+    return { title: "Post a reply on Reddit", detail: preview };
   }
   const toolkit = slug.split("_")[0] ?? "";
   const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
@@ -154,6 +167,35 @@ export async function executeComposioTool(
 /** True if a tool name belongs to Composio (vs. our own tools / server tools). */
 export function isComposioTool(name: string): boolean {
   return /^[A-Z0-9]+_[A-Z0-9_]+$/.test(name);
+}
+
+/**
+ * Search Reddit through the team's own connected account, returning parsed posts.
+ * Uses the raw execute endpoint (not executeComposioTool) so the full listing is
+ * parsed without the model-facing truncation.
+ */
+export async function redditSearch(
+  userId: string,
+  query: string,
+  opts: { sort?: string; limit?: number } = {},
+): Promise<RedditPost[]> {
+  const d = await composio(`/tools/execute/REDDIT_SEARCH_ACROSS_SUBREDDITS`, {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: userId,
+      arguments: {
+        search_query: query,
+        sort: opts.sort ?? "new",
+        limit: opts.limit ?? 15,
+      },
+    }),
+  });
+  const children = d?.data?.search_results?.data?.children ?? [];
+  if (!Array.isArray(children)) return [];
+  return children
+    .filter((c: { kind?: string }) => c?.kind === "t3" || c?.kind === undefined)
+    .map(mapRedditChild)
+    .filter((p: RedditPost) => p.external_id && p.title);
 }
 
 /** Start a connection: returns a hosted-auth redirect URL for the user to authorize. */

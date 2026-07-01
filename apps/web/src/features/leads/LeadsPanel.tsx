@@ -1,9 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUpRight, Check, Copy, MessageSquare, Target, X } from "lucide-react";
+import { ArrowUpRight, Clock, Copy, MessageSquare, Send, Target, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { useAgentLeads, useSetLeadStatus } from "./hooks";
+import { useAgentLeads, useQueueLeadReply, useSetLeadStatus } from "./hooks";
 import type { Lead } from "./queries";
 
 type Filter = "new" | "posted" | "dismissed";
@@ -90,9 +91,11 @@ export function LeadsPanel({ taskId }: { taskId: string }) {
 
 function LeadCard({ lead }: { lead: Lead }) {
   const setStatus = useSetLeadStatus();
+  const queue = useQueueLeadReply();
   const [draft, setDraft] = useState(lead.draft_reply ?? "");
   const [copied, setCopied] = useState(false);
 
+  const queued = lead.status === "approved";
   const done = lead.status === "posted" || lead.status === "dismissed";
 
   async function copyReply() {
@@ -118,6 +121,11 @@ function LeadCard({ lead }: { lead: Lead }) {
           <span className="text-muted-foreground">▲ {lead.score}</span>
         )}
         <span className="text-muted-foreground">{timeAgo(lead.created_at)}</span>
+        {queued && (
+          <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+            Reply queued
+          </span>
+        )}
         {lead.status === "posted" && (
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
             Posted
@@ -153,7 +161,27 @@ function LeadCard({ lead }: { lead: Lead }) {
         </p>
       )}
 
-      {!done && (
+      {queued && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground flex items-center gap-1.5">
+            <Clock className="size-4" /> Reply queued for your approval.
+          </span>
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/approvals">Review in Approvals</Link>
+          </Button>
+          <div className="grow" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => setStatus.mutate({ id: lead.id, status: "dismissed" })}
+          >
+            <X className="size-4" /> Dismiss
+          </Button>
+        </div>
+      )}
+
+      {!done && !queued && (
         <>
           <div className="mt-4">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium">
@@ -179,9 +207,10 @@ function LeadCard({ lead }: { lead: Lead }) {
             <div className="grow" />
             <Button
               size="sm"
-              onClick={() => setStatus.mutate({ id: lead.id, status: "posted", draftReply: draft })}
+              disabled={queue.isPending || !draft.trim()}
+              onClick={() => queue.mutate({ lead, text: draft })}
             >
-              <Check className="size-4" /> Mark posted
+              <Send className="size-4" /> Post reply
             </Button>
             <Button
               size="sm"
