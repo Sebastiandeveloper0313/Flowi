@@ -122,6 +122,9 @@ function statusForTool(slug: string): string {
     GMAIL_CREATE_EMAIL_DRAFT: "Drafting a reply",
     GMAIL_SEND_EMAIL: "Sending an email",
     GMAIL_SEARCH_PEOPLE: "Searching contacts",
+    REDDIT_SEARCH_ACROSS_SUBREDDITS: "Searching Reddit",
+    LINKEDIN_GET_MY_INFO: "Checking your LinkedIn",
+    LINKEDIN_CREATE_LINKED_IN_POST: "Publishing to LinkedIn",
   };
   if (map[slug]) return map[slug];
   const toolkit = slug.split("_")[0] ?? "";

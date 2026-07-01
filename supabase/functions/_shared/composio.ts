@@ -10,6 +10,7 @@ const BASE = "https://backend.composio.dev/api/v3";
 const AUTH_CONFIGS: Record<string, string> = {
   gmail: "ac_v7EeY-JplVT0",
   reddit: "ac_uSlAKR4JLASx",
+  linkedin: "ac_1mFve3TdyssX",
 };
 
 // Curated toolset per toolkit. Read tools run instantly; write tools (see
@@ -30,12 +31,21 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "REDDIT_RETRIEVE_POST_COMMENTS",
     "REDDIT_POST_REDDIT_COMMENT",
   ],
+  linkedin: [
+    // GET_MY_INFO gives the author URN the post tool needs.
+    "LINKEDIN_GET_MY_INFO",
+    "LINKEDIN_CREATE_LINKED_IN_POST",
+  ],
 };
 
 // High-stakes tools that reach the outside world. When the model calls one of
 // these we never execute it directly; we queue an approval and let the user
 // decide. Everything not listed here is a safe read that runs instantly.
-const WRITE_TOOLS = new Set<string>(["GMAIL_SEND_EMAIL", "REDDIT_POST_REDDIT_COMMENT"]);
+const WRITE_TOOLS = new Set<string>([
+  "GMAIL_SEND_EMAIL",
+  "REDDIT_POST_REDDIT_COMMENT",
+  "LINKEDIN_CREATE_LINKED_IN_POST",
+]);
 
 /** True if a tool takes a real, outward-facing action that needs user approval. */
 export function isWriteTool(slug: string): boolean {
@@ -69,6 +79,11 @@ export function describeToolCall(
     const text = str(args.text || args.body).trim();
     const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
     return { title: "Post a reply on Reddit", detail: preview };
+  }
+  if (slug === "LINKEDIN_CREATE_LINKED_IN_POST") {
+    const text = str(args.commentary || args.text).trim();
+    const preview = text.length > 500 ? `${text.slice(0, 500)}…` : text;
+    return { title: "Publish a LinkedIn post", detail: preview };
   }
   const toolkit = slug.split("_")[0] ?? "";
   const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
