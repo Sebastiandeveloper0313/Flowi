@@ -12,7 +12,7 @@ import {
   isWriteTool,
   toolsForUser,
 } from "../_shared/composio.ts";
-import { chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
+import { autonomyMode, chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +72,24 @@ const TOOL = {
       },
     },
     required: ["title", "instructions"],
+  },
+};
+
+const SET_AUTONOMY_TOOL = {
+  name: "set_autonomy_mode",
+  description:
+    "Change how much Flowy does on its own for this workspace. Use when the user asks you to stop asking and just handle things ('auto'), or to always check with them before acting ('ask'). Affects the chat and all agents.",
+  input_schema: {
+    type: "object",
+    properties: {
+      mode: {
+        type: "string",
+        enum: ["ask", "auto"],
+        description:
+          "'ask' = high-stakes actions wait for the user's approval. 'auto' = Flowy carries them out on its own.",
+      },
+    },
+    required: ["mode"],
   },
 };
 
@@ -137,6 +155,7 @@ Deno.serve(async (req: Request) => {
 
     const ws = await fetchWorkspaceContext(userClient, teamId);
     const system = chatSystem(ws);
+    let mode = autonomyMode(ws);
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
     // not just talk. Executed against this team's own accounts via Composio.
@@ -200,7 +219,7 @@ Deno.serve(async (req: Request) => {
                 model: "claude-opus-4-8",
                 max_tokens: 2048,
                 system,
-                tools: [TOOL, ...connectedTools],
+                tools: [TOOL, SET_AUTONOMY_TOOL, ...connectedTools],
                 messages: working,
               }),
             });
@@ -274,8 +293,36 @@ Deno.serve(async (req: Request) => {
                       content: `Agent "${task.title}" created (id ${task.id}). It is now active.`,
                     });
                   }
-                } else if (isComposioTool(block.name) && isWriteTool(block.name)) {
-                  // High-stakes action: queue it for the user's approval, never send now.
+                } else if (block.name === "set_autonomy_mode") {
+                  const next = block.input?.mode === "auto" ? "auto" : "ask";
+                  const { error } = await userClient
+                    .from("teams")
+                    .update({ autonomy_mode: next })
+                    .eq("id", teamId);
+                  if (error) {
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: `Could not change the mode: ${error.message}`,
+                      is_error: true,
+                    });
+                  } else {
+                    mode = next; // honor the new mode for the rest of this turn
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content:
+                        next === "auto"
+                          ? "Autonomy set to auto. Flowy will now carry out actions on its own."
+                          : "Autonomy set to ask. Flowy will queue actions for your approval.",
+                    });
+                  }
+                } else if (
+                  isComposioTool(block.name) &&
+                  isWriteTool(block.name) &&
+                  mode === "ask"
+                ) {
+                  // High-stakes action in ask mode: queue it for approval, never send now.
                   send({ type: "status", text: "Waiting for your approval" });
                   const { message } = await queueApproval(userClient, {
                     teamId,

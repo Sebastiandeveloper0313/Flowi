@@ -480,6 +480,7 @@ export type Database = {
       };
       teams: {
         Row: {
+          autonomy_mode: string;
           business_categories: string[];
           business_context: Json | null;
           business_description: string | null;
@@ -498,6 +499,7 @@ export type Database = {
           website_url: string | null;
         };
         Insert: {
+          autonomy_mode?: string;
           business_categories?: string[];
           business_context?: Json | null;
           business_description?: string | null;
@@ -516,6 +518,7 @@ export type Database = {
           website_url?: string | null;
         };
         Update: {
+          autonomy_mode?: string;
           business_categories?: string[];
           business_context?: Json | null;
           business_description?: string | null;
