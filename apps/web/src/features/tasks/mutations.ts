@@ -95,3 +95,19 @@ export async function deleteTask(id: string) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
 }
+
+/** Delete several agents at once. */
+export async function bulkDeleteTasks(ids: string[]) {
+  if (ids.length === 0) return;
+  const { error } = await supabase.from("tasks").delete().in("id", ids);
+  if (error) throw error;
+}
+
+/** Change an agent's schedule (5-field cron, or null for run-once). */
+export async function updateTaskSchedule(id: string, scheduleCron: string | null) {
+  const { error } = await supabase
+    .from("tasks")
+    .update({ schedule_cron: scheduleCron })
+    .eq("id", id);
+  if (error) throw error;
+}
