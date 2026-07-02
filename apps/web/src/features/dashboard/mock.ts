@@ -1,4 +1,4 @@
-﻿// Realistic placeholder data for the management dashboard.
+// Realistic placeholder data for the management dashboard.
 // Single source so it's trivial to swap for the real backend later.
 
 export type Channel = "discord" | "telegram" | "slack" | "whatsapp" | "email" | "dashboard";
