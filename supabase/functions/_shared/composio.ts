@@ -10,7 +10,11 @@ const BASE = "https://backend.composio.dev/api/v3";
 const AUTH_CONFIGS: Record<string, string> = {
   gmail: "ac_v7EeY-JplVT0",
   reddit: "ac_uSlAKR4JLASx",
-  linkedin: "ac_1mFve3TdyssX",
+  // Includes organization scopes (w_organization_social, r_organization_admin)
+  // so posts can go out as a company page, not just the member. Connections
+  // made under the older personal-only config (ac_1mFve3TdyssX) keep working
+  // for personal posts; reconnecting grants the org scopes.
+  linkedin: "ac_vcR_em3p9qDI",
 };
 
 // Curated toolset per toolkit. Read tools run instantly; write tools (see
@@ -32,8 +36,10 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "REDDIT_POST_REDDIT_COMMENT",
   ],
   linkedin: [
-    // GET_MY_INFO gives the author URN the post tool needs.
+    // GET_MY_INFO gives the member URN; GET_COMPANY_INFO lists the company
+    // pages the user administers (org URNs), so posts can go out as the page.
     "LINKEDIN_GET_MY_INFO",
+    "LINKEDIN_GET_COMPANY_INFO",
     "LINKEDIN_CREATE_LINKED_IN_POST",
   ],
 };
@@ -83,7 +89,11 @@ export function describeToolCall(
   if (slug === "LINKEDIN_CREATE_LINKED_IN_POST") {
     const text = str(args.commentary || args.text).trim();
     const preview = text.length > 500 ? `${text.slice(0, 500)}…` : text;
-    return { title: "Publish a LinkedIn post", detail: preview };
+    const asCompany = str(args.author).startsWith("urn:li:organization:");
+    return {
+      title: asCompany ? "Publish a post on your company page" : "Publish a LinkedIn post",
+      detail: preview,
+    };
   }
   const toolkit = slug.split("_")[0] ?? "";
   const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
