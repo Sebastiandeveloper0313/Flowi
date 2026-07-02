@@ -37,7 +37,7 @@ Deno.serve(async (req: Request) => {
   const { data: tasks, error } = await admin
     .from("tasks")
     .select(
-      "id, team_id, title, instructions, schedule_cron, timezone, status, kind, config, next_run_at",
+      "id, team_id, title, instructions, channel, schedule_cron, timezone, status, kind, config, next_run_at",
     )
     .eq("status", "active")
     .not("schedule_cron", "is", null)

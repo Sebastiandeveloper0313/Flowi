@@ -23,6 +23,7 @@ export interface TaskRow {
   team_id: string;
   title: string;
   instructions: string;
+  channel?: string;
   schedule_cron: string | null;
   timezone: string;
   status: string;
@@ -187,6 +188,28 @@ export async function executeTask(
 }
 
 /**
+ * Deliver a finished result to the user, per the agent's channel. "email"
+ * sends the output to the team's own connected Gmail address (a self-send:
+ * it is reporting to the user, not an outward-facing action, so it does not
+ * go through the approval gate). Delivery failures never fail the run.
+ */
+async function deliverResult(task: TaskRow, summary: string, output: string): Promise<void> {
+  if (task.channel !== "email" || !composioEnabled()) return;
+  try {
+    const profileRaw = await executeComposioTool(task.team_id, "GMAIL_GET_PROFILE", {});
+    const email = profileRaw.match(/"emailAddress"\s*:\s*"([^"]+)"/)?.[1];
+    if (!email) return;
+    await executeComposioTool(task.team_id, "GMAIL_SEND_EMAIL", {
+      recipient_email: email,
+      subject: `${task.title}: ${summary}`.slice(0, 180),
+      body: `${output}\n\n--\nSent by Flowy, from your agent "${task.title}". Manage it on your Agents page.`,
+    });
+  } catch (e) {
+    console.error("email delivery failed:", e instanceof Error ? e.message : String(e));
+  }
+}
+
+/**
  * Run one task once: record a run row, execute, and persist the outcome.
  * `admin` must be a service-role client (writes bypass RLS). Authorization is
  * the caller's responsibility - this function trusts that the task is allowed.
@@ -227,6 +250,7 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
       .update({ status: "succeeded", summary, output, finished_at: new Date().toISOString() })
       .eq("id", run.id);
     await admin.from("tasks").update({ last_run_at: new Date().toISOString() }).eq("id", task.id);
+    await deliverResult(task, summary, output);
     return { status: "succeeded", run_id: run.id, summary };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

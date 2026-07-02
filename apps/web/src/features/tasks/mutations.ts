@@ -115,3 +115,9 @@ export async function updateTaskSchedule(id: string, scheduleCron: string | null
     .eq("id", id);
   if (error) throw error;
 }
+
+/** Change where an agent delivers its result ("dashboard" | "email"). */
+export async function updateTaskChannel(id: string, channel: string) {
+  const { error } = await supabase.from("tasks").update({ channel }).eq("id", id);
+  if (error) throw error;
+}

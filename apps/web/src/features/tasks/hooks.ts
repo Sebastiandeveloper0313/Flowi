@@ -8,6 +8,7 @@ import {
   deleteTask,
   runTask,
   setTaskStatus,
+  updateTaskChannel,
   updateTaskConfig,
   updateTaskSchedule,
 } from "./mutations";
@@ -98,6 +99,15 @@ export function useUpdateTaskSchedule() {
   });
 }
 
+export function useUpdateTaskChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, channel }: { id: string; channel: string }) =>
+      updateTaskChannel(id, channel),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
 export function useUpdateTaskConfig() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -116,12 +126,11 @@ export const SCHEDULES = [
   { value: "once", label: "Just once" },
 ] as const;
 
+// Only channels that actually deliver. More (Slack, Discord, WhatsApp) come
+// once the backend is publicly reachable for their webhooks.
 export const CHANNELS = [
-  { value: "discord", label: "Discord" },
-  { value: "telegram", label: "Telegram" },
-  { value: "slack", label: "Slack" },
-  { value: "whatsapp", label: "WhatsApp" },
   { value: "dashboard", label: "Dashboard only" },
+  { value: "email", label: "Email me the result" },
 ] as const;
 
 function humanizeCron(cron: string): string {
