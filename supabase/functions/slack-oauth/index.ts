@@ -32,11 +32,15 @@ Deno.serve(async (req: Request) => {
   const code = url.searchParams.get("code");
   if (!code) {
     if (url.searchParams.get("error")) return backToApp("cancelled");
-    // Start the install: send the user to Slack's consent screen.
+    // Start the install: send the user to Slack's consent screen. The Flowy
+    // team id rides along in `state` so the callback can mark that team's
+    // Slack card as connected.
     const authorize = new URL("https://slack.com/oauth/v2/authorize");
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("scope", SCOPES);
     authorize.searchParams.set("redirect_uri", redirectUri);
+    const state = url.searchParams.get("state");
+    if (state) authorize.searchParams.set("state", state);
     return Response.redirect(authorize.toString(), 302);
   }
 
@@ -58,12 +62,16 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+  // The Flowy team that started the install (echoed back by Slack in `state`).
+  const state = url.searchParams.get("state") ?? "";
+  const teamId = /^[0-9a-f-]{36}$/i.test(state) ? state : null;
   const { error } = await admin.from("slack_workspaces").upsert(
     {
       slack_team_id: data.team?.id,
       team_name: data.team?.name ?? null,
       bot_token: data.access_token,
       bot_user_id: data.bot_user_id ?? null,
+      ...(teamId ? { installed_by_team_id: teamId } : {}),
     },
     { onConflict: "slack_team_id" },
   );

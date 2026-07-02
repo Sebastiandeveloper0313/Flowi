@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { env } from "@/env";
 import { PageHeader } from "@/features/dashboard/ui";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
+import { useMyTeam } from "@/features/tasks/hooks";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   component: IntegrationsPage,
@@ -133,6 +134,7 @@ function SlackResultBanner() {
 function IntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const { data: toolkits } = useIntegrations(connecting !== null);
+  const { data: teamId } = useMyTeam();
   const connect = useConnectIntegration();
 
   const statusOf = (slug: string) => toolkits?.find((t) => t.slug === slug);
@@ -144,9 +146,12 @@ function IntegrationsPage() {
 
   async function onConnect(slug: string) {
     // Slack is not a Composio toolkit: "Add to Slack" runs our own OAuth install.
+    // The team id rides along as OAuth state so the install is credited to this
+    // workspace (that's what flips the card to Connected).
     if (slug === "slack") {
+      const state = teamId ? `?state=${encodeURIComponent(teamId)}` : "";
       window.open(
-        `${env.VITE_SUPABASE_URL}/functions/v1/slack-oauth`,
+        `${env.VITE_SUPABASE_URL}/functions/v1/slack-oauth${state}`,
         "_blank",
         "noopener,noreferrer",
       );

@@ -66,6 +66,20 @@ Deno.serve(async (req: Request) => {
         connected: statusByToolkit[slug] === "ACTIVE",
         status: statusByToolkit[slug] ?? "not_connected",
       }));
+
+      // Slack isn't a Composio toolkit: it counts as connected when this team
+      // has completed an "Add to Slack" install.
+      const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { count } = await admin
+        .from("slack_workspaces")
+        .select("id", { count: "exact", head: true })
+        .eq("installed_by_team_id", teamId);
+      toolkits.push({
+        slug: "slack",
+        connected: (count ?? 0) > 0,
+        status: (count ?? 0) > 0 ? "ACTIVE" : "not_connected",
+      });
+
       return json({ toolkits });
     }
 
