@@ -117,6 +117,7 @@ export type Database = {
           created_agents: Json;
           created_at: string;
           id: string;
+          proposals: Json;
           role: string;
           team_id: string;
         };
@@ -126,6 +127,7 @@ export type Database = {
           created_agents?: Json;
           created_at?: string;
           id?: string;
+          proposals?: Json;
           role: string;
           team_id: string;
         };
@@ -135,6 +137,7 @@ export type Database = {
           created_agents?: Json;
           created_at?: string;
           id?: string;
+          proposals?: Json;
           role?: string;
           team_id?: string;
         };
