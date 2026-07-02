@@ -332,8 +332,10 @@ function BillingTab() {
             </div>
             <div className="text-muted-foreground text-sm">
               {isPro
-                ? `$49 / month${data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
-                : "Upgrade for 10x higher daily limits."}
+                ? `$49 / month${data?.subscription_status === "trialing" ? " · free trial" : data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
+                : data?.subscription_status
+                  ? "Resubscribe for 10x higher daily limits."
+                  : "Try Pro free for 3 days. Cancel anytime."}
             </div>
           </div>
           {isPro ? (
@@ -348,7 +350,7 @@ function BillingTab() {
           ) : (
             <Button disabled={redirect.isPending} onClick={() => redirect.mutate("checkout")}>
               {redirect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Upgrade to Pro · $49/mo
+              {data?.subscription_status ? "Resubscribe · $49/mo" : "Start 3-day free trial"}
             </Button>
           )}
         </CardContent>
