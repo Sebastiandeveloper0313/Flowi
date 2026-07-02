@@ -34,6 +34,12 @@ const APPS: AppMeta[] = [
     available: true,
   },
   {
+    slug: "facebook",
+    name: "Facebook",
+    description: "Post to your page and answer its inbox.",
+    available: true,
+  },
+  {
     slug: "hubspot",
     name: "HubSpot",
     description: "Sync contacts, deals, and activity.",

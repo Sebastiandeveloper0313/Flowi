@@ -126,6 +126,13 @@ function statusForTool(slug: string): string {
     LINKEDIN_GET_MY_INFO: "Checking your LinkedIn",
     LINKEDIN_GET_COMPANY_INFO: "Checking your company pages",
     LINKEDIN_CREATE_LINKED_IN_POST: "Publishing to LinkedIn",
+    FACEBOOK_GET_USER_PAGES: "Checking your Facebook pages",
+    FACEBOOK_GET_PAGE_POSTS: "Reading your page posts",
+    FACEBOOK_GET_PAGE_CONVERSATIONS: "Checking your page inbox",
+    FACEBOOK_GET_CONVERSATION_MESSAGES: "Reading the conversation",
+    FACEBOOK_CREATE_POST: "Publishing to Facebook",
+    FACEBOOK_CREATE_COMMENT: "Replying to a comment",
+    FACEBOOK_SEND_MESSAGE: "Sending a Messenger reply",
   };
   if (map[slug]) return map[slug];
   const toolkit = slug.split("_")[0] ?? "";
