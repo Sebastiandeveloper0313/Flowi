@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
+import { Input } from "@workspace/ui/components/input";
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } fr
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
 import {
+  CHANNELS,
   channelLabel,
   scheduleLabel,
   useCreateAgentFromProposal,
@@ -146,23 +148,40 @@ const RUN_FREQUENCIES: { value: string; label: string }[] = [
   { value: "once", label: "Just once" },
 ];
 
-/** A proposed agent shown in chat: pick how often it runs, then create it. */
+function toList(s: string): string[] {
+  return s
+    .split(",")
+    .map((x) => x.trim().replace(/^r\//i, ""))
+    .filter(Boolean);
+}
+
+/** A proposed agent shown in chat: fine-tune every field, then create it. */
 function ProposalCard({ proposal }: { proposal: AgentProposal }) {
   const { data: teamId } = useQuery(myTeamQueryOptions);
   const { data: tasks } = useTasks();
   const create = useCreateAgentFromProposal();
   const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
-  const [cron, setCron] = useState<string>(proposal.schedule_cron ?? "once");
 
   const isReddit = proposal.kind === "reddit_monitor";
 
-  // Persisted "created" state: if an agent with this title already exists, the
-  // card shows the created state even after a reload (proposals are saved but
-  // the just-created flash isn't).
-  const existing = tasks?.find((t) => t.title === proposal.title);
+  // Editable draft, seeded from Flowy's proposal.
+  const [title, setTitle] = useState(proposal.title);
+  const [instructions, setInstructions] = useState(proposal.instructions);
+  const [cron, setCron] = useState<string>(proposal.schedule_cron ?? "once");
+  const [channel, setChannel] = useState(proposal.channel);
+  const [keywords, setKeywords] = useState((proposal.keywords ?? []).join(", "));
+  const [subreddits, setSubreddits] = useState((proposal.subreddits ?? []).join(", "));
+
+  // Match the created agent by the proposal id stamped into its config, so the
+  // created state survives a reload even if the title was edited. Falls back to
+  // the title for anything created before the id stamp existed.
+  const existing = tasks?.find(
+    (t) =>
+      (t.config as { proposal_id?: string } | null)?.proposal_id === proposal.id ||
+      t.title === proposal.title,
+  );
   const done = created ?? (existing ? { id: existing.id, title: existing.title } : null);
 
-  // Ensure the current cron is always selectable, even if it's a custom one.
   const options = RUN_FREQUENCIES.some((f) => f.value === cron)
     ? RUN_FREQUENCIES
     : [{ value: cron, label: scheduleLabel(cron === "once" ? null : cron) }, ...RUN_FREQUENCIES];
@@ -173,42 +192,87 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
       {
         teamId,
         proposal: {
-          title: proposal.title,
-          instructions: proposal.instructions,
-          channel: proposal.channel,
+          title: title.trim() || proposal.title,
+          instructions: instructions.trim(),
+          channel,
           schedule_cron: cron === "once" ? null : cron,
           timezone: proposal.timezone,
           kind: proposal.kind,
-          keywords: proposal.keywords,
-          subreddits: proposal.subreddits,
+          keywords: isReddit ? toList(keywords) : [],
+          subreddits: isReddit ? toList(subreddits) : [],
+          proposalId: proposal.id,
         },
       },
       { onSuccess: (data) => setCreated(data) },
     );
   }
 
+  const shell =
+    "border-primary/15 bg-card mt-1 max-w-md overflow-hidden rounded-2xl border shadow-sm";
+
+  // Created / read-only state.
+  if (done) {
+    return (
+      <div className={shell}>
+        <div className="flex items-start gap-3 p-4">
+          <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+            <Bot className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] leading-snug font-semibold">{done.title}</p>
+            <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+              <span className="flex items-center gap-1">
+                <CalendarClock className="size-3" />{" "}
+                {scheduleLabel(existing?.schedule_cron ?? proposal.schedule_cron)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Hash className="size-3" />{" "}
+                {isReddit ? "Reddit leads" : channelLabel(existing?.channel ?? channel)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-muted/30 border-t px-4 py-2.5">
+          <Link
+            to="/agents/$agentId"
+            params={{ agentId: done.id }}
+            className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
+          >
+            <CheckCircle2 className="size-3.5" /> Agent created, open it
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Editable state.
   return (
-    <div className="border-primary/15 bg-card mt-1 max-w-md overflow-hidden rounded-2xl border shadow-sm">
+    <div className={shell}>
       <div className="flex items-start gap-3 p-4">
         <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
           <Bot className="size-4" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] leading-snug font-semibold">{proposal.title}</p>
-          <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-relaxed">
-            {proposal.instructions}
-          </p>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
-              <CalendarClock className="size-3" /> Runs
-            </span>
-            {done ? (
-              <span className="text-[11px] font-medium">
-                {scheduleLabel(existing?.schedule_cron ?? proposal.schedule_cron)}
+        <div className="min-w-0 flex-1 space-y-2">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            aria-label="Agent name"
+            className="hover:border-input focus-visible:border-input h-7 border-transparent bg-transparent px-1 text-[13px] font-semibold shadow-none"
+          />
+          <Textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            rows={2}
+            aria-label="What the agent does"
+            className="text-muted-foreground resize-y text-xs leading-relaxed"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-1">
+              <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
+                <CalendarClock className="size-3" /> Runs
               </span>
-            ) : (
               <Select value={cron} onValueChange={setCron}>
-                <SelectTrigger size="sm" className="h-7 w-auto min-w-[9.5rem] text-xs">
+                <SelectTrigger size="sm" className="h-7 text-xs" aria-label="How often it runs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,39 +283,68 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {!isReddit && (
+              <div className="grid gap-1">
+                <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
+                  <Hash className="size-3" /> Delivers to
+                </span>
+                <Select value={channel} onValueChange={setChannel}>
+                  <SelectTrigger size="sm" className="h-7 text-xs" aria-label="Where it delivers">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHANNELS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
-            <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
-              <Hash className="size-3" />{" "}
-              {isReddit ? "Reddit leads" : channelLabel(proposal.channel)}
-            </span>
           </div>
+          {isReddit && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-1">
+                <span className="text-muted-foreground text-[11px]">Keywords</span>
+                <Input
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="auto from your business"
+                  aria-label="Keywords"
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div className="grid gap-1">
+                <span className="text-muted-foreground text-[11px]">Subreddits</span>
+                <Input
+                  value={subreddits}
+                  onChange={(e) => setSubreddits(e.target.value)}
+                  placeholder="all of Reddit"
+                  aria-label="Subreddits"
+                  className="h-7 text-xs"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <div className="bg-muted/30 border-t px-4 py-2.5">
-        {done ? (
-          <Link
-            to="/agents/$agentId"
-            params={{ agentId: done.id }}
-            className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
-          >
-            <CheckCircle2 className="size-3.5" /> Agent created, open it
-          </Link>
-        ) : (
-          <Button
-            size="sm"
-            className="h-8 w-full rounded-lg text-xs"
-            disabled={create.isPending || !teamId}
-            onClick={onCreate}
-          >
-            {create.isPending ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Plus className="size-3.5" />
-            )}
-            Create agent
-          </Button>
-        )}
-        {create.isError && !done && (
+        <Button
+          size="sm"
+          className="h-8 w-full rounded-lg text-xs"
+          disabled={create.isPending || !teamId}
+          onClick={onCreate}
+        >
+          {create.isPending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Plus className="size-3.5" />
+          )}
+          Create agent
+        </Button>
+        {create.isError && (
           <p className="text-destructive mt-1.5 text-[11px]">
             {(create.error as Error).message || "Couldn't create it. Try again."}
           </p>

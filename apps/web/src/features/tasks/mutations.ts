@@ -40,6 +40,7 @@ export interface AgentProposalInput {
   kind: "content" | "reddit_monitor";
   keywords: string[];
   subreddits: string[];
+  proposalId?: string; // stamped into config so a proposal card can find its agent
 }
 
 /** Create a real agent from a chat proposal (the "Create agent" button). */
@@ -49,8 +50,11 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
   } = await supabase.auth.getUser();
   if (!user) throw new Error("You must be signed in.");
 
-  const config =
-    p.kind === "reddit_monitor" ? { keywords: p.keywords, subreddits: p.subreddits } : {};
+  const config: Record<string, unknown> = p.proposalId ? { proposal_id: p.proposalId } : {};
+  if (p.kind === "reddit_monitor") {
+    config.keywords = p.keywords;
+    config.subreddits = p.subreddits;
+  }
 
   const { data, error } = await supabase
     .from("tasks")
