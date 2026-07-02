@@ -15,6 +15,7 @@ const AUTH_CONFIGS: Record<string, string> = {
   // made under the older personal-only config (ac_1mFve3TdyssX) keep working
   // for personal posts; reconnecting grants the org scopes.
   linkedin: "ac_vcR_em3p9qDI",
+  facebook: "ac_4DxrKBJQ6XMZ",
 };
 
 // Curated toolset per toolkit. Read tools run instantly; write tools (see
@@ -42,6 +43,16 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "LINKEDIN_GET_COMPANY_INFO",
     "LINKEDIN_CREATE_LINKED_IN_POST",
   ],
+  facebook: [
+    // GET_USER_PAGES lists the pages the user manages (page ids the writes need).
+    "FACEBOOK_GET_USER_PAGES",
+    "FACEBOOK_GET_PAGE_POSTS",
+    "FACEBOOK_GET_PAGE_CONVERSATIONS",
+    "FACEBOOK_GET_CONVERSATION_MESSAGES",
+    "FACEBOOK_CREATE_POST",
+    "FACEBOOK_CREATE_COMMENT",
+    "FACEBOOK_SEND_MESSAGE",
+  ],
 };
 
 // High-stakes tools that reach the outside world. When the model calls one of
@@ -51,6 +62,9 @@ const WRITE_TOOLS = new Set<string>([
   "GMAIL_SEND_EMAIL",
   "REDDIT_POST_REDDIT_COMMENT",
   "LINKEDIN_CREATE_LINKED_IN_POST",
+  "FACEBOOK_CREATE_POST",
+  "FACEBOOK_CREATE_COMMENT",
+  "FACEBOOK_SEND_MESSAGE",
 ]);
 
 /** True if a tool takes a real, outward-facing action that needs user approval. */
@@ -94,6 +108,19 @@ export function describeToolCall(
       title: asCompany ? "Publish a post on your company page" : "Publish a LinkedIn post",
       detail: preview,
     };
+  }
+  if (slug === "FACEBOOK_CREATE_POST") {
+    const text = str(args.message).trim();
+    const preview = text.length > 500 ? `${text.slice(0, 500)}…` : text;
+    return { title: "Publish a post on your Facebook page", detail: preview };
+  }
+  if (slug === "FACEBOOK_CREATE_COMMENT") {
+    const text = str(args.message || args.comment).trim();
+    return { title: "Reply to a comment on your Facebook page", detail: text.slice(0, 400) };
+  }
+  if (slug === "FACEBOOK_SEND_MESSAGE") {
+    const text = str(args.message || args.text).trim();
+    return { title: "Send a Messenger reply from your page", detail: text.slice(0, 400) };
   }
   const toolkit = slug.split("_")[0] ?? "";
   const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
