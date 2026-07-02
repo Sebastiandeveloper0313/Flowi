@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
-import { Check, ExternalLink, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Loader2, PartyPopper, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { env } from "@/env";
@@ -76,6 +76,60 @@ function logo(slug: string) {
   return `https://logos.composio.dev/api/${slug}`;
 }
 
+/** Result banner after the "Add to Slack" OAuth flow bounces back here. */
+function SlackResultBanner() {
+  const search = useSearch({ strict: false }) as { slack?: string; detail?: string };
+  const navigate = useNavigate();
+  if (!search?.slack) return null;
+
+  const dismiss = () => void navigate({ to: "/integrations", search: {}, replace: true });
+  const ok = search.slack === "connected";
+  const cancelled = search.slack === "cancelled";
+
+  return (
+    <div
+      className={`mb-5 flex items-start gap-3 rounded-2xl border p-4 ${
+        ok
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : cancelled
+            ? "bg-muted/60 text-foreground"
+            : "border-rose-200 bg-rose-50 text-rose-900"
+      }`}
+    >
+      {ok ? (
+        <PartyPopper className="mt-0.5 size-5 shrink-0" />
+      ) : (
+        <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+      )}
+      <div className="min-w-0 flex-1 text-sm">
+        {ok ? (
+          <>
+            <p className="font-semibold">Flowy is in your Slack</p>
+            <p className="mt-0.5">
+              Open Slack, find <b>Flowy</b> under Apps, and send it a message. It matches you by
+              email, so use the same email in Slack as in your Flowy account.
+            </p>
+          </>
+        ) : cancelled ? (
+          <p className="font-medium">Slack install cancelled.</p>
+        ) : (
+          <p className="font-medium">
+            Slack install failed{search.detail ? `: ${search.detail}` : "."}
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="grid size-7 shrink-0 place-items-center rounded-lg hover:bg-black/5"
+        aria-label="Dismiss"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 function IntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const { data: toolkits } = useIntegrations(connecting !== null);
@@ -113,6 +167,8 @@ function IntegrationsPage() {
         title="Integrations"
         subtitle="Connect the tools your agents act on. Permissions are per-tool and shared across every agent."
       />
+
+      <SlackResultBanner />
 
       {connect.isError && (
         <p className="text-destructive mb-4 text-sm">
