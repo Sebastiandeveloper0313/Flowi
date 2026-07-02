@@ -7,14 +7,16 @@ export function initLanding(root: HTMLElement): () => void {
   const observers: IntersectionObserver[] = [];
   const cleanups: Array<() => void> = [];
 
-  /* ---- channel toggle ---- */
+  /* ---- channel toggle (switches the app-mock preview) ---- */
   const toggle = root.querySelector<HTMLElement>(".channel-toggle");
   if (toggle) {
     const glow = toggle.querySelector<HTMLElement>(".ch-glow");
     const btns = Array.from(toggle.querySelectorAll<HTMLElement>(".ch-btn"));
+    const mock = root.querySelector<HTMLElement>("#appMock");
     const move = (btn: HTMLElement) => {
       btns.forEach((b) => b.classList.toggle("active", b === btn));
       if (glow) glow.style.transform = `translateX(${btn.offsetLeft - btns[0].offsetLeft}px)`;
+      if (mock && btn.dataset.ch) mock.dataset.view = btn.dataset.ch;
     };
     btns.forEach((b) => b.addEventListener("click", () => move(b)));
     if (btns[0]) move(btns[0]);

@@ -146,8 +146,8 @@
     </div>
 
     <!-- chat app mockup -->
-    <div class="app-mock" id="appMock">
-      <aside class="app-side">
+    <div class="app-mock" id="appMock" data-view="slack">
+      <aside class="app-side mock-view mv-slack">
         <div class="side-head">
           <div class="ws-name">
             Acme Inc <svg viewBox="0 0 24 24" class="chev sm"><path d="M6 9l6 6 6-6" /></svg>
@@ -170,7 +170,7 @@
         </ul>
       </aside>
 
-      <div class="app-main">
+      <div class="app-main mock-view mv-slack">
         <div class="main-head">
           <span class="hash big">#</span> growth
           <span class="topic">· where Flowy reports for duty</span>
@@ -255,6 +255,142 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- gmail view -->
+      <div class="app-main mock-full mock-view mv-gmail">
+        <div class="mail-head">
+          <span class="mail-subject">Reddit Lead Watch · 4 new leads found</span>
+          <span class="mail-tag">Inbox</span>
+        </div>
+        <div class="msg">
+          <div class="ava bot">
+            <svg viewBox="0 0 100 100">
+              <rect width="100" height="100" rx="28" fill="url(#bmG)" />
+              <path
+                d="M34 32h34M34 50h27M34 68h18"
+                stroke="white"
+                stroke-width="9"
+                stroke-linecap="round"
+              />
+              <defs>
+                <linearGradient id="bmG" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#5aa6ff" />
+                  <stop offset="1" stop-color="#1566e6" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="msg-body">
+            <div class="msg-meta">
+              <b>Flowy</b> <span class="mail-addr">reports@flowy</span> <time>9:04 AM</time>
+            </div>
+            <p>
+              Morning! Today's run found 4 people on Reddit asking for exactly what you sell. The
+              top 3 replies are drafted and waiting in your approval queue.
+            </p>
+            <div class="deliver-card">
+              <div class="dc-top">
+                <span class="dc-ico"
+                  ><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" /></svg
+                ></span>
+                <div>
+                  <div class="dc-name">Lead Report</div>
+                  <div class="dc-meta">4 leads · replies drafted · awaiting your approval</div>
+                </div>
+                <span class="dc-check"
+                  ><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg
+                ></span>
+              </div>
+              <div class="dc-stats">
+                <div><span class="s-n">4</span><span class="s-l">leads found</span></div>
+                <div><span class="s-n up">92%</span><span class="s-l">top match</span></div>
+                <div><span class="s-n">3</span><span class="s-l">drafts ready</span></div>
+              </div>
+            </div>
+            <div class="mock-actions">
+              <span class="chip-btn primary">Review &amp; approve</span>
+              <span class="chip-btn">Open dashboard</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- reddit view -->
+      <div class="app-main mock-full mock-view mv-reddit">
+        <div class="rd-post">
+          <div class="rd-meta">
+            <span class="rd-sub">r/CreatorEconomy</span> · u/maya_films · 2h
+            <span class="rd-match">92% match</span>
+          </div>
+          <div class="rd-title">Is there any way to charge fans for my TikTok lives?</div>
+          <p class="rd-body">
+            I'm at 40k followers and do a live every week. People keep asking how they can support
+            me but gifts barely add up. Is there a tool for this?
+          </p>
+          <div class="rd-stats">▲ 128 · 34 comments</div>
+        </div>
+        <div class="rd-reply">
+          <div class="rd-reply-head">
+            <span class="rd-flowy">
+              <svg viewBox="0 0 100 100">
+                <rect width="100" height="100" rx="28" fill="url(#bmR)" />
+                <path
+                  d="M34 32h34M34 50h27M34 68h18"
+                  stroke="white"
+                  stroke-width="9"
+                  stroke-linecap="round"
+                />
+                <defs>
+                  <linearGradient id="bmR" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#5aa6ff" />
+                    <stop offset="1" stop-color="#1566e6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </span>
+            <b>Drafted reply</b>
+            <span class="rd-wait">awaiting your approval</span>
+          </div>
+          <p>
+            Congrats on the growth! A pay-per-view setup could fit here — you set a price per live,
+            fans unlock it, and you keep the upside. Happy to share how other creators run it.
+          </p>
+          <div class="mock-actions">
+            <span class="chip-btn primary">Approve &amp; post</span>
+            <span class="chip-btn">Edit</span>
+            <span class="chip-btn">Skip</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- linkedin view -->
+      <div class="app-main mock-full mock-view mv-linkedin">
+        <div class="li-card">
+          <div class="li-head">
+            <span class="li-logo">A</span>
+            <div class="li-who">
+              <b>Acme Inc</b>
+              <span>1,204 followers · Mon 9:00 AM</span>
+            </div>
+            <span class="li-badge">Published by Flowy</span>
+          </div>
+          <p class="li-body">
+            Most small teams still do their marketing by hand, in the gaps between real work. We
+            think the recurring half of it should run itself. Here's what changed for our first 50
+            customers when it did ↓
+          </p>
+          <div class="li-stats">86 likes · 12 comments · 5 reposts</div>
+        </div>
+        <div class="schedule-pill">
+          <svg viewBox="0 0 24 24" class="clk">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span>Weekly LinkedIn Post</span>
+          <em>Every Monday · 9:00 AM</em>
+          <span class="live">● live</span>
         </div>
       </div>
     </div>
