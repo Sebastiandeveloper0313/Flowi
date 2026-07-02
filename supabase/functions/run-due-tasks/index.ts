@@ -25,9 +25,14 @@ function nextRun(cron: string, timezone: string, from: Date): Date | null {
 }
 
 Deno.serve(async (req: Request) => {
+  // Accept a dedicated scheduler secret (set per environment and mirrored in
+  // the Vault secret the cron dispatcher sends), falling back to the service
+  // role key for local dev. Fail closed either way.
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const schedulerSecret = Deno.env.get("FLOWY_SCHEDULER_SECRET");
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!token || token !== service) return json({ error: "unauthorized" }, 401);
+  const ok = !!token && (token === service || (!!schedulerSecret && token === schedulerSecret));
+  if (!ok) return json({ error: "unauthorized" }, 401);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, service);
   const now = new Date();
