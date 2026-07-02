@@ -7,6 +7,7 @@ import { Textarea } from "@workspace/ui/components/textarea";
 import { AlertTriangle, Brain, Check, Globe, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useBillingRedirect, useBillingSummary } from "@/features/billing/hooks";
 import { CHANNEL_LABELS, type Channel } from "@/features/dashboard/mock";
 import { PageHeader } from "@/features/dashboard/ui";
 import type { BusinessContext } from "@/features/onboarding/mutations";
@@ -310,41 +311,85 @@ function ChannelsTab() {
   );
 }
 
+const USAGE_LABELS: Record<string, string> = {
+  chat: "Chat messages today",
+  analyze_website: "Website analyses today",
+};
+
 function BillingTab() {
+  const { data, isLoading } = useBillingSummary();
+  const redirect = useBillingRedirect();
+  const isPro = data?.plan === "pro";
+
   return (
     <div className="space-y-5">
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div>
             <div className="text-muted-foreground text-sm">Current plan</div>
-            <div className="mt-0.5 text-2xl font-bold">Pro</div>
-            <div className="text-muted-foreground text-sm">$49 / month · renews May 26</div>
+            <div className="mt-0.5 text-2xl font-bold">
+              {isLoading ? "…" : isPro ? "Pro" : "Free"}
+            </div>
+            <div className="text-muted-foreground text-sm">
+              {isPro
+                ? `$49 / month${data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
+                : "Upgrade for 10x higher daily limits."}
+            </div>
           </div>
-          <Button variant="outline">Manage plan</Button>
+          {isPro ? (
+            <Button
+              variant="outline"
+              disabled={redirect.isPending}
+              onClick={() => redirect.mutate("portal")}
+            >
+              {redirect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Manage billing
+            </Button>
+          ) : (
+            <Button disabled={redirect.isPending} onClick={() => redirect.mutate("checkout")}>
+              {redirect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Upgrade to Pro · $49/mo
+            </Button>
+          )}
         </CardContent>
       </Card>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Usage this month</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="text-3xl font-bold">1,284</div>
-            <p className="text-muted-foreground text-sm">agent runs · of 5,000 included</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Payment method</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">Visa ending •••• 4242</p>
-            <Button variant="outline" size="sm" className="mt-3">
-              Update card
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+
+      {redirect.isError && (
+        <p className="text-destructive text-sm">
+          {(redirect.error as Error)?.message || "Couldn't open billing. Try again."}
+        </p>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Usage</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {Object.entries(data?.limits ?? {}).map(([kind, limit]) => {
+            const used = data?.usage?.[kind] ?? 0;
+            const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+            return (
+              <div key={kind}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span>{USAGE_LABELS[kind] ?? kind}</span>
+                  <span className="text-muted-foreground">
+                    {used} / {limit}
+                  </span>
+                </div>
+                <div className="bg-muted h-2 overflow-hidden rounded-full">
+                  <div
+                    className={`h-full rounded-full ${pct >= 90 ? "bg-rose-500" : "bg-primary"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          {!isLoading && !Object.keys(data?.limits ?? {}).length && (
+            <p className="text-muted-foreground text-sm">No usage yet today.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

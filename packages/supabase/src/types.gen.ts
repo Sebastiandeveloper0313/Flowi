@@ -541,6 +541,10 @@ export type Database = {
           onboarding_completed: boolean;
           onboarding_step: number;
           owner_role: string | null;
+          plan: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          subscription_status: string | null;
           team_size: string | null;
           updated_at: string;
           website_url: string | null;
@@ -560,6 +564,10 @@ export type Database = {
           onboarding_completed?: boolean;
           onboarding_step?: number;
           owner_role?: string | null;
+          plan?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_status?: string | null;
           team_size?: string | null;
           updated_at?: string;
           website_url?: string | null;
@@ -579,6 +587,10 @@ export type Database = {
           onboarding_completed?: boolean;
           onboarding_step?: number;
           owner_role?: string | null;
+          plan?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_status?: string | null;
           team_size?: string | null;
           updated_at?: string;
           website_url?: string | null;
