@@ -3,6 +3,8 @@
 // Uses Claude with the hosted web_fetch/web_search tools (no extra API key).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+import { meter } from "../_shared/usage.ts";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -112,6 +114,14 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     const teamId = membership?.team_id;
     if (!teamId) return json({ error: "no team for user" }, 403);
+
+    const usage = await meter(teamId, "analyze_website");
+    if (!usage.ok) {
+      return json(
+        { error: `Daily analysis limit reached (${usage.limit}). Try again tomorrow.` },
+        429,
+      );
+    }
 
     const key = Deno.env.get("ANTHROPIC_API_KEY");
     if (!key) return json({ error: "AI is not configured on the server." }, 503);

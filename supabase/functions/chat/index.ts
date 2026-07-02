@@ -13,6 +13,7 @@ import {
   toolsForUser,
 } from "../_shared/composio.ts";
 import { autonomyMode, chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
+import { meter } from "../_shared/usage.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -168,6 +169,18 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     const teamId = membership?.team_id;
     if (!teamId) return json({ error: "no team for user" }, 403);
+
+    // Server-side daily budget, so even a client bypassing the UI can't drain
+    // the workspace's AI usage.
+    const usage = await meter(teamId, "chat");
+    if (!usage.ok) {
+      return json(
+        {
+          error: `Daily chat limit reached (${usage.limit} messages). It resets over the next day.`,
+        },
+        429,
+      );
+    }
 
     const key = Deno.env.get("ANTHROPIC_API_KEY");
     if (!key) {

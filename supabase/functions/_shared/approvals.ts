@@ -141,13 +141,9 @@ async function notifySlack(
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: ws } = await admin
-    .from("slack_workspaces")
-    .select("bot_token")
-    .eq("installed_by_team_id", teamId)
-    .limit(1)
-    .maybeSingle();
-  if (!ws?.bot_token) return;
+  const { data: vaultToken } = await admin.rpc("slack_team_token", { p_team_id: teamId });
+  const botToken = typeof vaultToken === "string" && vaultToken ? vaultToken : null;
+  if (!botToken) return;
 
   // Who to ping: the requester, else the team owner.
   let userId = createdBy;
@@ -168,7 +164,7 @@ async function notifySlack(
 
   const lookup = await fetch(
     `https://slack.com/api/users.lookupByEmail?email=${encodeURIComponent(email)}`,
-    { headers: { authorization: `Bearer ${ws.bot_token}` } },
+    { headers: { authorization: `Bearer ${botToken}` } },
   ).then((r) => r.json());
   const slackUser = lookup?.user?.id;
   if (!slackUser) return;
@@ -177,7 +173,7 @@ async function notifySlack(
   await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${ws.bot_token}`,
+      authorization: `Bearer ${botToken}`,
       "content-type": "application/json; charset=utf-8",
     },
     body: JSON.stringify({

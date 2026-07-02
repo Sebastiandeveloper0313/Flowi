@@ -335,33 +335,36 @@ export type Database = {
       };
       slack_workspaces: {
         Row: {
-          bot_token: string;
+          bot_token: string | null;
           bot_user_id: string | null;
           id: string;
           installed_at: string;
           installed_by_team_id: string | null;
           slack_team_id: string;
           team_name: string | null;
+          token_secret_id: string | null;
           updated_at: string;
         };
         Insert: {
-          bot_token: string;
+          bot_token?: string | null;
           bot_user_id?: string | null;
           id?: string;
           installed_at?: string;
           installed_by_team_id?: string | null;
           slack_team_id: string;
           team_name?: string | null;
+          token_secret_id?: string | null;
           updated_at?: string;
         };
         Update: {
-          bot_token?: string;
+          bot_token?: string | null;
           bot_user_id?: string | null;
           id?: string;
           installed_at?: string;
           installed_by_team_id?: string | null;
           slack_team_id?: string;
           team_name?: string | null;
+          token_secret_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -582,6 +585,35 @@ export type Database = {
         };
         Relationships: [];
       };
+      usage_events: {
+        Row: {
+          created_at: string;
+          id: string;
+          kind: string;
+          team_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          kind: string;
+          team_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          team_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "usage_events_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -590,6 +622,21 @@ export type Database = {
       flowy_dispatch_due_tasks: { Args: never; Returns: undefined };
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean };
       is_team_member: { Args: { p_team_id: string }; Returns: boolean };
+      slack_store_workspace: {
+        Args: {
+          p_bot_token: string;
+          p_bot_user_id: string;
+          p_installed_by_team_id: string;
+          p_slack_team_id: string;
+          p_team_name: string;
+        };
+        Returns: undefined;
+      };
+      slack_team_token: { Args: { p_team_id: string }; Returns: string };
+      slack_workspace_token: {
+        Args: { p_slack_team_id: string };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;

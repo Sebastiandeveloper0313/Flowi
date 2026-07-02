@@ -13,6 +13,7 @@ import {
   toolsForUser,
 } from "../_shared/composio.ts";
 import { autonomyMode, chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
+import { meter } from "../_shared/usage.ts";
 
 const enc = new TextEncoder();
 
@@ -120,12 +121,8 @@ async function tokenForWorkspace(
   slackTeamId: string | undefined,
 ): Promise<string | null> {
   if (slackTeamId) {
-    const { data } = await admin
-      .from("slack_workspaces")
-      .select("bot_token")
-      .eq("slack_team_id", slackTeamId)
-      .maybeSingle();
-    if (data?.bot_token) return data.bot_token;
+    const { data } = await admin.rpc("slack_workspace_token", { p_slack_team_id: slackTeamId });
+    if (typeof data === "string" && data) return data;
   }
   return Deno.env.get("SLACK_BOT_TOKEN") ?? null;
 }
@@ -269,6 +266,13 @@ async function handleEvent(event: any, slackTeamId: string | undefined): Promise
     await post(
       `I don't see a Flowy account for ${email}. Sign up at https://flowy-omega.vercel.app and message me again.`,
     );
+    return;
+  }
+
+  // Slack messages share the same daily AI budget as the web chat.
+  const usage = await meter(teamId, "chat");
+  if (!usage.ok) {
+    await post(`Daily chat limit reached (${usage.limit} messages). It resets over the next day.`);
     return;
   }
 
