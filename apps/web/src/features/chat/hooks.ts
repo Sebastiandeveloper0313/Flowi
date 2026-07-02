@@ -183,7 +183,7 @@ export function useChats() {
 export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> {
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("role, content, created_agents")
+    .select("role, content, created_agents, proposals")
     .eq("chat_id", chatId)
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -191,6 +191,7 @@ export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> 
     role: m.role as "user" | "assistant",
     content: m.content,
     created: (m.created_agents as CreatedAgent[] | null) ?? undefined,
+    proposals: (m.proposals as AgentProposal[] | null) ?? undefined,
   }));
 }
 
@@ -223,6 +224,7 @@ export async function saveMessage(
     role: message.role,
     content: message.content,
     created_agents: message.created ?? [],
+    proposals: message.proposals ?? [],
   });
   if (error) throw error;
 }

@@ -1,6 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import {
   ArrowUp,
@@ -23,7 +30,12 @@ import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } fr
 
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
-import { channelLabel, scheduleLabel, useCreateAgentFromProposal } from "@/features/tasks/hooks";
+import {
+  channelLabel,
+  scheduleLabel,
+  useCreateAgentFromProposal,
+  useTasks,
+} from "@/features/tasks/hooks";
 import { myTeamQueryOptions } from "@/features/tasks/queries";
 
 import {
@@ -120,13 +132,40 @@ function FlowyAvatar() {
   );
 }
 
-/** A proposed agent shown in chat, with a Create button that spins it up. */
+// Common run frequencies offered on a proposal card, so the user can set "how
+// often" instead of accepting Flowy's guess. "once" maps to no schedule.
+const RUN_FREQUENCIES: { value: string; label: string }[] = [
+  { value: "0 * * * *", label: "Every hour" },
+  { value: "0 */4 * * *", label: "Every 4 hours" },
+  { value: "0 */6 * * *", label: "Every 6 hours" },
+  { value: "0 9,17 * * *", label: "Twice a day" },
+  { value: "0 8 * * *", label: "Every day at 8 AM" },
+  { value: "0 12 * * *", label: "Every day at noon" },
+  { value: "0 8 * * 1-5", label: "Every weekday at 8 AM" },
+  { value: "0 9 * * 1", label: "Every Monday at 9 AM" },
+  { value: "once", label: "Just once" },
+];
+
+/** A proposed agent shown in chat: pick how often it runs, then create it. */
 function ProposalCard({ proposal }: { proposal: AgentProposal }) {
   const { data: teamId } = useQuery(myTeamQueryOptions);
+  const { data: tasks } = useTasks();
   const create = useCreateAgentFromProposal();
   const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
+  const [cron, setCron] = useState<string>(proposal.schedule_cron ?? "once");
 
   const isReddit = proposal.kind === "reddit_monitor";
+
+  // Persisted "created" state: if an agent with this title already exists, the
+  // card shows the created state even after a reload (proposals are saved but
+  // the just-created flash isn't).
+  const existing = tasks?.find((t) => t.title === proposal.title);
+  const done = created ?? (existing ? { id: existing.id, title: existing.title } : null);
+
+  // Ensure the current cron is always selectable, even if it's a custom one.
+  const options = RUN_FREQUENCIES.some((f) => f.value === cron)
+    ? RUN_FREQUENCIES
+    : [{ value: cron, label: scheduleLabel(cron === "once" ? null : cron) }, ...RUN_FREQUENCIES];
 
   function onCreate() {
     if (!teamId) return;
@@ -137,7 +176,7 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
           title: proposal.title,
           instructions: proposal.instructions,
           channel: proposal.channel,
-          schedule_cron: proposal.schedule_cron,
+          schedule_cron: cron === "once" ? null : cron,
           timezone: proposal.timezone,
           kind: proposal.kind,
           keywords: proposal.keywords,
@@ -159,11 +198,29 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
           <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-relaxed">
             {proposal.instructions}
           </p>
-          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-            <span className="flex items-center gap-1">
-              <CalendarClock className="size-3" /> {scheduleLabel(proposal.schedule_cron)}
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
+              <CalendarClock className="size-3" /> Runs
             </span>
-            <span className="flex items-center gap-1">
+            {done ? (
+              <span className="text-[11px] font-medium">
+                {scheduleLabel(existing?.schedule_cron ?? proposal.schedule_cron)}
+              </span>
+            ) : (
+              <Select value={cron} onValueChange={setCron}>
+                <SelectTrigger size="sm" className="h-7 w-auto min-w-[9.5rem] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
               <Hash className="size-3" />{" "}
               {isReddit ? "Reddit leads" : channelLabel(proposal.channel)}
             </span>
@@ -171,10 +228,10 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
         </div>
       </div>
       <div className="bg-muted/30 border-t px-4 py-2.5">
-        {created ? (
+        {done ? (
           <Link
             to="/agents/$agentId"
-            params={{ agentId: created.id }}
+            params={{ agentId: done.id }}
             className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
           >
             <CheckCircle2 className="size-3.5" /> Agent created, open it
@@ -194,7 +251,7 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
             Create agent
           </Button>
         )}
-        {create.isError && !created && (
+        {create.isError && !done && (
           <p className="text-destructive mt-1.5 text-[11px]">
             {(create.error as Error).message || "Couldn't create it. Try again."}
           </p>
