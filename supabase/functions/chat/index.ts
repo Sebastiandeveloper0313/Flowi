@@ -124,6 +124,7 @@ function statusForTool(slug: string): string {
     GMAIL_SEARCH_PEOPLE: "Searching contacts",
     REDDIT_SEARCH_ACROSS_SUBREDDITS: "Searching Reddit",
     LINKEDIN_GET_MY_INFO: "Checking your LinkedIn",
+    LINKEDIN_GET_COMPANY_INFO: "Checking your company pages",
     LINKEDIN_CREATE_LINKED_IN_POST: "Publishing to LinkedIn",
   };
   if (map[slug]) return map[slug];

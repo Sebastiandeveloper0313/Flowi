@@ -30,7 +30,7 @@ const APPS: AppMeta[] = [
   {
     slug: "linkedin",
     name: "LinkedIn",
-    description: "Draft and publish on-brand posts.",
+    description: "Publish on-brand posts, as you or your company page.",
     available: true,
   },
   {
