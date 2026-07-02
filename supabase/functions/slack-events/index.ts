@@ -72,6 +72,43 @@ async function slackUserEmail(token: string, userId: string): Promise<string | n
   return d?.user?.profile?.email ?? null;
 }
 
+interface Turn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * Recent turns of a DM with Flowy, oldest first, so follow-ups have context.
+ * Bot messages become assistant turns; consecutive same-role turns are merged
+ * (the API wants alternation); leading assistant turns are dropped. Returns []
+ * on any failure so the caller degrades gracefully to a stateless reply.
+ */
+async function dmHistory(token: string, channel: string, excludeTs: string): Promise<Turn[]> {
+  try {
+    const res = await fetch(
+      `https://slack.com/api/conversations.history?channel=${encodeURIComponent(channel)}&limit=12`,
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+    const d = await res.json();
+    if (!d.ok) return [];
+    // deno-lint-ignore no-explicit-any
+    const raw = (d.messages ?? []) as any[];
+    const turns: Turn[] = [];
+    for (const m of raw.reverse()) {
+      if (m.type !== "message" || m.subtype || !m.text || m.ts === excludeTs) continue;
+      const role: Turn["role"] = m.bot_id ? "assistant" : "user";
+      const content = String(m.text).slice(0, 3000);
+      const last = turns[turns.length - 1];
+      if (last && last.role === role) last.content += `\n\n${content}`;
+      else turns.push({ role, content });
+    }
+    while (turns.length && turns[0].role === "assistant") turns.shift();
+    return turns.slice(-10);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * The bot token for the Slack workspace an event came from. Installed
  * workspaces live in slack_workspaces (written by the slack-oauth install);
@@ -110,9 +147,9 @@ async function teamForEmail(admin: any, email: string): Promise<string | null> {
   return member?.team_id ?? null;
 }
 
-/** Run the operator loop for one Slack message and return the reply text. */
+/** Run the operator loop over the conversation so far; returns the reply text. */
 // deno-lint-ignore no-explicit-any
-async function runFlowy(admin: any, teamId: string, text: string): Promise<string> {
+async function runFlowy(admin: any, teamId: string, convo: Turn[]): Promise<string> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return "Flowy's AI isn't configured on the server yet.";
 
@@ -132,7 +169,10 @@ async function runFlowy(admin: any, teamId: string, text: string): Promise<strin
     { type: "web_search_20260209", name: "web_search", max_uses: 3 },
     ...connectedTools,
   ];
-  const messages: { role: string; content: unknown }[] = [{ role: "user", content: text }];
+  const messages: { role: string; content: unknown }[] = convo.map((t) => ({
+    role: t.role,
+    content: t.content,
+  }));
 
   for (let i = 0; i < 8; i++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -238,8 +278,18 @@ async function handleEvent(event: any, slackTeamId: string | undefined): Promise
     .trim();
   if (!text) return;
 
+  // Conversation memory: DMs carry their recent history so follow-ups work
+  // ("yes, do that"). Channel mentions stay stateless (no channel-history
+  // scope). Degrades to stateless if the history fetch fails.
+  const isDm = event.channel_type === "im";
+  const history = isDm ? await dmHistory(token, channel, String(event.ts ?? "")) : [];
+  const convo: Turn[] = [...history];
+  const last = convo[convo.length - 1];
+  if (last && last.role === "user") last.content += `\n\n${text}`;
+  else convo.push({ role: "user", content: text });
+
   try {
-    const reply = await runFlowy(admin, teamId, text);
+    const reply = await runFlowy(admin, teamId, convo);
     await post(reply);
   } catch (e) {
     await post(`Something went wrong: ${e instanceof Error ? e.message : String(e)}`);
