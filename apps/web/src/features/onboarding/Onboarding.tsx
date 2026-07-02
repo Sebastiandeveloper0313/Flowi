@@ -391,7 +391,7 @@ export function Onboarding() {
           </div>
         </div>
         <p className="onb-note subtle">
-          Flowy uses this to understand your product, audience, and voice — so everything it makes
+          Flowy uses this to understand your product, audience, and voice, so everything it makes
           sounds like you, not generic AI.
         </p>
       </>

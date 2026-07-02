@@ -7,14 +7,16 @@ export function initLanding(root: HTMLElement): () => void {
   const observers: IntersectionObserver[] = [];
   const cleanups: Array<() => void> = [];
 
-  /* ---- channel toggle ---- */
+  /* ---- channel toggle (switches the app-mock preview) ---- */
   const toggle = root.querySelector<HTMLElement>(".channel-toggle");
   if (toggle) {
     const glow = toggle.querySelector<HTMLElement>(".ch-glow");
     const btns = Array.from(toggle.querySelectorAll<HTMLElement>(".ch-btn"));
+    const mock = root.querySelector<HTMLElement>("#appMock");
     const move = (btn: HTMLElement) => {
       btns.forEach((b) => b.classList.toggle("active", b === btn));
       if (glow) glow.style.transform = `translateX(${btn.offsetLeft - btns[0].offsetLeft}px)`;
+      if (mock && btn.dataset.ch) mock.dataset.view = btn.dataset.ch;
     };
     btns.forEach((b) => b.addEventListener("click", () => move(b)));
     if (btns[0]) move(btns[0]);
@@ -24,29 +26,29 @@ export function initLanding(root: HTMLElement): () => void {
   const tabs = Array.from(root.querySelectorAll<HTMLElement>(".cmp-tab"));
   if (tabs.length) {
     const copy: Record<string, { gpt: string; flowy: string; tag: string; file: string }> = {
-      report: {
-        gpt: "Explains how to build a sales report. You still pull the data and make it.",
-        flowy: "Pulls last night’s numbers and posts a clean recap every morning at 8.",
-        tag: "Builds it. Posts the PDF.",
-        file: "Daily-Recap.pdf",
-      },
       research: {
-        gpt: "Gives you a framework for researching leads. You open the 30 tabs.",
-        flowy: "Enriches every new signup and drops a ranked shortlist in your channel daily.",
-        tag: "Researches it. Posts the list.",
-        file: "Hot-Leads.csv",
+        gpt: "Gives you a framework for finding leads. You open the 30 tabs.",
+        flowy: "Scans Reddit every day for people asking for what you sell and drafts the replies.",
+        tag: "Finds them. Drafts the replies.",
+        file: "4 leads · ready to approve",
       },
       content: {
-        gpt: "Outlines how to make a trends deck. You build all the slides.",
-        flowy: "Ships three slides on what’s trending, in your format, every day at noon.",
-        tag: "Makes it. Posts the deck.",
-        file: "Trends.pdf",
+        gpt: "Outlines post ideas. You still write and publish every one.",
+        flowy: "Writes and publishes your LinkedIn post every morning, in your brand voice.",
+        tag: "Writes it. Publishes it.",
+        file: "LinkedIn · posted 9:00 AM",
       },
-      ops: {
-        gpt: "Describes a process for comparing suppliers. Then it waits on you.",
-        flowy: "Compares your suppliers every week and flags where you’re overpaying.",
-        tag: "Does it. Posts the result.",
-        file: "Supplier-Check.pdf",
+      inbox: {
+        gpt: "Tells you how to write a follow-up email. You still send it.",
+        flowy: "Reads the thread, drafts the reply, and sends it the moment you approve.",
+        tag: "Drafts it. You approve.",
+        file: "Re: partnership · sent",
+      },
+      report: {
+        gpt: "Explains how to build a marketing recap. You still pull everything together.",
+        flowy: "Runs your agents on schedule and emails you a recap of what shipped.",
+        tag: "Runs it. Emails the recap.",
+        file: "Daily recap · in your inbox",
       },
     };
     const gptLine = root.querySelector<HTMLElement>(".cmp-card.chatgpt .cmp-line");
@@ -75,7 +77,7 @@ export function initLanding(root: HTMLElement): () => void {
 
   /* ---- scroll reveal ---- */
   const revealTargets = root.querySelectorAll<HTMLElement>(
-    ".statement, .feat-card, .compare-title, .compare-sub, .cmp-tabs, .cmp-panels, .pro-copy, .pro-card, .how-card, .how-title, .trust-inner, .cta-card, .logos",
+    ".statement, .feat-card, .compare-title, .compare-sub, .cmp-tabs, .cmp-panels, .pro-copy, .pro-card, .how-card, .how-title, .trust-inner, .cta-card, .logos, .pricing-title, .pricing-sub, .price-card",
   );
   revealTargets.forEach((t) => t.classList.add("reveal"));
   const revealIO = new IntersectionObserver(

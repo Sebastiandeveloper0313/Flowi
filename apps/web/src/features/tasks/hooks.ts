@@ -184,9 +184,9 @@ export function channelLabel(channel: string): string {
 
 /** Friendly absolute timestamp, e.g. "Jun 26, 2:05 PM". */
 export function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString(undefined, {
     month: "short",
     day: "numeric",

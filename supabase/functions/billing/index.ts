@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: team } = await userClient
       .from("teams")
-      .select("id, name, plan, stripe_customer_id, subscription_status")
+      .select("id, name, plan, stripe_customer_id, stripe_subscription_id, subscription_status")
       .limit(1)
       .maybeSingle();
     if (!team) return json({ error: "no team for user" }, 403);
@@ -105,7 +105,11 @@ Deno.serve(async (req: Request) => {
     if (action === "checkout") {
       const price = Deno.env.get("STRIPE_PRICE_ID");
       if (!price) return json({ error: "Billing is not configured on the server." }, 503);
-      const session = await stripe("checkout/sessions", {
+      // 3-day free trial, but only for teams that never had a subscription --
+      // otherwise cancel/resubscribe would mint endless trials.
+      const hadSubscription =
+        Boolean(team.stripe_subscription_id) || Boolean(team.subscription_status);
+      const params: Record<string, string> = {
         mode: "subscription",
         customer: await customerId(),
         "line_items[0][price]": price,
@@ -114,7 +118,9 @@ Deno.serve(async (req: Request) => {
         cancel_url: `${APP_URL}/settings?billing=cancelled`,
         "metadata[team_id]": team.id,
         "subscription_data[metadata][team_id]": team.id,
-      });
+      };
+      if (!hadSubscription) params["subscription_data[trial_period_days]"] = "3";
+      const session = await stripe("checkout/sessions", params);
       return json({ url: session.url });
     }
 
