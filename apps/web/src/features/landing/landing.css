@@ -1454,6 +1454,16 @@ html {
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 12px 26px -14px rgba(0, 0, 0, 0.5);
+  display: grid;
+  place-items: center;
+}
+.tc svg {
+  width: 22px;
+  height: 22px;
+}
+.tc6 svg {
+  width: 16px;
+  height: 16px;
 }
 .tc1 {
   top: 0;
