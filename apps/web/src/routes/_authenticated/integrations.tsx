@@ -28,6 +28,12 @@ const APPS: AppMeta[] = [
     available: true,
   },
   {
+    slug: "linkedin",
+    name: "LinkedIn",
+    description: "Draft and publish on-brand posts.",
+    available: true,
+  },
+  {
     slug: "hubspot",
     name: "HubSpot",
     description: "Sync contacts, deals, and activity.",
