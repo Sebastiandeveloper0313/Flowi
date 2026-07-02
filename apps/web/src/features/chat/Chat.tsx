@@ -138,6 +138,8 @@ function FlowyAvatar() {
 // often" instead of accepting Flowy's guess. "once" maps to no schedule.
 const RUN_FREQUENCIES: { value: string; label: string }[] = [
   { value: "0 * * * *", label: "Every hour" },
+  { value: "0 */2 * * *", label: "Every 2 hours" },
+  { value: "0 */3 * * *", label: "Every 3 hours" },
   { value: "0 */4 * * *", label: "Every 4 hours" },
   { value: "0 */6 * * *", label: "Every 6 hours" },
   { value: "0 9,17 * * *", label: "Twice a day" },
