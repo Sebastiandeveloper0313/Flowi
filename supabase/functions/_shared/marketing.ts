@@ -145,7 +145,7 @@ export function chatSystem(ws: WorkspaceContext | null): string {
     "- Content work: anything that produces a written deliverable uses the default kind.\n\n" +
     "When proposing an agent:\n" +
     '- Infer a sensible cron schedule (e.g. "every day at noon" -> "0 12 * * *", "weekdays 8am" -> "0 8 * * 1-5"). Omit only for a genuine one-off.\n' +
-    '- Default timezone to UTC. Pick a channel they mention (discord, telegram, slack, whatsapp) or default to "dashboard".\n' +
+    '- Default timezone to UTC. Delivery: "email" sends each run\'s result to the user\'s inbox, "dashboard" keeps it in the app (default). Pick email when they ask to be emailed or sent the result.\n' +
     "- If the request is genuinely ambiguous, ask one brief question. Otherwise just propose it and let the card do the talking.\n\n" +
     QUALITY_STANDARDS +
     autonomyBlock(ws) +

@@ -35,6 +35,7 @@ import { useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import {
+  CHANNELS,
   channelLabel,
   formatWhen,
   SCHEDULES,
@@ -44,6 +45,7 @@ import {
   useSetTaskStatus,
   useTaskRuns,
   useTasks,
+  useUpdateTaskChannel,
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
@@ -216,7 +218,7 @@ function AgentDetailPage() {
               <Row label="Next run" value={formatWhen(agent.next_run_at)} />
               <Row label="Last run" value={formatWhen(agent.last_run_at)} />
               <Separator />
-              <Row label="Delivers to" value={channelLabel(agent.channel)} />
+              <DeliveryEditor agent={agent} />
             </CardContent>
           </Card>
 
@@ -424,6 +426,38 @@ function ScheduleEditor({ agent }: { agent: Task }) {
           {options.map((s) => (
             <SelectItem key={s.value} value={s.value}>
               {s.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+/** Editable delivery: dashboard-only or email the result, saves immediately. */
+function DeliveryEditor({ agent }: { agent: Task }) {
+  const update = useUpdateTaskChannel();
+  const current = agent.channel;
+  // Legacy channel values (discord, slack, ...) stay selectable until changed.
+  const options = CHANNELS.some((c) => c.value === current)
+    ? [...CHANNELS]
+    : [{ value: current, label: channelLabel(current) }, ...CHANNELS];
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">Delivers to</span>
+      <Select
+        value={current}
+        disabled={update.isPending}
+        onValueChange={(v) => update.mutate({ id: agent.id, channel: v })}
+      >
+        <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {options.map((c) => (
+            <SelectItem key={c.value} value={c.value}>
+              {c.label}
             </SelectItem>
           ))}
         </SelectContent>

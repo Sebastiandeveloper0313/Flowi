@@ -49,8 +49,9 @@ const TOOL = {
       },
       channel: {
         type: "string",
-        enum: ["discord", "telegram", "slack", "whatsapp", "dashboard"],
-        description: "Where to deliver the result. Default 'dashboard'.",
+        enum: ["dashboard", "email"],
+        description:
+          "Where to deliver the result each run. 'email' sends it to the user's own inbox (their connected Gmail); 'dashboard' keeps it in the app. Default 'dashboard'; pick 'email' when they ask to be emailed / sent the result.",
       },
       kind: {
         type: "string",
