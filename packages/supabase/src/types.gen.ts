@@ -333,6 +333,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      slack_workspaces: {
+        Row: {
+          bot_token: string;
+          bot_user_id: string | null;
+          id: string;
+          installed_at: string;
+          slack_team_id: string;
+          team_name: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          bot_token: string;
+          bot_user_id?: string | null;
+          id?: string;
+          installed_at?: string;
+          slack_team_id: string;
+          team_name?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          bot_token?: string;
+          bot_user_id?: string | null;
+          id?: string;
+          installed_at?: string;
+          slack_team_id?: string;
+          team_name?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       task_runs: {
         Row: {
           created_at: string;

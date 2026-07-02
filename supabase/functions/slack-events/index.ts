@@ -52,11 +52,11 @@ function toMrkdwn(text: string): string {
 }
 
 // deno-lint-ignore no-explicit-any
-async function slackApi(method: string, payload: Record<string, any>): Promise<any> {
+async function slackApi(token: string, method: string, payload: Record<string, any>): Promise<any> {
   const res = await fetch(`https://slack.com/api/${method}`, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${Deno.env.get("SLACK_BOT_TOKEN")}`,
+      authorization: `Bearer ${token}`,
       "content-type": "application/json; charset=utf-8",
     },
     body: JSON.stringify(payload),
@@ -64,12 +64,33 @@ async function slackApi(method: string, payload: Record<string, any>): Promise<a
   return res.json();
 }
 
-async function slackUserEmail(userId: string): Promise<string | null> {
+async function slackUserEmail(token: string, userId: string): Promise<string | null> {
   const res = await fetch(`https://slack.com/api/users.info?user=${encodeURIComponent(userId)}`, {
-    headers: { authorization: `Bearer ${Deno.env.get("SLACK_BOT_TOKEN")}` },
+    headers: { authorization: `Bearer ${token}` },
   });
   const d = await res.json();
   return d?.user?.profile?.email ?? null;
+}
+
+/**
+ * The bot token for the Slack workspace an event came from. Installed
+ * workspaces live in slack_workspaces (written by the slack-oauth install);
+ * the env token remains as a fallback for the original internal install.
+ */
+// deno-lint-ignore no-explicit-any
+async function tokenForWorkspace(
+  admin: any,
+  slackTeamId: string | undefined,
+): Promise<string | null> {
+  if (slackTeamId) {
+    const { data } = await admin
+      .from("slack_workspaces")
+      .select("bot_token")
+      .eq("slack_team_id", slackTeamId)
+      .maybeSingle();
+    if (data?.bot_token) return data.bot_token;
+  }
+  return Deno.env.get("SLACK_BOT_TOKEN") ?? null;
 }
 
 /** Find the Flowy team for an email address (service role; matched case-insensitively). */
@@ -182,21 +203,23 @@ async function runFlowy(admin: any, teamId: string, text: string): Promise<strin
 }
 
 // deno-lint-ignore no-explicit-any
-async function handleEvent(event: any): Promise<void> {
+async function handleEvent(event: any, slackTeamId: string | undefined): Promise<void> {
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+  const token = await tokenForWorkspace(admin, slackTeamId);
+  if (!token) return; // workspace unknown and no fallback configured
   const channel = event.channel as string;
   const threadTs = (event.thread_ts ?? undefined) as string | undefined;
   const post = (text: string) =>
-    slackApi("chat.postMessage", {
+    slackApi(token, "chat.postMessage", {
       channel,
       text: toMrkdwn(text),
       ...(threadTs ? { thread_ts: threadTs } : {}),
     });
 
-  const email = await slackUserEmail(event.user);
+  const email = await slackUserEmail(token, event.user);
   if (!email) {
     await post("I couldn't read your Slack email, so I can't find your Flowy account.");
     return;
@@ -255,8 +278,9 @@ Deno.serve(async (req: Request) => {
   const fromHuman = !event.bot_id && !event.subtype && !!event.user;
   if ((isDm || isMention) && fromHuman) {
     // Ack within Slack's 3s window; do the real work in the background.
+    const work = handleEvent(event, payload.team_id);
     // deno-lint-ignore no-explicit-any
-    (globalThis as any).EdgeRuntime?.waitUntil?.(handleEvent(event)) ?? handleEvent(event);
+    (globalThis as any).EdgeRuntime?.waitUntil?.(work);
   }
   return new Response("ok");
 });

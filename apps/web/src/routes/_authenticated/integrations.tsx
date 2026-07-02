@@ -4,6 +4,7 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { Check, ExternalLink, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { env } from "@/env";
 import { PageHeader } from "@/features/dashboard/ui";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
 
@@ -40,15 +41,15 @@ const APPS: AppMeta[] = [
     available: true,
   },
   {
+    slug: "slack",
+    name: "Slack",
+    description: "Chat with Flowy right in your Slack workspace.",
+    available: true,
+  },
+  {
     slug: "hubspot",
     name: "HubSpot",
     description: "Sync contacts, deals, and activity.",
-    available: false,
-  },
-  {
-    slug: "slack",
-    name: "Slack",
-    description: "Deliver work where your team is.",
     available: false,
   },
   {
@@ -88,6 +89,15 @@ function IntegrationsPage() {
   }, [toolkits, connecting]);
 
   async function onConnect(slug: string) {
+    // Slack is not a Composio toolkit: "Add to Slack" runs our own OAuth install.
+    if (slug === "slack") {
+      window.open(
+        `${env.VITE_SUPABASE_URL}/functions/v1/slack-oauth`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
     try {
       const { redirect_url } = await connect.mutateAsync(slug);
       window.open(redirect_url, "_blank", "noopener,noreferrer");
