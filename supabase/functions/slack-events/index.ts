@@ -38,6 +38,19 @@ async function validSignature(req: Request, body: string): Promise<boolean> {
   return diff === 0;
 }
 
+/**
+ * Convert common standard-markdown slips to Slack mrkdwn: **bold** -> *bold*,
+ * __bold__ -> *bold*, [text](url) -> <url|text>, and "# Heading" -> *Heading*.
+ * The model is told to write mrkdwn already; this is the deterministic net.
+ */
+function toMrkdwn(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, "*$1*")
+    .replace(/__([^_]+)__/g, "*$1*")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "<$2|$1>")
+    .replace(/^#{1,6}\s+(.+)$/gm, "*$1*");
+}
+
 // deno-lint-ignore no-explicit-any
 async function slackApi(method: string, payload: Record<string, any>): Promise<any> {
   const res = await fetch(`https://slack.com/api/${method}`, {
@@ -86,10 +99,12 @@ async function runFlowy(admin: any, teamId: string, text: string): Promise<strin
   const mode = autonomyMode(ws);
   const system =
     chatSystem(ws) +
-    "\n\nYou are talking to the user over SLACK right now: reply in plain short text (Slack shows " +
-    "no markdown tables or headers). You cannot create or propose agents from Slack; if they want " +
-    "one, point them to their Flowy dashboard. Everything else works: answer, use the connected " +
-    "tools, and take actions per the autonomy rules above.";
+    "\n\nYou are talking to the user over SLACK right now. Format for Slack's mrkdwn, which is NOT " +
+    "standard markdown: bold is *single asterisks* (never **double**), italic is _underscores_, " +
+    "links are <https://url|text>, bullets are plain dashes. No headers, no tables. Keep replies " +
+    "short. You cannot create or propose agents from Slack; if they want one, point them to their " +
+    "Flowy dashboard. Everything else works: answer, use the connected tools, and take actions per " +
+    "the autonomy rules above.";
 
   const connectedTools = composioEnabled() ? await toolsForUser(teamId).catch(() => []) : [];
   const tools: unknown[] = [
@@ -175,7 +190,11 @@ async function handleEvent(event: any): Promise<void> {
   const channel = event.channel as string;
   const threadTs = (event.thread_ts ?? undefined) as string | undefined;
   const post = (text: string) =>
-    slackApi("chat.postMessage", { channel, text, ...(threadTs ? { thread_ts: threadTs } : {}) });
+    slackApi("chat.postMessage", {
+      channel,
+      text: toMrkdwn(text),
+      ...(threadTs ? { thread_ts: threadTs } : {}),
+    });
 
   const email = await slackUserEmail(event.user);
   if (!email) {
