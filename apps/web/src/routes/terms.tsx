@@ -112,9 +112,9 @@ function TermsPage() {
 
       <LegalSection heading="9. Intellectual property">
         <p>
-          The Service itself — including its software, design, and branding — belongs to Flowy and
-          its licensors. These Terms do not grant you any rights in the Service other than the right
-          to use it while these Terms are in effect.
+          The Service itself, including its software, design, and branding, belongs to Flowy and its
+          licensors. These Terms do not grant you any rights in the Service other than the right to
+          use it while these Terms are in effect.
         </p>
       </LegalSection>
 

@@ -1,4 +1,4 @@
-// Realistic placeholder data for the management dashboard.
+﻿// Realistic placeholder data for the management dashboard.
 // Single source so it's trivial to swap for the real backend later.
 
 export type Channel = "discord" | "telegram" | "slack" | "whatsapp" | "email" | "dashboard";
@@ -77,7 +77,7 @@ export const agents: Agent[] = [
     id: "ag_competitors",
     name: "Competitor news monitor",
     instruction:
-      "Every morning, scan the news and websites of our top 5 competitors. Summarize anything material — launches, pricing changes, funding, leadership moves — into a short briefing. Skip noise.",
+      "Every morning, scan the news and websites of our top 5 competitors. Summarize anything material â€” launches, pricing changes, funding, leadership moves â€” into a short briefing. Skip noise.",
     scheduleLabel: "Every day at 7:00 AM",
     nextRun: "Tomorrow, 7:00 AM",
     channel: "telegram",
@@ -90,18 +90,18 @@ export const agents: Agent[] = [
         id: "r1",
         at: "Today, 7:00 AM",
         status: "success",
-        summary: "3 updates — Northwind raised a Series B; Vellum cut prices 20%.",
+        summary: "3 updates â€” Northwind raised a Series B; Vellum cut prices 20%.",
         output:
-          "Competitor briefing — 5 tracked\n\n• Northwind announced a $40M Series B led by Accel. Positioning shifting toward enterprise.\n• Vellum dropped Pro pricing from $49 → $39/mo.\n• Swoop shipped a Slack integration (overlaps our roadmap).\nNo material moves from Coingate or LyfeFuel.",
+          "Competitor briefing â€” 5 tracked\n\nâ€¢ Northwind announced a $40M Series B led by Accel. Positioning shifting toward enterprise.\nâ€¢ Vellum dropped Pro pricing from $49 â†’ $39/mo.\nâ€¢ Swoop shipped a Slack integration (overlaps our roadmap).\nNo material moves from Coingate or LyfeFuel.",
         delivered: "telegram",
       },
       {
         id: "r2",
         at: "Yesterday, 7:00 AM",
         status: "success",
-        summary: "Quiet day — 1 minor blog post from Swoop.",
+        summary: "Quiet day â€” 1 minor blog post from Swoop.",
         output:
-          "Competitor briefing — only Swoop published a changelog post on minor bug fixes. Nothing material.",
+          "Competitor briefing â€” only Swoop published a changelog post on minor bug fixes. Nothing material.",
         delivered: "telegram",
       },
     ],
@@ -123,9 +123,9 @@ export const agents: Agent[] = [
         id: "r1",
         at: "Last Fri, 4:00 PM",
         status: "success",
-        summary: "2 campaigns over target CPA — wants approval to pause 1.",
+        summary: "2 campaigns over target CPA â€” wants approval to pause 1.",
         output:
-          "Ad-spend audit\n\nTotal spend: $8,240 · Blended CPA: $61 (target $45)\n\n⚠️ Over target:\n• “Retargeting — Broad”: CPA $112, spent $1,900. Recommend pausing.\n• “Lookalike 3%”: CPA $58, trending down — keep, watch.",
+          "Ad-spend audit\n\nTotal spend: $8,240 Â· Blended CPA: $61 (target $45)\n\nâš ï¸ Over target:\nâ€¢ â€œRetargeting â€” Broadâ€: CPA $112, spent $1,900. Recommend pausing.\nâ€¢ â€œLookalike 3%â€: CPA $58, trending down â€” keep, watch.",
         delivered: "whatsapp",
       },
     ],
@@ -149,7 +149,7 @@ export const agents: Agent[] = [
         status: "success",
         summary: "$48.2k booked, +14% vs avg. 3 deals at risk.",
         output:
-          "Daily Sales Recap — Tue\n\nHeadline: $48,210 in new revenue across 19 transactions (+14% vs 7-day avg).\n\n✅ Wins\n• Largest deal: Acme Corp — $12,000 (Enterprise)\n• New customers: 7\n\n⚠️ What slipped\n• 3 deals expected to close stuck in “Contract Sent”\n• 2 failed payments ($1,140) — retry queued",
+          "Daily Sales Recap â€” Tue\n\nHeadline: $48,210 in new revenue across 19 transactions (+14% vs 7-day avg).\n\nâœ… Wins\nâ€¢ Largest deal: Acme Corp â€” $12,000 (Enterprise)\nâ€¢ New customers: 7\n\nâš ï¸ What slipped\nâ€¢ 3 deals expected to close stuck in â€œContract Sentâ€\nâ€¢ 2 failed payments ($1,140) â€” retry queued",
         delivered: "discord",
       },
       {
@@ -158,14 +158,14 @@ export const agents: Agent[] = [
         status: "success",
         summary: "$41.9k booked, in line with trend.",
         output:
-          "Daily Sales Recap — Mon\n\n$41,900 across 16 transactions. Steady. No payments failed.",
+          "Daily Sales Recap â€” Mon\n\n$41,900 across 16 transactions. Steady. No payments failed.",
         delivered: "discord",
       },
       {
         id: "r3",
         at: "Mon, 8:00 AM",
         status: "failed",
-        summary: "HubSpot token expired — couldn't pull deals.",
+        summary: "HubSpot token expired â€” couldn't pull deals.",
         output:
           "Run failed: HubSpot returned 401 (token expired). Reconnect HubSpot in Integrations to resume.",
         delivered: "discord",
@@ -189,9 +189,9 @@ export const agents: Agent[] = [
         id: "r1",
         at: "Today, 12:00 PM",
         status: "success",
-        summary: "Posted Trends.pdf — 3 slides (quiet luxury, suede, wide trousers).",
+        summary: "Posted Trends.pdf â€” 3 slides (quiet luxury, suede, wide trousers).",
         output:
-          "Trend deck shipped (3 slides):\n1. Quiet luxury holding strong — muted tones, elevated basics.\n2. Suede is back — jackets and overshirts trending +38% in search.\n3. Wider trousers continuing into next season.\nFile: Trends.pdf",
+          "Trend deck shipped (3 slides):\n1. Quiet luxury holding strong â€” muted tones, elevated basics.\n2. Suede is back â€” jackets and overshirts trending +38% in search.\n3. Wider trousers continuing into next season.\nFile: Trends.pdf",
         delivered: "slack",
       },
     ],
@@ -213,9 +213,9 @@ export const agents: Agent[] = [
         id: "r1",
         at: "Today, 11:00 AM",
         status: "success",
-        summary: "Triaged 23 tickets — 18 export bug, drafted replies, filed ZET-311.",
+        summary: "Triaged 23 tickets â€” 18 export bug, drafted replies, filed ZET-311.",
         output:
-          "Triaged 23 new tickets.\n• 18 are the same “export timeout” bug — merged into one thread, drafted replies to all.\n• Filed Linear bug ZET-311 with a repro.\n• 1 urgent: enterprise customer (Acme) reports login failure — flagged to #eng.",
+          "Triaged 23 new tickets.\nâ€¢ 18 are the same â€œexport timeoutâ€ bug â€” merged into one thread, drafted replies to all.\nâ€¢ Filed Linear bug ZET-311 with a repro.\nâ€¢ 1 urgent: enterprise customer (Acme) reports login failure â€” flagged to #eng.",
         delivered: "dashboard",
       },
     ],
@@ -224,7 +224,7 @@ export const agents: Agent[] = [
     id: "ag_investor",
     name: "Weekly investor update draft",
     instruction:
-      "Every Monday at 9am, draft our weekly investor update from the latest metrics — revenue, growth, hiring, key wins — in our usual format. Leave it as a draft for review.",
+      "Every Monday at 9am, draft our weekly investor update from the latest metrics â€” revenue, growth, hiring, key wins â€” in our usual format. Leave it as a draft for review.",
     scheduleLabel: "Every Monday at 9:00 AM",
     nextRun: "Paused",
     channel: "email",
@@ -237,7 +237,7 @@ export const agents: Agent[] = [
         id: "r1",
         at: "2 weeks ago, Mon",
         status: "success",
-        summary: "Drafted update — $192k MRR, +6% WoW.",
+        summary: "Drafted update â€” $192k MRR, +6% WoW.",
         output:
           "Investor update draft saved. MRR $192k (+6% WoW), 2 enterprise logos closed, 1 senior eng hire signed.",
         delivered: "email",
@@ -252,7 +252,7 @@ export const approvals: Approval[] = [
     agentId: "ag_adspend",
     agentName: "Weekly ad-spend audit",
     at: "Today, 4:02 PM",
-    request: "Pause campaign “Retargeting — Broad”",
+    request: "Pause campaign â€œRetargeting â€” Broadâ€",
     detail:
       "This campaign is at $112 CPA (target $45) and has spent $1,900 this week with 17 conversions. I recommend pausing it. Approve to pause now.",
   },
@@ -261,7 +261,7 @@ export const approvals: Approval[] = [
     agentId: "ag_competitors",
     agentName: "Competitor news monitor",
     at: "Today, 7:01 AM",
-    request: "Add “Tasklet” to the tracked competitor list",
+    request: "Add â€œTaskletâ€ to the tracked competitor list",
     detail:
       "I noticed Tasklet mentioned repeatedly alongside our competitors and in 3 customer tickets. Want me to start tracking them daily too?",
   },
@@ -272,7 +272,7 @@ export const approvals: Approval[] = [
     at: "Yesterday, 8:05 AM",
     request: "Email the 3 at-risk deals to the AE owners",
     detail:
-      "3 deals are stuck in “Contract Sent” past our 5-day SLA. Want me to email each AE a nudge with the deal details?",
+      "3 deals are stuck in â€œContract Sentâ€ past our 5-day SLA. Want me to email each AE a nudge with the deal details?",
   },
 ];
 
@@ -310,7 +310,7 @@ export const activity: ActivityItem[] = [
     agentName: "Competitor news monitor",
     at: "Today, 7:00 AM",
     status: "success",
-    summary: "3 competitor updates — needs your input on 1.",
+    summary: "3 competitor updates â€” needs your input on 1.",
     channel: "telegram",
   },
   {
@@ -328,7 +328,7 @@ export const activity: ActivityItem[] = [
     agentName: "Daily sales recap",
     at: "Mon, 8:00 AM",
     status: "failed",
-    summary: "HubSpot token expired — run failed.",
+    summary: "HubSpot token expired â€” run failed.",
     channel: "discord",
   },
   {
@@ -465,14 +465,14 @@ export const memory: MemorySection[] = [
     items: [
       { label: "Name", value: "Sebastian" },
       { label: "Role", value: "Founder & CEO" },
-      { label: "Working hours", value: "Mon–Fri, mornings preferred for briefings" },
+      { label: "Working hours", value: "Monâ€“Fri, mornings preferred for briefings" },
       { label: "Preferred channel", value: "Discord for results, Telegram for alerts" },
     ],
   },
   {
     title: "Your business",
     items: [
-      { label: "Company", value: "Acme Inc — DTC menswear brand" },
+      { label: "Company", value: "Acme Inc â€” DTC menswear brand" },
       { label: "Stage", value: "Seed, ~$2.3M ARR, team of 9" },
       { label: "Stack", value: "Stripe, HubSpot, Zendesk, Notion, Google Workspace" },
       { label: "Top competitors", value: "Northwind, Vellum, Swoop, Coingate, LyfeFuel" },

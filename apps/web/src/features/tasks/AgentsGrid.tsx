@@ -55,7 +55,7 @@ export function AgentsGrid() {
         <div className="text-muted-foreground bg-card/60 rounded-2xl border border-dashed px-6 py-12 text-center">
           <Bot className="mx-auto mb-2 size-6 opacity-60" />
           <p className="text-sm">
-            No agents yet — describe a recurring job in the chat above to create one.
+            No agents yet. Describe a recurring job in the chat above to create one.
           </p>
         </div>
       ) : (

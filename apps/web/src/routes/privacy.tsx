@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 
 import { LegalPage, LegalSection } from "@/components/legal-page";
 
@@ -36,14 +36,14 @@ function PrivacyPage() {
         <p>
           <strong className="text-foreground">Connected account data.</strong> When you connect
           Gmail, Reddit, LinkedIn, Facebook, or Slack, we store the connection (via OAuth) and
-          process the data needed for the tasks you run — for example the emails a task reads or
+          process the data needed for the tasks you run, for example the emails a task reads or
           sends, posts published, or Slack messages exchanged with the Flowy bot. Access tokens are
           stored encrypted. We only receive the permissions you approve in each provider's consent
           screen.
         </p>
         <p>
           <strong className="text-foreground">Billing data.</strong> Payments are processed by
-          Stripe. We never see or store your card number — we store only your Stripe customer
+          Stripe. We never see or store your card number. We store only your Stripe customer
           reference, plan, and subscription status.
         </p>
         <p>
@@ -67,7 +67,7 @@ function PrivacyPage() {
         <p>We do not sell personal data and we do not use your data for third-party advertising.</p>
       </LegalSection>
 
-      <LegalSection heading="4. AI processing — no training on your data">
+      <LegalSection heading="4. AI processing: no training on your data">
         <p>
           Flowy uses Anthropic's Claude models via API to understand your requests and generate
           content. The content needed for a given task (for example your instruction, business
@@ -103,28 +103,28 @@ function PrivacyPage() {
         <p>We share data only with the providers needed to run the Service:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong className="text-foreground">Supabase</strong> — database, authentication, and
+            <strong className="text-foreground">Supabase</strong>: database, authentication, and
             backend hosting;
           </li>
           <li>
-            <strong className="text-foreground">Vercel</strong> — web application hosting;
+            <strong className="text-foreground">Vercel</strong>: web application hosting;
           </li>
           <li>
-            <strong className="text-foreground">Anthropic</strong> — AI model processing;
+            <strong className="text-foreground">Anthropic</strong>: AI model processing;
           </li>
           <li>
-            <strong className="text-foreground">Composio</strong> — managed OAuth connections and
+            <strong className="text-foreground">Composio</strong>: managed OAuth connections and
             actions on Gmail, Reddit, LinkedIn, and Facebook;
           </li>
           <li>
-            <strong className="text-foreground">Stripe</strong> — payment processing;
+            <strong className="text-foreground">Stripe</strong>: payment processing;
           </li>
           <li>
-            <strong className="text-foreground">Firecrawl</strong> — fetching the website you submit
+            <strong className="text-foreground">Firecrawl</strong>: fetching the website you submit
             for analysis;
           </li>
           <li>
-            <strong className="text-foreground">Slack</strong> — if you install the Flowy Slack app.
+            <strong className="text-foreground">Slack</strong>: if you install the Flowy Slack app.
           </li>
         </ul>
         <p>

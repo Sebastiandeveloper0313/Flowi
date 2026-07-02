@@ -18,7 +18,7 @@ function ActivityPage() {
     <div className="flowy-page">
       <PageHeader
         title="Activity"
-        subtitle="Every run across all your agents — what fired, what it did, and whether it landed."
+        subtitle="Every run across all your agents: what fired, what it did, and whether it landed."
       />
 
       {isLoading ? (
