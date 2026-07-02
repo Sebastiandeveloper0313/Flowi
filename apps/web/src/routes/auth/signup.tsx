@@ -27,6 +27,17 @@ function SignupPage() {
           >
             Log in
           </Link>
+          <span className="text-muted-foreground mt-2 block text-xs">
+            By creating an account you agree to our{" "}
+            <Link to="/terms" className="underline underline-offset-4">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" className="underline underline-offset-4">
+              Privacy Policy
+            </Link>
+            .
+          </span>
         </>
       }
     >
