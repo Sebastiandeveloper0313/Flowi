@@ -51,13 +51,11 @@ async function handleAction(payload: any): Promise<void> {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Workspace token, to read the clicker's email.
-  const { data: ws } = await admin
-    .from("slack_workspaces")
-    .select("bot_token")
-    .eq("slack_team_id", payload.team?.id ?? "")
-    .maybeSingle();
-  const token = ws?.bot_token ?? Deno.env.get("SLACK_BOT_TOKEN");
+  // Workspace token (from Vault), to read the clicker's email.
+  const { data: vaultToken } = await admin.rpc("slack_workspace_token", {
+    p_slack_team_id: payload.team?.id ?? "",
+  });
+  const token = (typeof vaultToken === "string" && vaultToken) || Deno.env.get("SLACK_BOT_TOKEN");
   if (!token) return respond(responseUrl, "This Slack workspace isn't linked to Flowy anymore.");
 
   const info = await fetch(

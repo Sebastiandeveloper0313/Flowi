@@ -66,16 +66,15 @@ Deno.serve(async (req: Request) => {
   // The Flowy team that started the install (echoed back by Slack in `state`).
   const state = url.searchParams.get("state") ?? "";
   const teamId = /^[0-9a-f-]{36}$/i.test(state) ? state : null;
-  const { error } = await admin.from("slack_workspaces").upsert(
-    {
-      slack_team_id: data.team?.id,
-      team_name: data.team?.name ?? null,
-      bot_token: data.access_token,
-      bot_user_id: data.bot_user_id ?? null,
-      ...(teamId ? { installed_by_team_id: teamId } : {}),
-    },
-    { onConflict: "slack_team_id" },
-  );
+  // Token goes into Vault via a service-role-only definer function; the table
+  // never holds it in plaintext.
+  const { error } = await admin.rpc("slack_store_workspace", {
+    p_slack_team_id: data.team?.id,
+    p_team_name: data.team?.name ?? null,
+    p_bot_token: data.access_token,
+    p_bot_user_id: data.bot_user_id ?? null,
+    p_installed_by_team_id: teamId,
+  });
   if (error) return backToApp("error", error.message);
 
   return backToApp("connected");
