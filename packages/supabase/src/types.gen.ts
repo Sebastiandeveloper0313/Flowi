@@ -339,6 +339,7 @@ export type Database = {
           bot_user_id: string | null;
           id: string;
           installed_at: string;
+          installed_by_team_id: string | null;
           slack_team_id: string;
           team_name: string | null;
           updated_at: string;
@@ -348,6 +349,7 @@ export type Database = {
           bot_user_id?: string | null;
           id?: string;
           installed_at?: string;
+          installed_by_team_id?: string | null;
           slack_team_id: string;
           team_name?: string | null;
           updated_at?: string;
@@ -357,11 +359,20 @@ export type Database = {
           bot_user_id?: string | null;
           id?: string;
           installed_at?: string;
+          installed_by_team_id?: string | null;
           slack_team_id?: string;
           team_name?: string | null;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "slack_workspaces_installed_by_team_id_fkey";
+            columns: ["installed_by_team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       task_runs: {
         Row: {
