@@ -9,7 +9,8 @@
 // to their own Flowy account by email in slack-events.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const SCOPES = "chat:write,im:history,users:read,users:read.email,app_mentions:read";
+// im:write lets Flowy open a DM to the user proactively (approval pings).
+const SCOPES = "chat:write,im:write,im:history,users:read,users:read.email,app_mentions:read";
 const APP_URL = "https://flowy-omega.vercel.app";
 
 function backToApp(result: "connected" | "cancelled" | "error", detail?: string) {

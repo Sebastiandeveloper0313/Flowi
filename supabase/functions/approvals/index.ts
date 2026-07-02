@@ -1,11 +1,11 @@
 // Flowy - approvals decision endpoint.
-// The user approves or rejects a queued high-stakes action. On approval we
-// execute the exact tool + arguments that were proposed, via the team's own
-// connected account, and record the outcome. Authorized by the caller's JWT:
-// RLS ensures they can only touch their own team's approvals.
+// The user approves or rejects a queued high-stakes action from the web app.
+// Authorized by the caller's JWT: RLS ensures they can only see (and therefore
+// decide) their own team's approvals. Execution runs via the shared core, the
+// same one the Slack approve/reject buttons use.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-import { executeComposioTool } from "../_shared/composio.ts";
+import { decideApproval } from "../_shared/approvals.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
     // RLS scopes this read to the caller's team, so finding it means they may decide it.
     const { data: approval, error: findErr } = await userClient
       .from("approvals")
-      .select("id, team_id, tool_slug, tool_args, status, title")
+      .select("id, status")
       .eq("id", approval_id)
       .single();
     if (findErr || !approval) return json({ error: "Approval not found or access denied" }, 403);
@@ -54,46 +54,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const admin = createClient(url, service);
-    const decidedAt = new Date().toISOString();
-
-    if (decision === "reject") {
-      await admin
-        .from("approvals")
-        .update({ status: "rejected", decided_by: user.id, decided_at: decidedAt })
-        .eq("id", approval.id);
-      return json({ status: "rejected" });
-    }
-
-    // Approve: execute the proposed action, then record the outcome.
-    try {
-      const result = await executeComposioTool(
-        approval.team_id,
-        approval.tool_slug,
-        (approval.tool_args as Record<string, unknown>) ?? {},
-      );
-      await admin
-        .from("approvals")
-        .update({
-          status: "executed",
-          result: result.slice(0, 8000),
-          decided_by: user.id,
-          decided_at: decidedAt,
-        })
-        .eq("id", approval.id);
-      return json({ status: "executed" });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await admin
-        .from("approvals")
-        .update({
-          status: "failed",
-          result: msg.slice(0, 8000),
-          decided_by: user.id,
-          decided_at: decidedAt,
-        })
-        .eq("id", approval.id);
-      return json({ status: "failed", error: msg }, 502);
-    }
+    const result = await decideApproval(admin, approval_id, decision, user.id);
+    if (result.status === "conflict") return json({ error: result.error }, 409);
+    if (result.status === "failed") return json({ status: "failed", error: result.error }, 502);
+    return json({ status: result.status });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
