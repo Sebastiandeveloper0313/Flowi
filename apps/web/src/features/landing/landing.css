@@ -220,6 +220,8 @@ html {
   gap: 0.3rem;
   list-style: none;
   justify-self: center;
+  /* cancel the pill's uneven horizontal padding (1.4rem left vs 0.7rem right) */
+  transform: translateX(-0.35rem);
 }
 .nav-links a,
 .nav-links button {
