@@ -142,6 +142,19 @@ function humanizeCron(cron: string): string {
   if (/^\d+$/.test(min) && hr === "*" && dom === "*" && mon === "*" && dow === "*")
     return `Hourly at :${min.padStart(2, "0")}`;
 
+  // Every N hours: "0 */3 * * *" -> "Every 3 hours".
+  const hStep = hr.match(/^\*\/(\d+)$/);
+  if (min === "0" && hStep && dom === "*" && mon === "*" && dow === "*") {
+    const n = Number(hStep[1]);
+    return n <= 1 ? "Every hour" : `Every ${n} hours`;
+  }
+  // Every N minutes: "*/15 * * * *" -> "Every 15 minutes".
+  const mStep = min.match(/^\*\/(\d+)$/);
+  if (mStep && hr === "*" && dom === "*" && mon === "*" && dow === "*") {
+    const n = Number(mStep[1]);
+    return n <= 1 ? "Every minute" : `Every ${n} minutes`;
+  }
+
   const t = /^\d+$/.test(min) && /^\d+$/.test(hr) ? time() : null;
   if (t && dom === "*" && mon === "*") {
     if (dow === "*") return `Every day at ${t}`;
