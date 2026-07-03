@@ -1,4 +1,4 @@
-// Entrives - Stripe webhook. The single writer of billing state: checkout
+// Senable - Stripe webhook. The single writer of billing state: checkout
 // completion and subscription lifecycle events flip the team's plan.
 // Authorized by Stripe's webhook signature (fail closed).
 import { createClient } from "jsr:@supabase/supabase-js@2";

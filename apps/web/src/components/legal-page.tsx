@@ -16,7 +16,7 @@ export function LegalPage({
     <div className="flowy">
       <header className="nav-wrap">
         <nav className="nav">
-          <a className="brand" href="/" aria-label="Entrives home">
+          <a className="brand" href="/" aria-label="Senable home">
             <span className="brand-mark" aria-hidden="true">
               <svg viewBox="0 0 100 100" width="28" height="28">
                 <rect width="100" height="100" rx="28" fill="url(#bmLegal)" />
@@ -34,7 +34,7 @@ export function LegalPage({
                 </defs>
               </svg>
             </span>
-            <span className="brand-name">entrives</span>
+            <span className="brand-name">senable</span>
           </a>
 
           <ul className="nav-links">
@@ -70,7 +70,7 @@ export function LegalPage({
         <div className="legal-card">{children}</div>
 
         <div className="legal-foot">
-          <span>© 2026 Entrives</span>
+          <span>© 2026 Senable</span>
           <a href="mailto:sebastiandevbusiness@gmail.com">Contact</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>

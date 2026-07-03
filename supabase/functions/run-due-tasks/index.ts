@@ -1,4 +1,4 @@
-// Entrives - scheduler. Invoked every minute by pg_cron.
+// Senable - scheduler. Invoked every minute by pg_cron.
 // Finds active recurring tasks that are due, runs them, and advances next_run_at.
 // Protected by the service-role key (fail closed): only the cron job can call it.
 import { createClient } from "jsr:@supabase/supabase-js@2";

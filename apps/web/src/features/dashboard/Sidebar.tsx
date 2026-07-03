@@ -25,7 +25,7 @@ import { useConfirm } from "@/components/useConfirm";
 import { usePendingApprovalCount } from "@/features/approvals/hooks";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
 
-import { EntrivesLogo } from "./brand";
+import { SenableLogo } from "./brand";
 
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
@@ -66,9 +66,9 @@ export function Sidebar() {
   return (
     <aside className={`flowy-sidebar${collapsed ? " collapsed" : ""}`}>
       <div className="flowy-top">
-        <Link to="/dashboard" className="flowy-brand" title="Entrives">
-          <EntrivesLogo />
-          <span className="wm">entrives</span>
+        <Link to="/dashboard" className="flowy-brand" title="Senable">
+          <SenableLogo />
+          <span className="wm">senable</span>
         </Link>
         <button
           type="button"

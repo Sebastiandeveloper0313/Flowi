@@ -26,7 +26,7 @@ function SettingsPage() {
     <div className="flowy-page">
       <PageHeader
         title="Settings"
-        subtitle="What Entrives knows about your business, channels, billing, and your account."
+        subtitle="What Senable knows about your business, channels, billing, and your account."
       />
 
       <Tabs defaultValue="business">
@@ -120,9 +120,9 @@ function BusinessTab() {
           <Brain className="size-5" />
         </span>
         <div>
-          <p className="font-semibold">This is what Entrives knows about your business.</p>
+          <p className="font-semibold">This is what Senable knows about your business.</p>
           <p className="text-muted-foreground text-sm">
-            Every agent and reply is grounded in this. Paste your website and Entrives reads it and
+            Every agent and reply is grounded in this. Paste your website and Senable reads it and
             fills this in for you, or edit anything by hand.
           </p>
         </div>
@@ -165,7 +165,7 @@ function BusinessTab() {
           </div>
           {analyze.isPending && (
             <p className="text-muted-foreground text-xs">
-              Entrives is reading your pages. This can take up to a minute.
+              Senable is reading your pages. This can take up to a minute.
             </p>
           )}
           {analyze.isError && (
@@ -198,8 +198,8 @@ function BusinessTab() {
             <>
               {!hasContext && (
                 <p className="text-muted-foreground text-sm">
-                  Nothing yet. Paste your website above and Entrives will fill this in, or type it
-                  in manually.
+                  Nothing yet. Paste your website above and Senable will fill this in, or type it in
+                  manually.
                 </p>
               )}
 

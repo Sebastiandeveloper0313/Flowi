@@ -126,7 +126,7 @@ export function describeToolCall(
   const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
   return {
     title: `Run ${slug}`,
-    detail: `Entrives wants to take an action in ${nice}.`,
+    detail: `Senable wants to take an action in ${nice}.`,
   };
 }
 

@@ -1,6 +1,6 @@
-// Entrives - chat. The conversational way to create agents.
+// Senable - chat. The conversational way to create agents.
 // The user talks to Claude; when they describe a recurring job, Claude calls the
-// create_recurring_task tool and Entrives spins up the agent. Authorized as the user.
+// create_recurring_task tool and Senable spins up the agent. Authorized as the user.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { Cron } from "npm:croner@9";
 
@@ -30,7 +30,7 @@ function json(body: unknown, status = 200) {
 const TOOL = {
   name: "propose_agent",
   description:
-    "Propose a recurring task (an 'agent') that Entrives would run automatically on a schedule. This does NOT create it: the user sees a card summarizing the agent and clicks Create to set it up. Use whenever the user asks you to take care of a recurring job, OR proactively when you notice something worth automating for them. You can propose more than one.",
+    "Propose a recurring task (an 'agent') that Senable would run automatically on a schedule. This does NOT create it: the user sees a card summarizing the agent and clicks Create to set it up. Use whenever the user asks you to take care of a recurring job, OR proactively when you notice something worth automating for them. You can propose more than one.",
   input_schema: {
     type: "object",
     properties: {
@@ -80,7 +80,7 @@ const TOOL = {
 const SET_AUTONOMY_TOOL = {
   name: "set_autonomy_mode",
   description:
-    "Change how much Entrives does on its own for this workspace. Use when the user asks you to stop asking and just handle things ('auto'), or to always check with them before acting ('ask'). Affects the chat and all agents.",
+    "Change how much Senable does on its own for this workspace. Use when the user asks you to stop asking and just handle things ('auto'), or to always check with them before acting ('ask'). Affects the chat and all agents.",
   input_schema: {
     type: "object",
     properties: {
@@ -88,7 +88,7 @@ const SET_AUTONOMY_TOOL = {
         type: "string",
         enum: ["ask", "auto"],
         description:
-          "'ask' = high-stakes actions wait for the user's approval. 'auto' = Entrives carries them out on its own.",
+          "'ask' = high-stakes actions wait for the user's approval. 'auto' = Senable carries them out on its own.",
       },
     },
     required: ["mode"],
@@ -234,7 +234,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Stream "what I'm doing" status events as Entrives works, then the final reply.
+    // Stream "what I'm doing" status events as Senable works, then the final reply.
     const enc = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -338,8 +338,8 @@ Deno.serve(async (req: Request) => {
                       tool_use_id: block.id,
                       content:
                         next === "auto"
-                          ? "Autonomy set to auto. Entrives will now carry out actions on its own."
-                          : "Autonomy set to ask. Entrives will queue actions for your approval.",
+                          ? "Autonomy set to auto. Senable will now carry out actions on its own."
+                          : "Autonomy set to ask. Senable will queue actions for your approval.",
                     });
                   }
                 } else if (

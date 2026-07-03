@@ -1,4 +1,4 @@
-export function EntrivesLogo({ size = 26 }: { size?: number }) {
+export function SenableLogo({ size = 26 }: { size?: number }) {
   const id = `lg${size}`;
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
@@ -14,7 +14,7 @@ export function EntrivesLogo({ size = 26 }: { size?: number }) {
   );
 }
 
-export function EntrivesSky() {
+export function SenableSky() {
   return (
     <div className="flowy-app-sky" aria-hidden="true">
       <svg

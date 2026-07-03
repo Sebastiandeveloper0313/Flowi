@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { EntrivesLogo, EntrivesSky } from "@/features/dashboard/brand";
+import { SenableLogo, SenableSky } from "@/features/dashboard/brand";
 
 import { useProfile, useWorkspace } from "./hooks";
 import { analyzeWebsite, updateProfileName, updateWorkspace, uploadLogo } from "./mutations";
@@ -217,12 +217,12 @@ export function Onboarding() {
 
   const HEADERS = [
     {
-      title: "Welcome to Entrives",
-      sub: "A few quick things so Entrives can do real work for you.",
+      title: "Welcome to Senable",
+      sub: "A few quick things so Senable can do real work for you.",
     },
     {
       title: "Analyze your website",
-      sub: "Entrives reads your site to learn your product, audience, and voice.",
+      sub: "Senable reads your site to learn your product, audience, and voice.",
     },
     { title: "Tell us about yourself", sub: "This helps us tailor recommendations to your stage." },
     {
@@ -237,11 +237,11 @@ export function Onboarding() {
 
   return (
     <div className="flowy-app">
-      <EntrivesSky />
+      <SenableSky />
       <main className="flowy-onb-main">
         <div className="onb-shell">
           <div className="onb-brand">
-            <EntrivesLogo size={40} />
+            <SenableLogo size={40} />
           </div>
           <div className="onb-head">
             <h1>{HEADERS[step].title}</h1>
@@ -394,7 +394,7 @@ export function Onboarding() {
           </div>
         </div>
         <p className="onb-note subtle">
-          Entrives uses this to understand your product, audience, and voice, so everything it makes
+          Senable uses this to understand your product, audience, and voice, so everything it makes
           sounds like you, not generic AI.
         </p>
       </>

@@ -44,7 +44,7 @@ const APPS: AppMeta[] = [
   {
     slug: "slack",
     name: "Slack",
-    description: "Chat with Entrives right in your Slack workspace.",
+    description: "Chat with Senable right in your Slack workspace.",
     available: true,
   },
   {
@@ -105,10 +105,10 @@ function SlackResultBanner() {
       <div className="min-w-0 flex-1 text-sm">
         {ok ? (
           <>
-            <p className="font-semibold">Entrives is in your Slack</p>
+            <p className="font-semibold">Senable is in your Slack</p>
             <p className="mt-0.5">
-              Open Slack, find <b>Entrives</b> under Apps, and send it a message. It matches you by
-              email, so use the same email in Slack as in your Entrives account.
+              Open Slack, find <b>Senable</b> under Apps, and send it a message. It matches you by
+              email, so use the same email in Slack as in your Senable account.
             </p>
           </>
         ) : cancelled ? (
