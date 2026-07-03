@@ -1,4 +1,4 @@
-// Flowy - analyze-website. Turns a company URL (or a manual description) into
+// Entrives - analyze-website. Turns a company URL (or a manual description) into
 // structured business context the marketing operator uses to avoid generic output.
 // Uses Claude with the hosted web_fetch/web_search tools (no extra API key).
 import { createClient } from "jsr:@supabase/supabase-js@2";

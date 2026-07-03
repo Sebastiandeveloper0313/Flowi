@@ -1,7 +1,7 @@
-// Flowy - Slack bot. DM Flowy (or @mention it) in Slack and it does real work:
+// Entrives - Slack bot. DM Entrives (or @mention it) in Slack and it does real work:
 // same operator brain, same connected tools, same approval gate as the web chat.
-// The Slack user is matched to their Flowy account by email (users:read.email),
-// so there is no linking flow: if your Slack email has a Flowy account, it works.
+// The Slack user is matched to their Entrives account by email (users:read.email),
+// so there is no linking flow: if your Slack email has a Entrives account, it works.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 import { queueApproval } from "../_shared/approvals.ts";
@@ -79,7 +79,7 @@ interface Turn {
 }
 
 /**
- * Recent turns of a DM with Flowy, oldest first, so follow-ups have context.
+ * Recent turns of a DM with Entrives, oldest first, so follow-ups have context.
  * Bot messages become assistant turns; consecutive same-role turns are merged
  * (the API wants alternation); leading assistant turns are dropped. Returns []
  * on any failure so the caller degrades gracefully to a stateless reply.
@@ -127,7 +127,7 @@ async function tokenForWorkspace(
   return Deno.env.get("SLACK_BOT_TOKEN") ?? null;
 }
 
-/** Find the Flowy team for an email address (service role; matched case-insensitively). */
+/** Find the Entrives team for an email address (service role; matched case-insensitively). */
 // deno-lint-ignore no-explicit-any
 async function teamForEmail(admin: any, email: string): Promise<string | null> {
   const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -146,9 +146,9 @@ async function teamForEmail(admin: any, email: string): Promise<string | null> {
 
 /** Run the operator loop over the conversation so far; returns the reply text. */
 // deno-lint-ignore no-explicit-any
-async function runFlowy(admin: any, teamId: string, convo: Turn[]): Promise<string> {
+async function runEntrives(admin: any, teamId: string, convo: Turn[]): Promise<string> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) return "Flowy's AI isn't configured on the server yet.";
+  if (!key) return "Entrives isn't configured on the server yet.";
 
   const ws = await fetchWorkspaceContext(admin, teamId);
   const mode = autonomyMode(ws);
@@ -158,7 +158,7 @@ async function runFlowy(admin: any, teamId: string, convo: Turn[]): Promise<stri
     "standard markdown: bold is *single asterisks* (never **double**), italic is _underscores_, " +
     "links are <https://url|text>, bullets are plain dashes. No headers, no tables. Keep replies " +
     "short. You cannot create or propose agents from Slack; if they want one, point them to their " +
-    "Flowy dashboard. Everything else works: answer, use the connected tools, and take actions per " +
+    "Entrives dashboard. Everything else works: answer, use the connected tools, and take actions per " +
     "the autonomy rules above.";
 
   const connectedTools = composioEnabled() ? await toolsForUser(teamId).catch(() => []) : [];
@@ -258,13 +258,13 @@ async function handleEvent(event: any, slackTeamId: string | undefined): Promise
 
   const email = await slackUserEmail(token, event.user);
   if (!email) {
-    await post("I couldn't read your Slack email, so I can't find your Flowy account.");
+    await post("I couldn't read your Slack email, so I can't find your Entrives account.");
     return;
   }
   const teamId = await teamForEmail(admin, email);
   if (!teamId) {
     await post(
-      `I don't see a Flowy account for ${email}. Sign up at https://flowy-omega.vercel.app and message me again.`,
+      `I don't see a Entrives account for ${email}. Sign up at https://flowy-omega.vercel.app and message me again.`,
     );
     return;
   }
@@ -293,7 +293,7 @@ async function handleEvent(event: any, slackTeamId: string | undefined): Promise
   else convo.push({ role: "user", content: text });
 
   try {
-    const reply = await runFlowy(admin, teamId, convo);
+    const reply = await runEntrives(admin, teamId, convo);
     await post(reply);
   } catch (e) {
     await post(`Something went wrong: ${e instanceof Error ? e.message : String(e)}`);

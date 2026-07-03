@@ -1,7 +1,7 @@
-// Flowy - Slack interactivity. Handles the Approve / Reject buttons on the
-// approval notifications Flowy DMs into Slack. Authorized two ways: the
+// Entrives - Slack interactivity. Handles the Approve / Reject buttons on the
+// approval notifications Entrives DMs into Slack. Authorized two ways: the
 // request must carry a valid Slack signature, and the clicking Slack user is
-// email-matched to a Flowy account that must belong to the approval's team.
+// email-matched to a Entrives account that must belong to the approval's team.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 import { decideApproval } from "../_shared/approvals.ts";
@@ -56,7 +56,7 @@ async function handleAction(payload: any): Promise<void> {
     p_slack_team_id: payload.team?.id ?? "",
   });
   const token = (typeof vaultToken === "string" && vaultToken) || Deno.env.get("SLACK_BOT_TOKEN");
-  if (!token) return respond(responseUrl, "This Slack workspace isn't linked to Flowy anymore.");
+  if (!token) return respond(responseUrl, "This Slack workspace isn't linked to Entrives anymore.");
 
   const info = await fetch(
     `https://slack.com/api/users.info?user=${encodeURIComponent(payload.user?.id ?? "")}`,
@@ -65,12 +65,12 @@ async function handleAction(payload: any): Promise<void> {
   const email = info?.user?.profile?.email;
   if (!email) return respond(responseUrl, "I couldn't read your Slack email to authorize this.");
 
-  // Email -> Flowy user -> must belong to the approval's team.
+  // Email -> Entrives user -> must belong to the approval's team.
   const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const flowyUser = (users?.users ?? []).find(
     (u: { email?: string }) => (u.email ?? "").toLowerCase() === email.toLowerCase(),
   );
-  if (!flowyUser) return respond(responseUrl, `No Flowy account for ${email}.`);
+  if (!flowyUser) return respond(responseUrl, `No Entrives account for ${email}.`);
 
   const { data: approval } = await admin
     .from("approvals")

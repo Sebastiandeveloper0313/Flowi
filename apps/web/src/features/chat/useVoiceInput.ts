@@ -41,7 +41,7 @@ function messageForError(code: string | undefined): string {
     case "no-speech":
       return "Didn't catch anything. Try again.";
     case "network":
-      return "Voice input isn't available in this window. Open Flowy in a Chrome or Edge tab.";
+      return "Voice input isn't available in this window. Open Entrives in a Chrome or Edge tab.";
     default:
       return "Voice input stopped. Try again.";
   }

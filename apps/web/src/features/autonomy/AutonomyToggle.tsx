@@ -11,10 +11,10 @@ import type { AutonomyMode } from "./queries";
 
 const MODES: { value: AutonomyMode; label: string; hint: string }[] = [
   { value: "ask", label: "Ask", hint: "Approve high-stakes actions first" },
-  { value: "auto", label: "Auto", hint: "Flowy carries them out on its own" },
+  { value: "auto", label: "Auto", hint: "Entrives carries them out on its own" },
 ];
 
-/** Composer control to set how much Flowy does on its own (ask vs auto). */
+/** Composer control to set how much Entrives does on its own (ask vs auto). */
 export function AutonomyToggle() {
   const { data } = useAutonomy();
   const setMode = useSetAutonomyMode();
@@ -27,7 +27,7 @@ export function AutonomyToggle() {
         <button
           type="button"
           className="text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition"
-          title="How much Flowy does on its own"
+          title="How much Entrives does on its own"
         >
           {isAuto ? <Zap className="size-3.5" /> : <ShieldCheck className="size-3.5" />}
           {isAuto ? "Auto" : "Ask"}

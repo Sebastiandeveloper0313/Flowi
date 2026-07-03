@@ -156,7 +156,7 @@ function AgentsPage() {
           <Bot className="mx-auto mb-3 size-7 opacity-60" />
           <p className="text-foreground font-medium">No agents yet</p>
           <p className="mt-1 text-sm">
-            Describe a recurring job in the chat and Flowy sets it up for you.
+            Describe a recurring job in the chat and Entrives sets it up for you.
           </p>
           <Button asChild className="mt-5">
             <Link to="/dashboard" search={{ c: undefined }}>

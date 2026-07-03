@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { userQueryOptions } from "@/auth/queries";
-import { FlowySky } from "@/features/dashboard/brand";
+import { EntrivesSky } from "@/features/dashboard/brand";
 import { Sidebar } from "@/features/dashboard/Sidebar";
 import { workspaceQueryOptions } from "@/features/onboarding/queries";
 
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   return (
     <div className="flowy-app">
-      <FlowySky />
+      <EntrivesSky />
       <Sidebar />
       <main className="flowy-main">
         <Outlet />

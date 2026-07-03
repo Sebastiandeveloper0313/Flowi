@@ -1,4 +1,4 @@
-// Flowy - billing. Stripe Checkout to upgrade, the hosted Billing Portal to
+// Entrives - billing. Stripe Checkout to upgrade, the hosted Billing Portal to
 // manage/cancel, and a usage summary for the Billing tab. Authorized as the
 // user; plan state itself is written only by the stripe-webhook function.
 import { createClient } from "jsr:@supabase/supabase-js@2";
