@@ -28,6 +28,17 @@ export function useBillingSummary() {
   });
 }
 
+/** One-shot summary fetch, for polling outside react-query (trial activation). */
+export function fetchBillingSummary(): Promise<BillingSummary> {
+  return billing<BillingSummary>("summary");
+}
+
+/** Start the trial checkout in the same tab (hard paywall flow). */
+export async function startTrialCheckout(): Promise<void> {
+  const { url } = await billing<{ url: string }>("checkout");
+  window.location.assign(url);
+}
+
 /** Open Stripe Checkout (upgrade) or the Billing Portal (manage/cancel). */
 export function useBillingRedirect() {
   const queryClient = useQueryClient();

@@ -1275,7 +1275,7 @@ html {
   opacity: 0.92;
 }
 .cr-file::before {
-  content: "ðŸ“„";
+  content: "📄";
 }
 .cmp-connector {
   display: grid;
@@ -2668,7 +2668,7 @@ html {
   color: rgba(255, 255, 255, 0.92);
 }
 .pc-list li::before {
-  content: "âœ“";
+  content: "✓";
   position: absolute;
   left: 0;
   font-weight: 800;
