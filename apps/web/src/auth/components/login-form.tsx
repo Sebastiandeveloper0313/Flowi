@@ -14,6 +14,7 @@ import { Spinner } from "@workspace/ui/components/spinner";
 
 import { useSignIn } from "../hooks";
 import { loginSchema } from "../schemas";
+import { GoogleButton } from "./google-button";
 
 export function LoginForm() {
   const signIn = useSignIn();
@@ -97,6 +98,9 @@ export function LoginForm() {
             Sign in
           </Button>
         </form>
+        <div className="mt-4">
+          <GoogleButton />
+        </div>
       </CardContent>
     </Card>
   );
