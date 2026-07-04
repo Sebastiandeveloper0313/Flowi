@@ -18,21 +18,13 @@ export function LegalPage({
         <nav className="nav">
           <a className="brand" href="/" aria-label="Sentrive home">
             <span className="brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 100 100" width="28" height="28">
-                <rect width="100" height="100" rx="28" fill="url(#bmLegal)" />
-                <path
-                  d="M34 32h34M34 50h27M34 68h18"
-                  stroke="white"
-                  strokeWidth="9"
-                  strokeLinecap="round"
-                />
-                <defs>
-                  <linearGradient id="bmLegal" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#5aa6ff" />
-                    <stop offset="1" stopColor="#1566e6" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img
+                src="/sentrive.png"
+                alt=""
+                width="28"
+                height="28"
+                style={{ borderRadius: 8, display: "block" }}
+              />
             </span>
             <span className="brand-name">sentrive</span>
           </a>
