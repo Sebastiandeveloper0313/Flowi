@@ -3,7 +3,7 @@
 // user; plan state itself is written only by the stripe-webhook function.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const APP_URL = "https://flowy-omega.vercel.app";
+const APP_URL = "https://www.sentrive.ai";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",

@@ -11,7 +11,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // im:write lets Sentrive open a DM to the user proactively (approval pings).
 const SCOPES = "chat:write,im:write,im:history,users:read,users:read.email,app_mentions:read";
-const APP_URL = "https://flowy-omega.vercel.app";
+const APP_URL = "https://www.sentrive.ai";
 
 function backToApp(result: "connected" | "cancelled" | "error", detail?: string) {
   const to = new URL(`${APP_URL}/integrations`);

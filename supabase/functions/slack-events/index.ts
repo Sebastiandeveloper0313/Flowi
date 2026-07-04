@@ -264,7 +264,7 @@ async function handleEvent(event: any, slackTeamId: string | undefined): Promise
   const teamId = await teamForEmail(admin, email);
   if (!teamId) {
     await post(
-      `I don't see a Sentrive account for ${email}. Sign up at https://flowy-omega.vercel.app and message me again.`,
+      `I don't see a Sentrive account for ${email}. Sign up at https://www.sentrive.ai and message me again.`,
     );
     return;
   }
