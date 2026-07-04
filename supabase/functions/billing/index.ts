@@ -114,8 +114,8 @@ Deno.serve(async (req: Request) => {
         customer: await customerId(),
         "line_items[0][price]": price,
         "line_items[0][quantity]": "1",
-        success_url: `${APP_URL}/settings?billing=success`,
-        cancel_url: `${APP_URL}/settings?billing=cancelled`,
+        success_url: `${APP_URL}/start-trial?billing=success`,
+        cancel_url: `${APP_URL}/start-trial?billing=cancelled`,
         "metadata[team_id]": team.id,
         "subscription_data[metadata][team_id]": team.id,
       };
