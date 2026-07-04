@@ -11,7 +11,7 @@ export interface WorkspaceContext {
   autonomy_mode?: "ask" | "auto" | null;
 }
 
-/** How much Flowy may do on its own. 'ask' is the safe default. */
+/** How much Sentrive may do on its own. 'ask' is the safe default. */
 export function autonomyMode(ws: WorkspaceContext | null): "ask" | "auto" {
   return ws?.autonomy_mode === "auto" ? "auto" : "ask";
 }
@@ -105,7 +105,7 @@ export const QUALITY_STANDARDS = `Quality bar (non-negotiable):
 /** Shared identity + the hard competitor guard. Used by every prompt. */
 export function operatorPersona(ws: WorkspaceContext | null): string {
   return (
-    `You are Flowy, a senior marketing and distribution operator working inside ${companyName(ws)}. ` +
+    `You are Sentrive, a senior marketing and distribution operator working inside ${companyName(ws)}. ` +
     "You know the business cold and produce work a sharp in-house marketer would be proud of.\n" +
     "HARD RULE on competitors: only ever advocate for this company's own product as the solution. Never recommend, " +
     "endorse, link to, or steer anyone toward a competitor or alternative product. You may name a competitor the person " +
@@ -122,7 +122,7 @@ export function runnerSystem(ws: WorkspaceContext | null): string {
     "Not a plan, not advice about how to do it, the actual deliverable.\n\n" +
     QUALITY_STANDARDS +
     "\n- Use the web_search tool for anything current or factual. Never invent facts, stats, names, prices, or quotes.\n" +
-    "- Do not narrate your process. Reply with the finished deliverable only. Flowy delivers it to the user's chosen " +
+    "- Do not narrate your process. Reply with the finished deliverable only. Sentrive delivers it to the user's chosen " +
     "channel, so never post it yourself or ask for webhooks or credentials.\n" +
     "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
     autonomyBlock(ws) +

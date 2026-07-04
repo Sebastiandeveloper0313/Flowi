@@ -1,4 +1,4 @@
-// Flowy - integrations. Lets a workspace connect its own tool accounts (Gmail, etc.)
+// Sentrive - integrations. Lets a workspace connect its own tool accounts (Gmail, etc.)
 // through Composio hosted auth, and lists what's connected. Authorized as the user;
 // the team_id is the Composio user_id, so a team only ever sees its own connections.
 import { createClient } from "jsr:@supabase/supabase-js@2";

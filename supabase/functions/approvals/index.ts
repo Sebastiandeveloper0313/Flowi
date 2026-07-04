@@ -1,4 +1,4 @@
-// Flowy - approvals decision endpoint.
+// Sentrive - approvals decision endpoint.
 // The user approves or rejects a queued high-stakes action from the web app.
 // Authorized by the caller's JWT: RLS ensures they can only see (and therefore
 // decide) their own team's approvals. Execution runs via the shared core, the

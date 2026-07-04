@@ -26,7 +26,7 @@ function SettingsPage() {
     <div className="flowy-page">
       <PageHeader
         title="Settings"
-        subtitle="What Flowy knows about your business, channels, billing, and your account."
+        subtitle="What Sentrive knows about your business, channels, billing, and your account."
       />
 
       <Tabs defaultValue="business">
@@ -120,9 +120,9 @@ function BusinessTab() {
           <Brain className="size-5" />
         </span>
         <div>
-          <p className="font-semibold">This is what Flowy knows about your business.</p>
+          <p className="font-semibold">This is what Sentrive knows about your business.</p>
           <p className="text-muted-foreground text-sm">
-            Every agent and reply is grounded in this. Paste your website and Flowy reads it and
+            Every agent and reply is grounded in this. Paste your website and Sentrive reads it and
             fills this in for you, or edit anything by hand.
           </p>
         </div>
@@ -165,7 +165,7 @@ function BusinessTab() {
           </div>
           {analyze.isPending && (
             <p className="text-muted-foreground text-xs">
-              Flowy is reading your pages. This can take up to a minute.
+              Sentrive is reading your pages. This can take up to a minute.
             </p>
           )}
           {analyze.isError && (
@@ -198,8 +198,8 @@ function BusinessTab() {
             <>
               {!hasContext && (
                 <p className="text-muted-foreground text-sm">
-                  Nothing yet. Paste your website above and Flowy will fill this in, or type it in
-                  manually.
+                  Nothing yet. Paste your website above and Sentrive will fill this in, or type it
+                  in manually.
                 </p>
               )}
 
