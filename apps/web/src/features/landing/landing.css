@@ -1538,7 +1538,7 @@ html {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--card-grad);
+  background: url(/sentrive.png) center/cover;
   flex-shrink: 0;
 }
 .mc-msg b {
@@ -2922,7 +2922,7 @@ html {
   width: 24px;
   height: 24px;
   border-radius: 7px;
-  background: var(--card-grad);
+  background: url(/sentrive.png) center/cover;
   flex-shrink: 0;
 }
 .gm-collapsed b {
