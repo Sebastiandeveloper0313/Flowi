@@ -56,7 +56,7 @@ export async function executeTask(
     return {
       summary: "Preview run - connect an AI key to make this real",
       output:
-        `Senable received the task “${task.title}”.\n\n` +
+        `Sentrive received the task “${task.title}”.\n\n` +
         `It would now carry out:\n${task.instructions}\n\n` +
         `Add an ANTHROPIC_API_KEY to the function's secrets and this will return the real, finished result.`,
     };
@@ -202,7 +202,7 @@ async function deliverResult(task: TaskRow, summary: string, output: string): Pr
     await executeComposioTool(task.team_id, "GMAIL_SEND_EMAIL", {
       recipient_email: email,
       subject: `${task.title}: ${summary}`.slice(0, 180),
-      body: `${output}\n\n--\nSent by Senable, from your agent "${task.title}". Manage it on your Agents page.`,
+      body: `${output}\n\n--\nSent by Sentrive, from your agent "${task.title}". Manage it on your Agents page.`,
     });
   } catch (e) {
     console.error("email delivery failed:", e instanceof Error ? e.message : String(e));

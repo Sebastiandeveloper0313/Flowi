@@ -11,8 +11,8 @@ function PrivacyPage() {
     <LegalPage title="Privacy Policy" updated="July 2, 2026">
       <LegalSection heading="1. Overview">
         <p>
-          This policy explains what data Senable ("Senable", "we", "us") collects, why, and how it
-          is handled when you use our website and application (the "Service"). Senable is operated
+          This policy explains what data Sentrive ("Sentrive", "we", "us") collects, why, and how it
+          is handled when you use our website and application (the "Service"). Sentrive is operated
           from Sweden. The short version: we collect what is needed to run your AI marketing
           employee, we never sell your data, and your data is never used to train AI models.
         </p>
@@ -30,14 +30,14 @@ function PrivacyPage() {
         </p>
         <p>
           <strong className="text-foreground">Content you create.</strong> Your chat messages with
-          Senable, agent instructions and schedules, approval decisions, and the results agents
+          Sentrive, agent instructions and schedules, approval decisions, and the results agents
           produce (for example lead reports and drafted replies).
         </p>
         <p>
           <strong className="text-foreground">Connected account data.</strong> When you connect
           Gmail, Reddit, LinkedIn, Facebook, or Slack, we store the connection (via OAuth) and
           process the data needed for the tasks you run, for example the emails a task reads or
-          sends, posts published, or Slack messages exchanged with the Senable bot. Access tokens
+          sends, posts published, or Slack messages exchanged with the Sentrive bot. Access tokens
           are stored encrypted. We only receive the permissions you approve in each provider's
           consent screen.
         </p>
@@ -69,7 +69,7 @@ function PrivacyPage() {
 
       <LegalSection heading="4. AI processing: no training on your data">
         <p>
-          Senable uses Anthropic's Claude models via API to understand your requests and generate
+          Sentrive uses Anthropic's Claude models via API to understand your requests and generate
           content. The content needed for a given task (for example your instruction, business
           context, and the material an agent is working on) is sent to Anthropic for processing.
           Under Anthropic's commercial API terms, this data is not used to train their models. We do
@@ -79,12 +79,12 @@ function PrivacyPage() {
 
       <LegalSection heading="5. Google user data (Gmail)">
         <p>
-          If you connect Gmail, Senable accesses your Gmail data only to provide user-facing
+          If you connect Gmail, Sentrive accesses your Gmail data only to provide user-facing
           features you actively use: reading threads you ask it to work with, drafting replies, and
           sending email you approve (or that you have set to send automatically in Auto mode).
         </p>
         <p>
-          Senable's use and transfer of information received from Google APIs adheres to the{" "}
+          Sentrive's use and transfer of information received from Google APIs adheres to the{" "}
           <a
             href="https://developers.google.com/terms/api-services-user-data-policy"
             target="_blank"
@@ -124,7 +124,7 @@ function PrivacyPage() {
             for analysis;
           </li>
           <li>
-            <strong className="text-foreground">Slack</strong>: if you install the Senable Slack
+            <strong className="text-foreground">Slack</strong>: if you install the Sentrive Slack
             app.
           </li>
         </ul>

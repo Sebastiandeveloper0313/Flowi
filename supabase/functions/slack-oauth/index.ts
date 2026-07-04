@@ -1,4 +1,4 @@
-// Senable - Slack install (OAuth). Two jobs:
+// Sentrive - Slack install (OAuth). Two jobs:
 //  GET  /slack-oauth            -> 302 to Slack's consent screen ("Add to Slack")
 //  GET  /slack-oauth?code=...   -> exchange the code for that workspace's bot
 //                                  token, store it, then bounce back to the app.
@@ -6,10 +6,10 @@
 // CSP), so both outcomes redirect to the Integrations page, which shows the
 // result from the ?slack= query param.
 // A workspace row grants nothing by itself: each Slack sender is still matched
-// to their own Senable account by email in slack-events.
+// to their own Sentrive account by email in slack-events.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// im:write lets Senable open a DM to the user proactively (approval pings).
+// im:write lets Sentrive open a DM to the user proactively (approval pings).
 const SCOPES = "chat:write,im:write,im:history,users:read,users:read.email,app_mentions:read";
 const APP_URL = "https://flowy-omega.vercel.app";
 
@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
   const code = url.searchParams.get("code");
   if (!code) {
     if (url.searchParams.get("error")) return backToApp("cancelled");
-    // Start the install: send the user to Slack's consent screen. The Senable
+    // Start the install: send the user to Slack's consent screen. The Sentrive
     // team id rides along in `state` so the callback can mark that team's
     // Slack card as connected.
     const authorize = new URL("https://slack.com/oauth/v2/authorize");
@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  // The Senable team that started the install (echoed back by Slack in `state`).
+  // The Sentrive team that started the install (echoed back by Slack in `state`).
   const state = url.searchParams.get("state") ?? "";
   const teamId = /^[0-9a-f-]{36}$/i.test(state) ? state : null;
   // Token goes into Vault via a service-role-only definer function; the table

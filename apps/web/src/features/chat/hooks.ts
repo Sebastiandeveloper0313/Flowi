@@ -63,7 +63,7 @@ interface StreamEvent {
 }
 
 /**
- * Ask Senable for a reply (and possibly spin up agents). Streams "what I'm doing"
+ * Ask Sentrive for a reply (and possibly spin up agents). Streams "what I'm doing"
  * status events (onStatus) while it works, then resolves with the final reply.
  * Uses fetch (not functions.invoke) so it can stream and be aborted.
  */
@@ -128,7 +128,7 @@ export async function sendChat(
       else if (evt.type === "error") throw new Error(evt.error ?? "Chat failed");
     }
   }
-  if (!result) throw new Error("No response from Senable.");
+  if (!result) throw new Error("No response from Sentrive.");
   return result;
 }
 

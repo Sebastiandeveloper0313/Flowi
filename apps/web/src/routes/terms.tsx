@@ -11,21 +11,21 @@ function TermsPage() {
     <LegalPage title="Terms of Service" updated="July 2, 2026">
       <LegalSection heading="1. Who we are">
         <p>
-          Senable ("Senable", "we", "us") is an AI marketing service operated from Sweden. These
-          Terms of Service ("Terms") are a binding agreement between you and Senable and govern your
-          use of the Senable website, application, and related services (together, the "Service").
-          By creating an account or using the Service, you agree to these Terms. If you use Senable
-          on behalf of a company, you confirm you have authority to bind that company, and "you"
-          means that company.
+          Sentrive ("Sentrive", "we", "us") is an AI marketing service operated from Sweden. These
+          Terms of Service ("Terms") are a binding agreement between you and Sentrive and govern
+          your use of the Sentrive website, application, and related services (together, the
+          "Service"). By creating an account or using the Service, you agree to these Terms. If you
+          use Sentrive on behalf of a company, you confirm you have authority to bind that company,
+          and "you" means that company.
         </p>
       </LegalSection>
 
       <LegalSection heading="2. The Service">
         <p>
-          Senable is an AI marketing employee. You describe marketing work in plain language and
-          Senable performs it: finding relevant conversations and leads, drafting and publishing
+          Sentrive is an AI marketing employee. You describe marketing work in plain language and
+          Sentrive performs it: finding relevant conversations and leads, drafting and publishing
           posts and replies, working with your email, and running recurring agents on a schedule.
-          Senable acts through accounts you connect (such as Gmail, Reddit, LinkedIn, Facebook, and
+          Sentrive acts through accounts you connect (such as Gmail, Reddit, LinkedIn, Facebook, and
           Slack) and reports results back to you in the app, by email, or in Slack.
         </p>
       </LegalSection>
@@ -41,22 +41,22 @@ function TermsPage() {
 
       <LegalSection heading="4. Connected accounts and authorization">
         <p>
-          When you connect a third-party account, you authorize Senable to access and act through
+          When you connect a third-party account, you authorize Sentrive to access and act through
           that account on your behalf, within the permissions you grant during the OAuth flow. You
           can revoke a connection at any time in the app or with the third-party provider.
         </p>
         <p>
-          Actions Senable takes through your connected accounts (posts, replies, emails, messages)
-          are made in your name and are your responsibility. Senable provides approval controls: in
+          Actions Sentrive takes through your connected accounts (posts, replies, emails, messages)
+          are made in your name and are your responsibility. Sentrive provides approval controls: in
           Ask mode, outward-facing actions are queued for your explicit approval before anything is
-          sent or published. If you enable Auto mode, you instruct Senable to act without asking
+          sent or published. If you enable Auto mode, you instruct Sentrive to act without asking
           first, and you accept responsibility for those actions as if you had approved each one.
         </p>
       </LegalSection>
 
       <LegalSection heading="5. AI-generated content">
         <p>
-          Senable uses large language models to analyze information and generate content. AI output
+          Sentrive uses large language models to analyze information and generate content. AI output
           can be inaccurate, incomplete, or inappropriate for your context. You are responsible for
           reviewing content before it is published and for everything published from your connected
           accounts. The Service is a tool that works under your direction; it does not provide
@@ -85,7 +85,7 @@ function TermsPage() {
 
       <LegalSection heading="7. Trial, subscription, and billing">
         <p>
-          Senable offers one paid plan (Pro) with a 3-day free trial for new customers. A payment
+          Sentrive offers one paid plan (Pro) with a 3-day free trial for new customers. A payment
           method is required to start the trial. If you do not cancel before the trial ends, your
           subscription starts automatically and the plan price is charged to your payment method.
           Subscriptions renew monthly until canceled.
@@ -102,7 +102,7 @@ function TermsPage() {
 
       <LegalSection heading="8. Your content and data">
         <p>
-          You retain all rights to the content you provide and to the marketing content Senable
+          You retain all rights to the content you provide and to the marketing content Sentrive
           generates for you. You grant us the license needed to operate the Service: to store,
           process, and transmit your content, including sending it to the AI providers and connected
           platforms involved in performing the work you request. Our handling of personal data is
@@ -112,7 +112,7 @@ function TermsPage() {
 
       <LegalSection heading="9. Intellectual property">
         <p>
-          The Service itself, including its software, design, and branding, belongs to Senable and
+          The Service itself, including its software, design, and branding, belongs to Sentrive and
           its licensors. These Terms do not grant you any rights in the Service other than the right
           to use it while these Terms are in effect.
         </p>

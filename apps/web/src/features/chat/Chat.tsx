@@ -119,7 +119,7 @@ function fileToAttachment(file: File): Promise<Attachment> {
   });
 }
 
-function SenableAvatar() {
+function SentriveAvatar() {
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6]">
       <svg viewBox="0 0 100 100" className="size-4" aria-hidden="true">
@@ -135,7 +135,7 @@ function SenableAvatar() {
 }
 
 // Common run frequencies offered on a proposal card, so the user can set "how
-// often" instead of accepting Senable's guess. "once" maps to no schedule.
+// often" instead of accepting Sentrive's guess. "once" maps to no schedule.
 const RUN_FREQUENCIES: { value: string; label: string }[] = [
   { value: "0 * * * *", label: "Every hour" },
   { value: "0 */2 * * *", label: "Every 2 hours" },
@@ -166,7 +166,7 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
 
   const isReddit = proposal.kind === "reddit_monitor";
 
-  // Editable draft, seeded from Senable's proposal.
+  // Editable draft, seeded from Sentrive's proposal.
   const [title, setTitle] = useState(proposal.title);
   const [instructions, setInstructions] = useState(proposal.instructions);
   const [cron, setCron] = useState<string>(proposal.schedule_cron ?? "once");
@@ -629,7 +629,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         }}
         onPaste={onPaste}
         rows={1}
-        placeholder="Tell Senable what to do…  e.g. “every day at noon, 3 slides on menswear trends”"
+        placeholder="Tell Sentrive what to do…  e.g. “every day at noon, 3 slides on menswear trends”"
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
       />
       <div className="mt-1 flex items-center justify-between px-1">
@@ -697,10 +697,10 @@ export function Chat({ chatId }: { chatId?: string }) {
       <div className="flex min-h-[82vh] flex-col items-center justify-center px-2">
         <div className="w-full max-w-2xl">
           <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
-            What should Senable take care of?
+            What should Sentrive take care of?
           </h2>
           <p className="text-muted-foreground mx-auto mt-3 mb-8 max-w-2xl text-center">
-            Ask a question, or describe a recurring job and Senable runs it on schedule.
+            Ask a question, or describe a recurring job and Sentrive runs it on schedule.
           </p>
           {composer}
         </div>
@@ -725,7 +725,7 @@ export function Chat({ chatId }: { chatId?: string }) {
               </div>
             ) : (
               <div key={i} className="group flex gap-3">
-                <SenableAvatar />
+                <SentriveAvatar />
                 <div className="min-w-0 flex-1 space-y-2">
                   {typing !== null && i === messages.length - 1 ? (
                     // revealing character by character: plain text + caret, format on finish
@@ -758,7 +758,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           )}
           {chat.isPending && (
             <div className="flex items-center gap-3">
-              <SenableAvatar />
+              <SentriveAvatar />
               <span className="flowy-shimmer text-sm font-medium">{status}…</span>
             </div>
           )}
@@ -768,7 +768,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         {composer}
         <p className="text-muted-foreground mt-2 text-center text-xs">
           <Sparkles className="mr-1 inline size-3" />
-          Senable can answer, or set up agents that run on their own.
+          Sentrive can answer, or set up agents that run on their own.
         </p>
       </div>
       {lightbox}
