@@ -13,6 +13,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { AuthShell } from "@/auth/components/auth-shell";
 import { userQueryOptions } from "@/auth/queries";
+
+import "@/components/cta-button.css";
 import { fetchBillingSummary, startTrialCheckout } from "@/features/billing/hooks";
 import { onboardingKeys, workspaceQueryOptions } from "@/features/onboarding/queries";
 
@@ -136,9 +138,15 @@ function StartTrialPage() {
               )}
               {error && <p className="text-destructive text-sm">{error}</p>}
 
-              <Button className="w-full" onClick={onStart} disabled={pending}>
-                {pending && <Loader2 className="size-4 animate-spin" />}
-                Start 3-day Free Trial
+              <Button
+                className="cta-beam h-12 w-full text-base font-semibold"
+                onClick={onStart}
+                disabled={pending}
+              >
+                <span className="flex items-center gap-2">
+                  {pending && <Loader2 className="size-4 animate-spin" />}
+                  Start 3-day Free Trial
+                </span>
               </Button>
               <p className="text-muted-foreground text-center text-xs">
                 Card required. You won't be charged during the trial, and you can cancel in one
