@@ -1,12 +1,15 @@
-// Reddit lead-monitor pipeline. Three context-driven stages:
-//  1. SELECT: derive buyer-intent search phrases + subreddits from the business
-//     context (the words real buyers type), unless the user pinned their own.
-//  2. FILTER: judge which posts are genuine leads for this company's ICP.
-//  3. DRAFT:  write a helpful, on-brand reply that never pitches a competitor.
-// All three compose from the shared operator persona + quality bar + context block.
+// Reddit lead-monitor pipeline. Context-driven, built for daily volume:
+//  1. SELECT: derive short buyer-intent search terms + the subreddits buyers
+//     post in (their words, not the brand's), unless the user pinned their own.
+//  2. GATHER: ingest each subreddit's fresh /new feed AND run keyword search,
+//     so the candidate pool is hundreds of posts, not a few dozen.
+//  3. TRIAGE: a cheap high-recall first pass (Haiku) drops obvious noise.
+//  4. SCORE: judge the survivors for genuine intent + draft an on-brand reply,
+//     in parallel batches so volume never truncates a single call.
+// All stages compose from the shared operator persona + quality bar + context.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { connectedToolkits, redditSearch } from "./composio.ts";
+import { connectedToolkits, redditSearch, redditSubredditPosts } from "./composio.ts";
 import {
   companyName,
   contextBlock,
@@ -17,17 +20,35 @@ import {
 import type { RedditPost } from "./reddit.ts";
 import type { TaskRow } from "./runner.ts";
 
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-opus-4-8"; // scoring + drafting (precision)
+const TRIAGE_MODEL = "claude-haiku-4-5-20251001"; // cheap first-pass filter (recall)
 const ANTHROPIC = "https://api.anthropic.com/v1/messages";
+
+// Bump to force existing agents to re-derive queries once with an improved
+// prompt (e.g. long sentence keywords -> short search terms).
+const QUERY_VERSION = "v2";
+
+// Volume + cost bounds per run.
+const FEED_SUBS = 12; // subreddits whose /new feed we ingest
+const FEED_LIMIT = 100; // posts per subreddit
+const SEARCH_TERMS = 8; // keyword searches
+const SEARCH_LIMIT = 50; // results per search
+const MAX_TRIAGE = 400; // posts sent to the cheap filter
+const TRIAGE_BATCH = 60;
+const TRIAGE_SKIP = 40; // small pools skip triage and go straight to scoring
+const MAX_SCORE = 72; // survivors sent to the expensive scorer
+const SCORE_BATCH = 12; // posts per scoring call (parallel)
+const SEEN_CAP = 1500; // rolling set of already-considered post ids
 
 interface MonitorConfig {
   keywords?: string[];
   subreddits?: string[];
   keywords_source?: "user" | "derived";
   derived_sig?: string;
+  seen_ids?: string[];
   min_relevance?: number;
   max_leads?: number;
-  time?: "day" | "week" | "month" | "year";
+  lookback_hours?: number;
 }
 
 interface Judged {
@@ -38,15 +59,48 @@ interface Judged {
   draft_reply: string;
 }
 
+function chunkArr<T>(a: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n));
+  return out;
+}
+
+/** Run async tasks with bounded concurrency (protects Reddit's rate limit). */
+async function mapPool<R>(
+  tasks: Array<() => Promise<R>>,
+  limit: number,
+): Promise<PromiseSettledResult<R>[]> {
+  const out: PromiseSettledResult<R>[] = new Array(tasks.length);
+  let i = 0;
+  async function worker() {
+    while (i < tasks.length) {
+      const idx = i++;
+      try {
+        out[idx] = { status: "fulfilled", value: await tasks[idx]() };
+      } catch (e) {
+        out[idx] = { status: "rejected", reason: e };
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  return out;
+}
+
 /** Stable, cheap signature of the business context, to re-derive only when it changes. */
 function contextSig(ws: WorkspaceContext | null): string {
-  const s = JSON.stringify(ws?.business_context ?? {}) + "|" + (ws?.name ?? "");
+  const s =
+    QUERY_VERSION + "|" + JSON.stringify(ws?.business_context ?? {}) + "|" + (ws?.name ?? "");
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return String(h >>> 0);
 }
 
-async function callClaude(system: string, user: string, maxTokens: number): Promise<string> {
+async function callClaude(
+  system: string,
+  user: string,
+  maxTokens: number,
+  model: string = MODEL,
+): Promise<string> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return "";
   const res = await fetch(ANTHROPIC, {
@@ -57,7 +111,7 @@ async function callClaude(system: string, user: string, maxTokens: number): Prom
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: user }],
@@ -84,8 +138,8 @@ function extractJson<T>(text: string, open: "[" | "{"): T | null {
 }
 
 /**
- * STAGE 1 - derive the actual words real buyers type when they have the problem
- * this company solves (not the brand's own themes), plus subreddits they post in.
+ * STAGE 1 - derive SHORT search terms real buyers type (Reddit search is literal
+ * keyword matching, so sentences return junk), plus the subreddits they post in.
  */
 async function deriveQueries(
   ws: WorkspaceContext | null,
@@ -94,16 +148,18 @@ async function deriveQueries(
   const system =
     "You plan a Reddit search strategy for a lead-finding agent working inside this company." +
     contextBlock(ws) +
-    "\n\nGive the exact phrases real potential BUYERS type on Reddit when they have the problem this company solves: " +
-    'their words, not the brand\'s marketing terms. Think complaints, "looking for", "alternative to", "how do I", ' +
-    '"recommend a tool for", direct comparisons, and the pain itself stated plainly. ' +
+    "\n\nGive SHORT search terms (2 to 4 words each) that real potential BUYERS type on Reddit when " +
+    "they have the problem this company solves: their words, not the brand's marketing terms. Reddit " +
+    "search is literal keyword matching, so full sentences return junk; prefer tight noun phrases and " +
+    'pain terms (e.g. "marketing agency alternative", "no time for marketing", "reddit lead tool"). ' +
     "Avoid this company's own brand or product names, and avoid broad one-word terms that return noise. " +
-    "Also name the subreddits where these buyers actually post.";
+    "Then name the subreddits where these buyers actually post: be generous, more relevant subreddits " +
+    "means more leads.";
   const user =
     (seeds.length
       ? `Optional seed terms the user mentioned (incorporate if useful): ${seeds.join(", ")}.\n\n`
       : "") +
-    'Return ONLY JSON, no prose: {"keywords": ["6-10 buyer-intent search phrases"], "subreddits": ["4-8 subreddit names, no r/ prefix"]}';
+    'Return ONLY JSON, no prose: {"keywords": ["8-12 short buyer-intent terms"], "subreddits": ["8-14 subreddit names, no r/ prefix"]}';
 
   const text = await callClaude(system, user, 1024);
   const parsed = extractJson<{ keywords?: unknown; subreddits?: unknown }>(text, "{");
@@ -114,10 +170,57 @@ async function deriveQueries(
           max,
         )
       : [];
-  return { keywords: clean(parsed?.keywords, 10), subreddits: clean(parsed?.subreddits, 8) };
+  return { keywords: clean(parsed?.keywords, 12), subreddits: clean(parsed?.subreddits, 14) };
 }
 
-/** STAGES 2+3 - score each post as an ICP-fit lead and draft an on-brand reply. */
+/**
+ * STAGE 3 - cheap high-recall filter. Keeps anything that could plausibly be a
+ * real person with a problem or intent, drops obvious noise, so the expensive
+ * scorer only sees candidates. Fails OPEN (keeps the batch) on any error or
+ * unparseable reply, so a filter hiccup can never zero out a run.
+ */
+async function triage(posts: RedditPost[], ws: WorkspaceContext | null): Promise<RedditPost[]> {
+  if (posts.length <= TRIAGE_SKIP) return posts;
+  const batches = chunkArr(posts, TRIAGE_BATCH);
+  const kept: RedditPost[] = [];
+  await Promise.all(
+    batches.map(async (batch) => {
+      try {
+        const list = batch
+          .map(
+            (p) =>
+              `[${p.external_id}] r/${p.subreddit}: ${p.title}` +
+              (p.snippet ? ` - ${p.snippet.slice(0, 140)}` : ""),
+          )
+          .join("\n");
+        const system =
+          "You are a fast first-pass filter for a Reddit lead-finding agent. KEEP a post if it could " +
+          "plausibly be a real person with a problem, a question, a request for a recommendation, a " +
+          "comparison of tools, or a stated need this business could help with. DROP obvious noise: " +
+          "memes, news, announcements, self-promotion, giveaways, and off-topic chatter. Be generous: " +
+          "when unsure, KEEP. Precision comes later." +
+          contextBlock(ws);
+        const user =
+          `Posts:\n${list}\n\n` +
+          'Return ONLY a JSON array of the external_ids to keep, e.g. ["t3_abc","t3_def"]. ' +
+          "Use [] only if truly none qualify.";
+        const text = await callClaude(system, user, 1500, TRIAGE_MODEL);
+        const parsed = extractJson<string[]>(text, "[");
+        if (!Array.isArray(parsed)) {
+          kept.push(...batch); // unparseable -> fail open
+          return;
+        }
+        const keep = new Set(parsed.map(String));
+        kept.push(...batch.filter((p) => keep.has(p.external_id)));
+      } catch {
+        kept.push(...batch); // error -> fail open
+      }
+    }),
+  );
+  return kept;
+}
+
+/** STAGE 4 - score each post as an ICP-fit lead and draft an on-brand reply. */
 async function scoreAndDraft(
   posts: RedditPost[],
   ws: WorkspaceContext | null,
@@ -166,49 +269,53 @@ async function scoreAndDraft(
 
 /**
  * Resolve which keywords/subreddits to search. User-pinned terms always win.
- * Otherwise derive from the business context, and persist the result back onto
- * the agent's config (so it shows in "Watching" and is editable). Re-derives
- * only when the context changes, so steady-state runs cost no extra model call.
+ * Otherwise derive from the business context. Returns a config patch to persist
+ * (so "Watching" shows the terms) rather than writing here, so the run can fold
+ * it into a single write alongside the rolling seen-set. Re-derives only when
+ * the context (or the query version) changes.
  */
 async function resolveQueries(
-  admin: SupabaseClient,
   task: TaskRow,
   ws: WorkspaceContext | null,
   cfg: MonitorConfig,
-): Promise<{ keywords: string[]; subreddits: string[] }> {
+): Promise<{ keywords: string[]; subreddits: string[]; patch: Partial<MonitorConfig> }> {
   const pinned = cfg.keywords_source === "user" && (cfg.keywords?.length ?? 0) > 0;
   if (pinned) {
     return {
       keywords: (cfg.keywords ?? []).map(String),
       subreddits: (cfg.subreddits ?? []).map(String),
+      patch: {},
     };
   }
 
   const sig = contextSig(ws);
-  const haveFresh = (cfg.keywords?.length ?? 0) > 0 && cfg.derived_sig === sig;
+  const haveFresh = (cfg.subreddits?.length ?? 0) > 0 && cfg.derived_sig === sig;
   if (haveFresh) {
     return {
       keywords: (cfg.keywords ?? []).map(String),
       subreddits: (cfg.subreddits ?? []).map(String),
+      patch: {},
     };
   }
 
   const derived = await deriveQueries(ws, (cfg.keywords ?? []).map(String));
-  if (derived.keywords.length) {
-    await admin
-      .from("tasks")
-      .update({
-        config: {
-          ...cfg,
-          keywords: derived.keywords,
-          subreddits: derived.subreddits,
-          keywords_source: "derived",
-          derived_sig: sig,
-        },
-      })
-      .eq("id", task.id);
+  if (derived.keywords.length || derived.subreddits.length) {
+    return {
+      ...derived,
+      patch: {
+        keywords: derived.keywords,
+        subreddits: derived.subreddits,
+        keywords_source: "derived",
+        derived_sig: sig,
+      },
+    };
   }
-  return derived;
+  // derivation failed: keep whatever we had rather than wiping the agent.
+  return {
+    keywords: (cfg.keywords ?? []).map(String),
+    subreddits: (cfg.subreddits ?? []).map(String),
+    patch: {},
+  };
 }
 
 /** Run a reddit_monitor agent once. Returns a run summary; persists new leads. */
@@ -228,77 +335,85 @@ export async function runRedditMonitor(
   }
 
   const cfg = (task.config ?? {}) as MonitorConfig;
-  // resolveQueries also derives + persists subreddits (shown in "Watching");
-  // the Composio search itself is Reddit-wide, so only keywords drive it here.
-  const { keywords } = await resolveQueries(admin, task, ws, cfg);
-  if (!keywords.length) {
+  const { keywords, subreddits, patch } = await resolveQueries(task, ws, cfg);
+  if (!keywords.length && !subreddits.length) {
     return {
-      summary: "No keywords to search",
+      summary: "No search terms yet",
       output:
-        "This agent could not derive search terms. Connect your website in onboarding so it knows " +
-        "who to look for, or add keywords on the agent.",
+        "This agent could not derive who to look for. Connect your website in onboarding so it knows " +
+        "your business, or add keywords and subreddits on the agent.",
     };
   }
 
   const minRel = cfg.min_relevance ?? 55;
-  const maxLeads = cfg.max_leads ?? 10;
+  const maxLeads = cfg.max_leads ?? 20;
+  const lookbackHours = cfg.lookback_hours ?? 72;
+  const cutoff = Math.floor(Date.now() / 1000) - lookbackHours * 3600;
 
-  // 1. gather candidate posts. Composio search is Reddit-wide, so we search each
-  // buyer-intent keyword globally; the derived subreddits still steer scoring.
-  // Two passes per keyword, "relevance" (the best matches, at any age) and "new"
-  // (the freshest), so niche phrases still surface plenty to score. All searches
-  // run in parallel so the extra breadth doesn't slow the run.
-  const queries: { q: string; sort: "relevance" | "new" }[] = [];
-  for (const q of keywords.slice(0, 10)) {
-    for (const sort of ["relevance", "new"] as const) queries.push({ q, sort });
-  }
-  const results = await Promise.allSettled(
-    queries.map(({ q, sort }) => redditSearch(task.team_id, q, { sort, limit: 40 })),
-  );
-  const seen = new Set<string>();
+  const feedSubs = subreddits.slice(0, FEED_SUBS);
+  const searchTerms = keywords.slice(0, SEARCH_TERMS);
+
+  // 1. gather: subreddit /new feeds (freshest, highest-signal) + keyword search
+  //    (reach beyond the watched subs). All in parallel; a slow/bad query is
+  //    skipped rather than killing the run.
+  const jobs: Array<() => Promise<RedditPost[]>> = [
+    ...feedSubs.map(
+      (sub) => () => redditSubredditPosts(task.team_id, sub, { sort: "new", limit: FEED_LIMIT }),
+    ),
+    ...searchTerms.map(
+      (q) => () => redditSearch(task.team_id, q, { sort: "new", limit: SEARCH_LIMIT }),
+    ),
+  ];
+  const results = await mapPool(jobs, 8);
+  const seenThisRun = new Set<string>();
   const candidates: RedditPost[] = [];
   for (const r of results) {
-    if (r.status !== "fulfilled") continue; // a bad/slow query shouldn't kill the run
+    if (r.status !== "fulfilled") continue;
     for (const p of r.value) {
-      if (!seen.has(p.external_id)) {
-        seen.add(p.external_id);
-        candidates.push(p);
-      }
+      if (seenThisRun.has(p.external_id)) continue;
+      seenThisRun.add(p.external_id);
+      candidates.push(p);
     }
   }
-  if (!candidates.length) {
+  const gathered = candidates.length;
+  if (!gathered) {
     return {
-      summary: "No matching Reddit posts found",
-      output: `Searched: ${keywords.join(", ")}.`,
+      summary: "No Reddit posts found",
+      output: `Checked ${feedSubs.length} subreddits and ${searchTerms.length} searches; nothing came back this run.`,
     };
   }
 
-  // 2. drop posts already captured as leads
-  const ids = candidates.map((c) => c.external_id);
+  // 2. keep recent, drop already-seen (rolling) and already-captured leads
+  const recent = candidates.filter((p) => !p.created_utc || p.created_utc >= cutoff);
+  const prevSeen = new Set((cfg.seen_ids ?? []).map(String));
+  const ids = recent.map((p) => p.external_id).slice(0, 1000);
   const { data: existing } = await admin
     .from("leads")
     .select("external_id")
     .eq("team_id", task.team_id)
     .eq("source", "reddit")
     .in("external_id", ids);
-  const have = new Set((existing ?? []).map((r: { external_id: string }) => r.external_id));
-  const fresh = candidates.filter((c) => !have.has(c.external_id)).slice(0, 40);
-  if (!fresh.length) {
-    return {
-      summary: "No new leads (all already seen)",
-      output: "Every matching post was already captured in a previous run.",
-    };
-  }
+  const haveLead = new Set((existing ?? []).map((r: { external_id: string }) => r.external_id));
+  const fresh = recent
+    .filter((p) => !prevSeen.has(p.external_id) && !haveLead.has(p.external_id))
+    .sort((a, b) => (b.created_utc || 0) - (a.created_utc || 0));
+  const triageInput = fresh.slice(0, MAX_TRIAGE);
 
-  // 3. score + draft
-  const judged = await scoreAndDraft(fresh, ws, minRel);
-  const byId = new Map(fresh.map((p) => [p.external_id, p]));
+  // 3. cheap triage -> plausible leads, then 4. batched precise scoring
+  const survivors = triageInput.length ? await triage(triageInput, ws) : [];
+  const toScore = survivors.slice(0, MAX_SCORE);
+  const batches = chunkArr(toScore, SCORE_BATCH);
+  const judgedArrays = await Promise.all(
+    batches.map((b) => scoreAndDraft(b, ws, minRel).catch(() => [] as Judged[])),
+  );
+  const judged = judgedArrays.flat();
+  const byId = new Map(toScore.map((p) => [p.external_id, p]));
   const leads = judged
     .filter((j) => j.is_lead && j.relevance >= minRel && byId.has(j.external_id))
     .sort((a, b) => b.relevance - a.relevance)
     .slice(0, maxLeads);
 
-  // 4. persist
+  // 5. persist leads
   if (leads.length) {
     const rows = leads.map((l) => {
       const p = byId.get(l.external_id)!;
@@ -325,14 +440,39 @@ export async function runRedditMonitor(
     });
   }
 
+  // 6. persist the derived terms + roll the seen-set forward (so tomorrow's run
+  //    doesn't re-score today's posts). One write.
+  const nextSeen = [...prevSeen, ...triageInput.map((p) => p.external_id)];
+  const trimmedSeen = nextSeen.slice(Math.max(0, nextSeen.length - SEEN_CAP));
+  await admin
+    .from("tasks")
+    .update({ config: { ...cfg, ...patch, seen_ids: trimmedSeen } })
+    .eq("id", task.id);
+
+  // richer output: on an empty run, show what it scanned and the closest calls,
+  // so a zero is explainable instead of a mystery.
   const summary = `Found ${leads.length} new Reddit lead${leads.length === 1 ? "" : "s"}`;
-  const output = leads.length
-    ? leads
-        .map((l) => {
-          const p = byId.get(l.external_id)!;
-          return `- r/${p.subreddit} (${l.relevance}) ${p.title}\n  ${p.url}`;
-        })
-        .join("\n")
-    : `Checked ${fresh.length} recent posts; none were a strong enough lead this run.`;
+  let output: string;
+  if (leads.length) {
+    output = leads
+      .map((l) => {
+        const p = byId.get(l.external_id)!;
+        return `- r/${p.subreddit} (${l.relevance}) ${p.title}\n  ${p.url}`;
+      })
+      .join("\n");
+  } else {
+    const nearMiss = judged
+      .filter((j) => byId.has(j.external_id) && j.relevance > 0)
+      .sort((a, b) => b.relevance - a.relevance)
+      .slice(0, 3)
+      .map((j) => {
+        const p = byId.get(j.external_id)!;
+        return `- (${j.relevance}/100) r/${p.subreddit}: ${p.title}`;
+      });
+    output =
+      `Scanned ${gathered} posts from ${feedSubs.length} subreddits and ${searchTerms.length} searches, ` +
+      `${toScore.length} looked promising, none cleared the ${minRel}/100 bar this run.` +
+      (nearMiss.length ? `\n\nClosest calls:\n${nearMiss.join("\n")}` : "");
+  }
   return { summary, output };
 }

@@ -18,7 +18,9 @@ export interface RedditPost {
 /** Map one child of a Reddit "Listing" (child.data) to a RedditPost. */
 // deno-lint-ignore no-explicit-any
 export function mapRedditChild(child: any): RedditPost {
-  const x = child?.data ?? {};
+  // Composio returns listing children as { kind, data }, but some endpoints
+  // hand back the post object flattened; tolerate both.
+  const x = child?.data ?? child ?? {};
   return {
     external_id: x.name ?? `t3_${x.id ?? ""}`,
     url: x.permalink ? `https://www.reddit.com${x.permalink}` : (x.url ?? ""),
