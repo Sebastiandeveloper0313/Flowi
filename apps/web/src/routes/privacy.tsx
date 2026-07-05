@@ -3,6 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage, LegalSection } from "@/components/legal-page";
 
 export const Route = createFileRoute("/privacy")({
+  head: () => ({
+    meta: [
+      { title: "Privacy Policy | Sentrive" },
+      {
+        name: "description",
+        content:
+          "What data Sentrive collects, why, and how it is protected. No selling data, no training AI models on your content.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://www.sentrive.ai/privacy" }],
+  }),
   component: PrivacyPage,
 });
 

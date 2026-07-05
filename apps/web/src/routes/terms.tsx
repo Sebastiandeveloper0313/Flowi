@@ -3,6 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage, LegalSection } from "@/components/legal-page";
 
 export const Route = createFileRoute("/terms")({
+  head: () => ({
+    meta: [
+      { title: "Terms of Service | Sentrive" },
+      {
+        name: "description",
+        content: "The terms that govern your use of Sentrive, the AI marketing employee.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://www.sentrive.ai/terms" }],
+  }),
   component: TermsPage,
 });
 

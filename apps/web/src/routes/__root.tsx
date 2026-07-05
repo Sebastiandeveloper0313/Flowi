@@ -1,6 +1,12 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Link, Outlet, useRouter } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Link,
+  Outlet,
+  useRouter,
+} from "@tanstack/react-router";
 import { Analytics } from "@vercel/analytics/react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -30,6 +36,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootComponent() {
   return (
     <TooltipProvider>
+      <HeadContent />
       <Outlet />
       <Analytics />
       {import.meta.env.DEV && (
