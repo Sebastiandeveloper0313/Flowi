@@ -6,6 +6,8 @@ export const env = createEnv({
   client: {
     VITE_SUPABASE_URL: z.string().url(),
     VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+    VITE_POSTHOG_KEY: z.string().min(1).optional(),
+    VITE_POSTHOG_HOST: z.string().url().optional(),
   },
   server: {
     HOST: z.string(),
@@ -14,6 +16,8 @@ export const env = createEnv({
   runtimeEnvStrict: {
     VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
     VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    VITE_POSTHOG_KEY: import.meta.env.VITE_POSTHOG_KEY,
+    VITE_POSTHOG_HOST: import.meta.env.VITE_POSTHOG_HOST,
     HOST: import.meta.env.HOST,
     PORT: import.meta.env.PORT,
   },
