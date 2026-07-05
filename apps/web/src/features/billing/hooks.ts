@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { track } from "@/integrations/posthog";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface BillingSummary {
@@ -35,6 +36,7 @@ export function fetchBillingSummary(): Promise<BillingSummary> {
 
 /** Start the trial checkout in the same tab (hard paywall flow). */
 export async function startTrialCheckout(): Promise<void> {
+  track("trial_checkout_started");
   const { url } = await billing<{ url: string }>("checkout");
   window.location.assign(url);
 }

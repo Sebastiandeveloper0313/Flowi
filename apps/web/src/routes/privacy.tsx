@@ -124,6 +124,10 @@ function PrivacyPage() {
             for analysis;
           </li>
           <li>
+            <strong className="text-foreground">PostHog</strong> (EU cloud): product analytics and
+            session replay, so we can fix what confuses people; form inputs are masked;
+          </li>
+          <li>
             <strong className="text-foreground">Slack</strong>: if you install the Sentrive Slack
             app.
           </li>
