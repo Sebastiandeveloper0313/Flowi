@@ -38,6 +38,20 @@ async function stripe(path: string, params: Record<string, string>): Promise<any
   return data;
 }
 
+// deno-lint-ignore no-explicit-any
+async function stripeGet(path: string): Promise<any> {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    headers: { authorization: `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message ?? `Stripe error ${res.status}`);
+  return data;
+}
+
+/** The save offer shown when someone tries to cancel: 50% off, 2 months. */
+const RETENTION_PERCENT = 50;
+const RETENTION_MONTHS = 2;
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -62,7 +76,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (!team) return json({ error: "no team for user" }, 403);
 
-    const { action } = await req.json().catch(() => ({}));
+    const { action, reason } = await req.json().catch(() => ({}));
     const admin = createClient(url, service);
 
     if (action === "summary") {
@@ -85,6 +99,11 @@ Deno.serve(async (req: Request) => {
         // Internal teams aren't metered; show pro numbers so the UI has limits to render.
         limits: DAILY_LIMITS[plan === "internal" ? "pro" : plan],
       });
+    }
+
+    // No Stripe needed to say "there is no subscription".
+    if (action === "subscription" && !team.stripe_subscription_id) {
+      return json({ none: true });
     }
 
     if (!Deno.env.get("STRIPE_SECRET_KEY")) {
@@ -131,6 +150,57 @@ Deno.serve(async (req: Request) => {
         return_url: `${APP_URL}/settings`,
       });
       return json({ url: session.url });
+    }
+
+    // ---- cancel flow: subscription state, save offer, cancel, resume ----
+
+    if (action === "subscription") {
+      const sub = await stripeGet(`subscriptions/${team.stripe_subscription_id}`);
+      return json({
+        cancel_at_period_end: Boolean(sub.cancel_at_period_end),
+        current_period_end: sub.current_period_end ?? null,
+        retention_offer_used: sub.metadata?.retention_offer_used === "true",
+        offer: { percent_off: RETENTION_PERCENT, months: RETENTION_MONTHS },
+      });
+    }
+
+    if (action === "retention_offer") {
+      if (!team.stripe_subscription_id) return json({ error: "No active subscription." }, 400);
+      const sub = await stripeGet(`subscriptions/${team.stripe_subscription_id}`);
+      if (sub.metadata?.retention_offer_used === "true") {
+        return json({ error: "This offer was already used." }, 409);
+      }
+      const coupon = await stripe("coupons", {
+        percent_off: String(RETENTION_PERCENT),
+        duration: "repeating",
+        duration_in_months: String(RETENTION_MONTHS),
+        name: `Stay with Sentrive (${RETENTION_PERCENT}% off)`,
+      });
+      // Applying the offer also un-schedules any pending cancellation.
+      await stripe(`subscriptions/${team.stripe_subscription_id}`, {
+        "discounts[0][coupon]": coupon.id,
+        "metadata[retention_offer_used]": "true",
+        cancel_at_period_end: "false",
+      });
+      return json({ ok: true, percent_off: RETENTION_PERCENT, months: RETENTION_MONTHS });
+    }
+
+    if (action === "cancel") {
+      if (!team.stripe_subscription_id) return json({ error: "No active subscription." }, 400);
+      const params: Record<string, string> = { cancel_at_period_end: "true" };
+      if (typeof reason === "string" && reason.trim()) {
+        params["cancellation_details[comment]"] = reason.trim().slice(0, 500);
+      }
+      const sub = await stripe(`subscriptions/${team.stripe_subscription_id}`, params);
+      return json({ ok: true, current_period_end: sub.current_period_end ?? null });
+    }
+
+    if (action === "resume") {
+      if (!team.stripe_subscription_id) return json({ error: "No active subscription." }, 400);
+      await stripe(`subscriptions/${team.stripe_subscription_id}`, {
+        cancel_at_period_end: "false",
+      });
+      return json({ ok: true });
     }
 
     return json({ error: "Unknown action." }, 400);

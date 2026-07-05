@@ -7,7 +7,13 @@ import { Textarea } from "@workspace/ui/components/textarea";
 import { AlertTriangle, Brain, Check, Globe, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { useBillingRedirect, useBillingSummary } from "@/features/billing/hooks";
+import { CancelFlowDialog } from "@/features/billing/CancelFlow";
+import {
+  useBillingRedirect,
+  useBillingSummary,
+  useResumeSubscription,
+  useSubscriptionDetails,
+} from "@/features/billing/hooks";
 import { CHANNEL_LABELS, type Channel } from "@/features/dashboard/mock";
 import { PageHeader } from "@/features/dashboard/ui";
 import type { BusinessContext } from "@/features/onboarding/mutations";
@@ -321,6 +327,10 @@ function BillingTab() {
   const redirect = useBillingRedirect();
   const isInternal = data?.plan === "internal";
   const isPro = data?.plan === "pro";
+  const { data: sub } = useSubscriptionDetails(isPro);
+  const resume = useResumeSubscription();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const cancelPending = Boolean(sub?.cancel_at_period_end);
 
   return (
     <div className="space-y-5">
@@ -335,21 +345,38 @@ function BillingTab() {
               {isInternal
                 ? "Sentrive staff account. Nothing to bill, no usage limits."
                 : isPro
-                  ? `$49 / month${data?.subscription_status === "trialing" ? " · free trial" : data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
+                  ? cancelPending
+                    ? `Cancels ${
+                        sub?.current_period_end
+                          ? `on ${new Date(sub.current_period_end * 1000).toLocaleDateString(
+                              undefined,
+                              { month: "long", day: "numeric" },
+                            )}`
+                          : "at the end of the billing period"
+                      }. Resume to keep your agents running.`
+                    : `$49 / month${data?.subscription_status === "trialing" ? " · free trial" : data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
                   : data?.subscription_status
                     ? "Resubscribe for 10x higher daily limits."
                     : "Try Pro free for 3 days. Cancel anytime."}
             </div>
           </div>
           {isInternal ? null : isPro ? (
-            <Button
-              variant="outline"
-              disabled={redirect.isPending}
-              onClick={() => redirect.mutate("portal")}
-            >
-              {redirect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Manage billing
-            </Button>
+            <div className="flex items-center gap-2">
+              {cancelPending && (
+                <Button disabled={resume.isPending} onClick={() => resume.mutate(undefined)}>
+                  {resume.isPending && <Loader2 className="size-4 animate-spin" />}
+                  Resume plan
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                disabled={redirect.isPending}
+                onClick={() => redirect.mutate("portal")}
+              >
+                {redirect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                Manage billing
+              </Button>
+            </div>
           ) : (
             <Button disabled={redirect.isPending} onClick={() => redirect.mutate("checkout")}>
               {redirect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -362,6 +389,11 @@ function BillingTab() {
       {redirect.isError && (
         <p className="text-destructive text-sm">
           {(redirect.error as Error)?.message || "Couldn't open billing. Try again."}
+        </p>
+      )}
+      {resume.isError && (
+        <p className="text-destructive text-sm">
+          {(resume.error as Error)?.message || "Couldn't resume the plan. Try again."}
         </p>
       )}
 
@@ -395,6 +427,20 @@ function BillingTab() {
           )}
         </CardContent>
       </Card>
+
+      {isPro && !cancelPending && (
+        <p className="text-muted-foreground text-sm">
+          Don't need Sentrive anymore?{" "}
+          <button
+            type="button"
+            className="hover:text-foreground underline underline-offset-4"
+            onClick={() => setCancelOpen(true)}
+          >
+            Cancel your subscription
+          </button>
+        </p>
+      )}
+      <CancelFlowDialog open={cancelOpen} onOpenChange={setCancelOpen} />
     </div>
   );
 }
