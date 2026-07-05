@@ -629,7 +629,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         }}
         onPaste={onPaste}
         rows={1}
-        placeholder="Tell Sentrive what to do…  e.g. “every morning, find people on Reddit asking about what we sell”"
+        placeholder="Tell Sentrive what to do…  e.g. “every morning, find Reddit posts asking about what we sell and draft replies for me to approve”"
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
       />
       <div className="mt-1 flex items-center justify-between px-1">
@@ -696,13 +696,9 @@ export function Chat({ chatId }: { chatId?: string }) {
     return (
       <div className="flex min-h-[82vh] flex-col items-center justify-center px-2">
         <div className="w-full max-w-2xl">
-          <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mb-8 text-center text-3xl font-bold tracking-tight sm:text-4xl">
             What should Sentrive take care of?
           </h2>
-          <p className="text-muted-foreground mx-auto mt-3 mb-8 max-w-2xl text-center">
-            Find leads on Reddit, publish LinkedIn and Facebook posts, work your inbox. Describe the
-            job and Sentrive runs it on schedule, with your approval on every send.
-          </p>
           {composer}
         </div>
         {lightbox}
