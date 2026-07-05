@@ -7,6 +7,17 @@ import "@/features/landing/landing.css";
 import landingHtml from "@/features/landing/landing.html?raw";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Sentrive · The AI employee that does the work, on repeat." },
+      {
+        name: "description",
+        content:
+          "Sentrive is an AI marketing employee. Brief it once in plain English and it finds leads on Reddit, publishes LinkedIn and Facebook posts, works your inbox, and reports back on schedule. You approve every send. 3-day free trial.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://www.sentrive.ai/" }],
+  }),
   component: HomePage,
 });
 

@@ -3402,3 +3402,124 @@ html {
     display: none;
   }
 }
+
+/* ============================================================
+   CONTENT PAGES (use cases)
+   ============================================================ */
+.uc-grid {
+  display: grid;
+  gap: 1rem;
+}
+.uc-card {
+  display: block;
+  background: #fff;
+  border: 1px solid rgba(20, 10, 40, 0.08);
+  border-radius: 16px;
+  padding: 1.3rem 1.4rem;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.uc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+.uc-card h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--ink);
+}
+.uc-card p {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin-top: 0.45rem;
+}
+.uc-more {
+  display: inline-block;
+  margin-top: 0.7rem;
+  color: var(--violet-deep);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.uc-steps {
+  padding-left: 1.2rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  padding-left: 0;
+}
+.uc-faq + .uc-faq {
+  margin-top: 0.9rem;
+}
+.content-cta {
+  text-align: center;
+  margin-top: 2.2rem;
+}
+.content-cta p {
+  margin-top: 0.7rem;
+  color: var(--ink-mute);
+  font-size: 0.85rem;
+}
+
+/* ============================================================
+   LANDING FAQ
+   ============================================================ */
+.faq {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 4rem 18px 5rem;
+  text-align: center;
+}
+.faq-title {
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  color: var(--ink);
+  line-height: 1.05;
+}
+.faq-list {
+  margin-top: 2.2rem;
+  text-align: left;
+  display: grid;
+  gap: 0.7rem;
+}
+.faq-item {
+  background: #fff;
+  border: 1px solid rgba(20, 10, 40, 0.07);
+  border-radius: 14px;
+  padding: 0.2rem 1.2rem;
+}
+.faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-item summary::after {
+  content: "+";
+  font-size: 1.3rem;
+  color: var(--violet-deep);
+  flex-shrink: 0;
+}
+.faq-item[open] summary::after {
+  content: "–";
+}
+.faq-item p {
+  color: var(--ink-soft);
+  font-size: 0.93rem;
+  line-height: 1.6;
+  padding: 0 0 1rem;
+}
