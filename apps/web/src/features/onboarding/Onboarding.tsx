@@ -19,6 +19,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { SentriveLogo, SentriveSky } from "@/features/dashboard/brand";
+import { prewarmAgentSuggestions } from "@/features/tasks/suggestions";
 
 import { useProfile, useWorkspace } from "./hooks";
 import { analyzeWebsite, updateProfileName, updateWorkspace, uploadLogo } from "./mutations";
@@ -147,6 +148,8 @@ export function Onboarding() {
           : { website_url: form.websiteUrl.trim() };
         setAnalyzing(true);
         await analyzeWebsite(payload); // saves business_context + url/description server-side
+        // start generating the dashboard's starter agents while they finish onboarding
+        if (teamId) prewarmAgentSuggestions(teamId);
         await persist({}, 2);
         setStep(2);
         return;

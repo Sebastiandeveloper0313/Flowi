@@ -29,6 +29,19 @@ export function useIntegrations(poll = false) {
   });
 }
 
+/** Which of `slugs` are not connected yet. Set `poll` while a connect is in flight. */
+export function useMissingToolkits(slugs: string[], poll = false) {
+  const { data, isLoading } = useIntegrations(poll);
+  return {
+    isLoading,
+    loaded: data !== undefined,
+    missing:
+      data === undefined
+        ? []
+        : slugs.filter((slug) => !data.find((t) => t.slug === slug)?.connected),
+  };
+}
+
 /** Start connecting a toolkit; returns the hosted-auth URL to open. */
 export function useConnectIntegration() {
   const queryClient = useQueryClient();

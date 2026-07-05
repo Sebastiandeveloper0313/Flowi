@@ -33,7 +33,9 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
+import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
   CHANNELS,
   channelLabel,
@@ -50,6 +52,7 @@ import {
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
 import type { Task, TaskRun } from "@/features/tasks/queries";
+import { requiredToolkits } from "@/features/tasks/requirements";
 import { RunDot, TaskStatusBadge } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/agents/$agentId")({
@@ -67,6 +70,7 @@ function AgentDetailPage() {
   const { confirm, dialog } = useConfirm();
 
   const agent = tasks?.find((t) => t.id === agentId);
+  const guide = useAgentGuide(agent);
 
   if (isLoading) {
     return (
@@ -123,14 +127,17 @@ function AgentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" disabled={running} onClick={() => run.mutate(agent.id)}>
-            {running ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Sparkles className="size-4" />
-            )}
-            {running ? "Running…" : "Run now"}
-          </Button>
+          {/* While the guide is up, it owns the run action; one run button at a time. */}
+          {!guide.visible && (
+            <Button size="sm" disabled={running} onClick={() => run.mutate(agent.id)}>
+              {running ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              {running ? "Running…" : "Run now"}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -159,6 +166,20 @@ function AgentDetailPage() {
           </Button>
         </div>
       </header>
+
+      <AgentGuide
+        agent={agent}
+        visible={guide.visible}
+        running={running}
+        onDismiss={guide.dismiss}
+      />
+
+      <div className="mb-4 empty:hidden">
+        <ConnectBanner
+          toolkits={requiredToolkits(agent)}
+          autoRunTaskId={runs && runs.length > 0 ? undefined : agent.id}
+        />
+      </div>
 
       {run.isError && (
         <p className="text-destructive mb-4 text-sm">
