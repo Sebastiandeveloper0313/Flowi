@@ -319,6 +319,7 @@ const USAGE_LABELS: Record<string, string> = {
 function BillingTab() {
   const { data, isLoading } = useBillingSummary();
   const redirect = useBillingRedirect();
+  const isInternal = data?.plan === "internal";
   const isPro = data?.plan === "pro";
 
   return (
@@ -328,17 +329,19 @@ function BillingTab() {
           <div>
             <div className="text-muted-foreground text-sm">Current plan</div>
             <div className="mt-0.5 text-2xl font-bold">
-              {isLoading ? "…" : isPro ? "Pro" : "Free"}
+              {isLoading ? "…" : isInternal ? "Internal" : isPro ? "Pro" : "Free"}
             </div>
             <div className="text-muted-foreground text-sm">
-              {isPro
-                ? `$49 / month${data?.subscription_status === "trialing" ? " · free trial" : data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
-                : data?.subscription_status
-                  ? "Resubscribe for 10x higher daily limits."
-                  : "Try Pro free for 3 days. Cancel anytime."}
+              {isInternal
+                ? "Sentrive staff account. Nothing to bill, no usage limits."
+                : isPro
+                  ? `$49 / month${data?.subscription_status === "trialing" ? " · free trial" : data?.subscription_status && data.subscription_status !== "active" ? ` · ${data.subscription_status}` : ""}`
+                  : data?.subscription_status
+                    ? "Resubscribe for 10x higher daily limits."
+                    : "Try Pro free for 3 days. Cancel anytime."}
             </div>
           </div>
-          {isPro ? (
+          {isInternal ? null : isPro ? (
             <Button
               variant="outline"
               disabled={redirect.isPending}

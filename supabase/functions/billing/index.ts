@@ -77,12 +77,13 @@ Deno.serve(async (req: Request) => {
           .gte("created_at", since);
         usage[kind] = count ?? 0;
       }
-      const plan = team.plan === "pro" ? "pro" : "free";
+      const plan = team.plan === "pro" ? "pro" : team.plan === "internal" ? "internal" : "free";
       return json({
         plan,
         subscription_status: team.subscription_status,
         usage,
-        limits: DAILY_LIMITS[plan],
+        // Internal teams aren't metered; show pro numbers so the UI has limits to render.
+        limits: DAILY_LIMITS[plan === "internal" ? "pro" : plan],
       });
     }
 

@@ -26,8 +26,14 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/onboarding" });
     }
 
-    // hard paywall: the app requires an active trial or subscription
-    if (workspace && workspace.onboarding_completed && workspace.plan !== "pro") {
+    // hard paywall: the app requires an active trial or subscription.
+    // "internal" is the unmetered staff plan; it never sees the paywall.
+    if (
+      workspace &&
+      workspace.onboarding_completed &&
+      workspace.plan !== "pro" &&
+      workspace.plan !== "internal"
+    ) {
       throw redirect({ to: "/start-trial", search: { billing: undefined } });
     }
 
