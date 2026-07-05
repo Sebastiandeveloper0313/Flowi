@@ -35,7 +35,7 @@ import { useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
-import { AgentGuide } from "@/features/tasks/AgentGuide";
+import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
   CHANNELS,
   channelLabel,
@@ -70,6 +70,7 @@ function AgentDetailPage() {
   const { confirm, dialog } = useConfirm();
 
   const agent = tasks?.find((t) => t.id === agentId);
+  const guide = useAgentGuide(agent);
 
   if (isLoading) {
     return (
@@ -126,14 +127,17 @@ function AgentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" disabled={running} onClick={() => run.mutate(agent.id)}>
-            {running ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Sparkles className="size-4" />
-            )}
-            {running ? "Running…" : "Run now"}
-          </Button>
+          {/* While the guide is up, it owns the run action; one run button at a time. */}
+          {!guide.visible && (
+            <Button size="sm" disabled={running} onClick={() => run.mutate(agent.id)}>
+              {running ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              {running ? "Running…" : "Run now"}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -163,7 +167,7 @@ function AgentDetailPage() {
         </div>
       </header>
 
-      <AgentGuide agent={agent} />
+      <AgentGuide agent={agent} visible={guide.visible} onDismiss={guide.dismiss} />
 
       <div className="mb-4 empty:hidden">
         <ConnectBanner toolkits={requiredToolkits(agent)} />

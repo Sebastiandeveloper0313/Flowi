@@ -1,32 +1,55 @@
 import { Button } from "@workspace/ui/components/button";
 import { Loader2, Sparkles, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { scheduleLabel, useRunTask } from "./hooks";
 import type { Task } from "./queries";
 
 /**
- * First-visit explainer on the agent page: three beats on how this agent
- * works, tailored to its kind, ending in the first run. Dismissed state is
- * remembered per kind so each agent type explains itself exactly once.
+ * Visibility for the first-visit agent guide, lifted so the page can hand the
+ * run action to the guide while it's on screen (one run button at a time).
+ * Dismissed state is remembered per agent kind, so each type of agent
+ * explains itself exactly once.
  */
-export function AgentGuide({ agent }: { agent: Task }) {
-  const kind = agent.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+export function useAgentGuide(agent: Task | undefined) {
+  const kind = agent?.kind === "reddit_monitor" ? "reddit_monitor" : "content";
   const seenKey = `sentrive.agent-guide.${kind}`;
-  const [visible, setVisible] = useState(() => !localStorage.getItem(seenKey));
-  const run = useRunTask();
+  const [visible, setVisible] = useState(false);
 
-  if (!visible) return null;
+  useEffect(() => {
+    if (agent) setVisible(!localStorage.getItem(seenKey));
+  }, [agent, seenKey]);
 
   function dismiss() {
     localStorage.setItem(seenKey, "1");
     setVisible(false);
   }
 
+  return { visible, dismiss };
+}
+
+/**
+ * First-visit explainer on the agent page: three beats on how this agent
+ * works, tailored to its kind, ending in the first run. While visible it is
+ * the page's run control; the header button returns once it's dismissed.
+ */
+export function AgentGuide({
+  agent,
+  visible,
+  onDismiss,
+}: {
+  agent: Task;
+  visible: boolean;
+  onDismiss: () => void;
+}) {
+  const run = useRunTask();
+
+  if (!visible) return null;
+
   const label = scheduleLabel(agent.schedule_cron);
   const schedule = label.charAt(0).toLowerCase() + label.slice(1);
   const steps =
-    kind === "reddit_monitor"
+    agent.kind === "reddit_monitor"
       ? [
           {
             title: `Runs ${schedule}`,
@@ -66,7 +89,7 @@ export function AgentGuide({ agent }: { agent: Task }) {
         variant="ghost"
         size="icon-sm"
         className="text-muted-foreground absolute top-3 right-3"
-        onClick={dismiss}
+        onClick={onDismiss}
         aria-label="Dismiss guide"
       >
         <X className="size-4" />
@@ -91,19 +114,16 @@ export function AgentGuide({ agent }: { agent: Task }) {
         <Button
           size="sm"
           disabled={run.isPending}
-          onClick={() => {
-            run.mutate(agent.id);
-            dismiss();
-          }}
+          onClick={() => run.mutate(agent.id, { onSettled: onDismiss })}
         >
           {run.isPending ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
             <Sparkles className="size-3.5" />
           )}
-          Run it now
+          {run.isPending ? "Running…" : "Run it now"}
         </Button>
-        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={dismiss}>
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onDismiss}>
           Got it
         </Button>
       </div>
