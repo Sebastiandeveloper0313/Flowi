@@ -26,7 +26,7 @@ export const Route = createFileRoute("/start-trial")({
 
     const ws = await context.queryClient.ensureQueryData(workspaceQueryOptions).catch(() => null);
     if (ws && !ws.onboarding_completed) throw redirect({ to: "/onboarding" });
-    if (ws?.plan === "pro") throw redirect({ to: "/dashboard" });
+    if (ws?.plan === "pro" || ws?.plan === "internal") throw redirect({ to: "/dashboard" });
   },
   component: StartTrialPage,
 });

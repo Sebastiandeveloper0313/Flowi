@@ -33,6 +33,10 @@ export async function meter(
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
     const { data: team } = await admin.from("teams").select("plan").eq("id", teamId).maybeSingle();
+    // Internal (staff) teams are never metered.
+    if (team?.plan === "internal") {
+      return { ok: true, limit: Number.MAX_SAFE_INTEGER, plan: "internal" };
+    }
     plan = team?.plan === "pro" ? "pro" : "free";
     limit = DAILY_LIMITS[plan][kind] ?? 1000;
 
