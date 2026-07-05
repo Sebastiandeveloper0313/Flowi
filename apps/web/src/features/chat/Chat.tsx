@@ -629,7 +629,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         }}
         onPaste={onPaste}
         rows={1}
-        placeholder="Tell Sentrive what to do…  e.g. “every day at noon, 3 slides on menswear trends”"
+        placeholder="Tell Sentrive what to do…  e.g. “every morning, find people on Reddit asking about what we sell”"
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
       />
       <div className="mt-1 flex items-center justify-between px-1">
@@ -700,7 +700,8 @@ export function Chat({ chatId }: { chatId?: string }) {
             What should Sentrive take care of?
           </h2>
           <p className="text-muted-foreground mx-auto mt-3 mb-8 max-w-2xl text-center">
-            Ask a question, or describe a recurring job and Sentrive runs it on schedule.
+            Find leads on Reddit, publish LinkedIn and Facebook posts, work your inbox. Describe the
+            job and Sentrive runs it on schedule, with your approval on every send.
           </p>
           {composer}
         </div>
