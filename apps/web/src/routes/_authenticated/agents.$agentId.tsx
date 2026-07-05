@@ -33,6 +33,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import {
   CHANNELS,
@@ -50,6 +51,7 @@ import {
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
 import type { Task, TaskRun } from "@/features/tasks/queries";
+import { requiredToolkits } from "@/features/tasks/requirements";
 import { RunDot, TaskStatusBadge } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/agents/$agentId")({
@@ -159,6 +161,10 @@ function AgentDetailPage() {
           </Button>
         </div>
       </header>
+
+      <div className="mb-4 empty:hidden">
+        <ConnectBanner toolkits={requiredToolkits(agent)} />
+      </div>
 
       {run.isError && (
         <p className="text-destructive mb-4 text-sm">

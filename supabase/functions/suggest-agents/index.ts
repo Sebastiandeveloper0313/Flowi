@@ -134,8 +134,17 @@ Deno.serve(async (req: Request) => {
     const data = await res.json();
     // deno-lint-ignore no-explicit-any
     const toolUse = (data.content ?? []).find((b: any) => b.type === "tool_use");
+    // The model occasionally returns the array as a JSON string; coerce before use.
     // deno-lint-ignore no-explicit-any
-    const raw: any[] = toolUse?.input?.suggestions ?? [];
+    let raw: any = toolUse?.input?.suggestions ?? [];
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        raw = [];
+      }
+    }
+    if (!Array.isArray(raw)) raw = [];
 
     const suggestions = raw
       .filter((s) => s && typeof s.title === "string" && typeof s.instructions === "string")

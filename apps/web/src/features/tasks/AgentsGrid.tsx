@@ -3,6 +3,7 @@ import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import {
+  ArrowUpRight,
   Bot,
   CalendarClock,
   ChevronDown,
@@ -17,6 +18,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { ConnectBanner } from "@/features/integrations/ConnectCta";
 
 import {
   channelLabel,
@@ -28,6 +30,7 @@ import {
   useTasks,
 } from "./hooks";
 import type { Task, TaskRun } from "./queries";
+import { requiredToolkits } from "./requirements";
 
 export function AgentsGrid() {
   const { data: tasks, isLoading } = useTasks();
@@ -83,12 +86,23 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
-            <CardTitle className="text-base leading-snug">{task.title}</CardTitle>
+            <CardTitle className="text-base leading-snug">
+              <Link
+                to="/agents/$agentId"
+                params={{ agentId: task.id }}
+                className="group inline-flex items-start gap-1 hover:underline"
+              >
+                {task.title}
+                <ArrowUpRight className="text-muted-foreground mt-0.5 size-3.5 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
+              </Link>
+            </CardTitle>
             <Badge variant={paused ? "secondary" : "default"}>{paused ? "Paused" : "Active"}</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground line-clamp-3 text-sm">{task.instructions}</p>
+
+          <ConnectBanner toolkits={requiredToolkits(task)} />
 
           <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="flex items-center gap-1.5">
