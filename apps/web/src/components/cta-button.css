@@ -1,0 +1,81 @@
+/* Premium CTA treatment matching the landing page "Get started" buttons:
+   blue gradient pill, rotating border beam, sheen sweep on hover. Wrap the
+   button's label in an element (e.g. a span) so it stays above the sheen. */
+
+@property --cta-beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.cta-beam {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5a9bff, #3d82f5);
+  color: #fff;
+  box-shadow: 0 14px 30px -12px rgba(61, 130, 245, 0.65);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.25s ease;
+}
+.cta-beam:hover {
+  background: linear-gradient(180deg, #5a9bff, #3d82f5);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 44px -14px rgba(61, 130, 245, 0.7);
+}
+.cta-beam > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* sheen sweep on hover */
+.cta-beam::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -130%;
+  width: 55%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-18deg);
+  transition: left 0.65s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.cta-beam:hover::before {
+  left: 170%;
+}
+
+/* rotating border beam */
+.cta-beam::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.8px;
+  z-index: 3;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--cta-beam-angle),
+    transparent 0deg 280deg,
+    #ffffff 322deg,
+    rgba(255, 255, 255, 0.25) 345deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: ctaBeamSpin 3.4s linear infinite;
+}
+@keyframes ctaBeamSpin {
+  to {
+    --cta-beam-angle: 360deg;
+  }
+}
