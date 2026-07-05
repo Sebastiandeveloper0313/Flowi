@@ -21,6 +21,7 @@
     "@tanstack/react-router": "^1.168.10",
     "@tanstack/react-router-with-query": "^1.130.17",
     "@tanstack/react-table": "^8.21.3",
+    "@vercel/analytics": "^2.0.1",
     "@workspace/supabase": "workspace:*",
     "@workspace/ui": "workspace:*",
     "cmdk": "^1.1.1",
