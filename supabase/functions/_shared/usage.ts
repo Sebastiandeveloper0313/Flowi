@@ -8,10 +8,12 @@ const DAILY_LIMITS: Record<string, Record<string, number>> = {
   free: {
     chat: 30,
     analyze_website: 5,
+    suggest_agents: 5,
   },
   pro: {
     chat: 300,
     analyze_website: 20,
+    suggest_agents: 20,
   },
 };
 
