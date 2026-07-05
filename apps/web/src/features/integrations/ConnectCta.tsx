@@ -21,6 +21,11 @@ export function toolkitName(slug: string): string {
   return TOOLKIT_NAMES[slug] ?? slug;
 }
 
+/** Same hosted logo set the integrations page uses. */
+export function toolkitLogo(slug: string): string {
+  return `https://logos.composio.dev/api/${slug}`;
+}
+
 /**
  * One-click connect: opens the hosted OAuth flow in a new tab and polls until
  * the toolkit shows as connected, so the user never has to leave the card
@@ -99,12 +104,26 @@ export function ConnectBanner({ toolkits }: { toolkits: string[] }) {
     names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-      <p className="text-sm font-medium">Connect {list} so this agent can run</p>
-      <p className="text-muted-foreground mt-0.5 text-xs">
-        Takes about 30 seconds. You approve everything before it posts or replies.
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+    <div className="bg-card rounded-xl border p-3.5 shadow-xs">
+      <div className="flex items-center gap-3">
+        <div className="flex shrink-0 -space-x-1.5">
+          {missing.map((slug) => (
+            <img
+              key={slug}
+              src={toolkitLogo(slug)}
+              alt={toolkitName(slug)}
+              className="ring-border size-9 rounded-lg bg-white object-contain p-1 ring-1"
+            />
+          ))}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Connect {list} so this agent can run</p>
+          <p className="text-muted-foreground text-xs">
+            Takes about 30 seconds. You approve everything before it posts or replies.
+          </p>
+        </div>
+      </div>
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
         {missing.map((slug) => (
           <ConnectButton key={slug} toolkit={slug} />
         ))}

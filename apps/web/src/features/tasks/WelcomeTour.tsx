@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { ConnectButton, toolkitName } from "@/features/integrations/ConnectCta";
+import { ConnectButton, toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
@@ -385,19 +385,31 @@ function LiveStep({ created, onDone }: { created: CreatedAgent[]; onDone: () => 
       </div>
 
       {loaded && missing.length > 0 && (
-        <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
-          <p className="text-sm font-medium">
-            Connect {missing.map(toolkitName).join(" and ")}
-            {hasLeadWatch ? " so your lead watch can start finding leads" : ""}
-          </p>
-          <p className="text-muted-foreground mt-0.5 text-xs">
+        <div className="mt-4 space-y-2">
+          {missing.map((slug) => (
+            <div
+              key={slug}
+              className="bg-card flex items-center gap-3 rounded-xl border p-3.5 shadow-xs"
+            >
+              <img
+                src={toolkitLogo(slug)}
+                alt={toolkitName(slug)}
+                className="ring-border size-10 shrink-0 rounded-xl bg-white object-contain p-1.5 ring-1"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Connect {toolkitName(slug)}</p>
+                <p className="text-muted-foreground text-xs">
+                  {slug === "reddit" && hasLeadWatch
+                    ? "Your lead watch needs it to start finding leads."
+                    : "Takes about 30 seconds."}
+                </p>
+              </div>
+              <ConnectButton toolkit={slug} />
+            </div>
+          ))}
+          <p className="text-muted-foreground text-xs">
             Takes about 30 seconds. You approve every reply before it's sent.
           </p>
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {missing.map((slug) => (
-              <ConnectButton key={slug} toolkit={slug} />
-            ))}
-          </div>
         </div>
       )}
 
