@@ -35,6 +35,7 @@ import { useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
+import { AgentGuide } from "@/features/tasks/AgentGuide";
 import {
   CHANNELS,
   channelLabel,
@@ -161,6 +162,8 @@ function AgentDetailPage() {
           </Button>
         </div>
       </header>
+
+      <AgentGuide agent={agent} />
 
       <div className="mb-4 empty:hidden">
         <ConnectBanner toolkits={requiredToolkits(agent)} />
