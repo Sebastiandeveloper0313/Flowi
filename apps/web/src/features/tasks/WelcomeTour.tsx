@@ -10,7 +10,6 @@ import {
   PenLine,
   Radar,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -157,9 +156,11 @@ export function WelcomeTour() {
         >
           {step === "intro" && (
             <>
-              <span className="mb-5 grid size-11 place-items-center rounded-xl bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white shadow-lg shadow-[#1566e6]/25">
-                <Sparkles className="size-5" />
-              </span>
+              <img
+                src="/sentrive.png"
+                alt="Sentrive"
+                className="mb-5 size-11 rounded-xl shadow-lg shadow-[#1566e6]/25"
+              />
               <DialogTitle className="text-xl font-bold tracking-tight">
                 Meet your new marketing employee
               </DialogTitle>
