@@ -160,8 +160,12 @@ export function initLanding(root: HTMLElement): () => void {
       (entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
-            run(e.target as HTMLElement);
-            countIO.unobserve(e.target);
+            const el = e.target as HTMLElement;
+            // data-delay lets counts wait for the intro animation to reveal them
+            const delay = Number(el.dataset.delay ?? 0);
+            if (delay > 0) setTimeout(() => run(el), delay);
+            else run(el);
+            countIO.unobserve(el);
           }
         });
       },
