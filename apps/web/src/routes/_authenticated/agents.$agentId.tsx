@@ -167,10 +167,18 @@ function AgentDetailPage() {
         </div>
       </header>
 
-      <AgentGuide agent={agent} visible={guide.visible} onDismiss={guide.dismiss} />
+      <AgentGuide
+        agent={agent}
+        visible={guide.visible}
+        running={running}
+        onDismiss={guide.dismiss}
+      />
 
       <div className="mb-4 empty:hidden">
-        <ConnectBanner toolkits={requiredToolkits(agent)} />
+        <ConnectBanner
+          toolkits={requiredToolkits(agent)}
+          autoRunTaskId={runs && runs.length > 0 ? undefined : agent.id}
+        />
       </div>
 
       {run.isError && (

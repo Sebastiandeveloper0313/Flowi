@@ -36,13 +36,17 @@ export function useAgentGuide(agent: Task | undefined) {
 export function AgentGuide({
   agent,
   visible,
+  running,
   onDismiss,
 }: {
   agent: Task;
   visible: boolean;
+  /** A run is already in flight (e.g. the auto-started first run). */
+  running?: boolean;
   onDismiss: () => void;
 }) {
   const run = useRunTask();
+  const busy = running || run.isPending;
 
   if (!visible) return null;
 
@@ -113,15 +117,11 @@ export function AgentGuide({
       <div className="relative mt-4 flex items-center gap-2">
         <Button
           size="sm"
-          disabled={run.isPending}
+          disabled={busy}
           onClick={() => run.mutate(agent.id, { onSettled: onDismiss })}
         >
-          {run.isPending ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="size-3.5" />
-          )}
-          {run.isPending ? "Running…" : "Run it now"}
+          {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+          {busy ? "First run in progress…" : "Run it now"}
         </Button>
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onDismiss}>
           Got it

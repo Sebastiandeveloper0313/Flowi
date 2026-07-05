@@ -11,14 +11,14 @@ import {
   Radar,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ConnectButton, toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 
-import { scheduleLabel, useTasks } from "./hooks";
+import { scheduleLabel, useRunTask, useTasks } from "./hooks";
 import { createAgentFromProposal } from "./mutations";
 import { taskKeys } from "./queries";
 import { requiredToolkits } from "./requirements";
@@ -359,14 +359,29 @@ function LiveStep({ created, onDone }: { created: CreatedAgent[]; onDone: () => 
   const { missing, loaded } = useMissingToolkits(needs);
   const hasLeadWatch = created.some((a) => a.kind === "reddit_monitor");
   const allConnected = loaded && missing.length === 0;
+  const run = useRunTask();
+  const started = useRef<Set<string>>(new Set());
+
+  // Each agent's first run starts itself the moment it can succeed: content
+  // agents right away, the lead watch once its connection lands.
+  useEffect(() => {
+    if (!loaded) return;
+    for (const a of created) {
+      const ready = requiredToolkits(a).every((slug) => !missing.includes(slug));
+      if (ready && !started.current.has(a.id)) {
+        started.current.add(a.id);
+        run.mutate(a.id);
+      }
+    }
+  }, [loaded, missing, created, run]);
 
   return (
     <>
       <DialogTitle className="text-xl font-bold tracking-tight">Your team is live</DialogTitle>
       <p className="text-muted-foreground mt-1.5 text-sm">
         {allConnected
-          ? "Everything is ready. First results will land on your dashboard."
-          : "One more step and they can start working."}
+          ? "First runs are underway. Results land on each agent's page."
+          : "First runs are underway. One more step and the lead watch can join in."}
       </p>
 
       <div className="mt-5 space-y-2">
@@ -400,7 +415,7 @@ function LiveStep({ created, onDone }: { created: CreatedAgent[]; onDone: () => 
                 <p className="text-sm font-medium">Connect {toolkitName(slug)}</p>
                 <p className="text-muted-foreground text-xs">
                   {slug === "reddit" && hasLeadWatch
-                    ? "Your lead watch needs it to start finding leads."
+                    ? "The first scan starts by itself once connected."
                     : "Takes about 30 seconds."}
                 </p>
               </div>
@@ -415,7 +430,8 @@ function LiveStep({ created, onDone }: { created: CreatedAgent[]; onDone: () => 
 
       {allConnected && needs.length > 0 && (
         <p className="animate-in fade-in-0 mt-4 flex items-center gap-1.5 text-sm font-medium text-emerald-600 duration-500">
-          <Check className="size-4" /> {needs.map(toolkitName).join(" and ")} connected
+          <Check className="size-4" /> {needs.map(toolkitName).join(" and ")} connected, first scan
+          started
         </p>
       )}
 

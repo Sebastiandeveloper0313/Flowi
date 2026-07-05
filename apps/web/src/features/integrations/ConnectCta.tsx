@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Loader2, Plug } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { useRunTask } from "@/features/tasks/hooks";
 
 import { useConnectIntegration, useMissingToolkits } from "./hooks";
 
@@ -93,10 +95,36 @@ export function ConnectButton({
 /**
  * Inline callout for an agent whose integrations aren't connected yet. Shows
  * exactly what's missing with a connect button right there, and disappears on
- * its own the moment the connection lands.
+ * its own the moment the connection lands. Pass `autoRunTaskId` for an agent
+ * that has never run: its first run starts by itself once the connection this
+ * banner was waiting for arrives.
  */
-export function ConnectBanner({ toolkits }: { toolkits: string[] }) {
+export function ConnectBanner({
+  toolkits,
+  autoRunTaskId,
+}: {
+  toolkits: string[];
+  autoRunTaskId?: string;
+}) {
   const { missing, loaded } = useMissingToolkits(toolkits);
+  const run = useRunTask();
+  const sawMissing = useRef(false);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!loaded || !autoRunTaskId) return;
+    if (missing.length > 0) {
+      sawMissing.current = true;
+      return;
+    }
+    // Only fire on the missing -> connected transition this banner witnessed,
+    // never on plain page loads of an already-connected agent.
+    if (sawMissing.current && !started.current) {
+      started.current = true;
+      run.mutate(autoRunTaskId);
+    }
+  }, [loaded, missing.length, autoRunTaskId, run]);
+
   if (!loaded || missing.length === 0) return null;
 
   const names = missing.map(toolkitName);
@@ -119,7 +147,9 @@ export function ConnectBanner({ toolkits }: { toolkits: string[] }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Connect {list} so this agent can run</p>
           <p className="text-muted-foreground text-xs">
-            Takes about 30 seconds. You approve everything before it posts or replies.
+            {autoRunTaskId
+              ? "Takes about 30 seconds, and the first run starts by itself once connected."
+              : "Takes about 30 seconds. You approve everything before it posts or replies."}
           </p>
         </div>
       </div>

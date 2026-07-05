@@ -102,7 +102,10 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
         <CardContent className="space-y-4">
           <p className="text-muted-foreground line-clamp-3 text-sm">{task.instructions}</p>
 
-          <ConnectBanner toolkits={requiredToolkits(task)} />
+          <ConnectBanner
+            toolkits={requiredToolkits(task)}
+            autoRunTaskId={latestRun ? undefined : task.id}
+          />
 
           <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="flex items-center gap-1.5">
