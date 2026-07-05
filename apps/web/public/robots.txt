@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /agents
+Disallow: /approvals
+Disallow: /activity
+Disallow: /integrations
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /start-trial
+Disallow: /auth/
+
+Sitemap: https://www.sentrive.ai/sitemap.xml
