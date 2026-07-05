@@ -731,6 +731,177 @@ html {
   opacity: 0.85;
 }
 
+/* ============================================================
+   INTRO ANIMATION (hero entrance + slack conversation replay)
+   ============================================================ */
+@keyframes introFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes introMockIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes viewIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dotsHide {
+  to {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
+@keyframes dotPulse {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* hero entrance stagger */
+.hero-title,
+.hero-sub,
+.hero-actions,
+.hero-badges,
+.channel-toggle {
+  animation: introFadeUp 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hero-title {
+  animation-delay: 0.05s;
+}
+.hero-sub {
+  animation-delay: 0.15s;
+}
+.hero-actions {
+  animation-delay: 0.25s;
+}
+.hero-badges {
+  animation-delay: 0.35s;
+}
+.channel-toggle {
+  animation-delay: 0.45s;
+}
+.app-mock {
+  animation: introMockIn 0.65s 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* channel view switch fade (also replays the slack sequence on toggle) */
+.app-mock .mock-view {
+  animation: viewIn 0.35s ease both;
+}
+
+/* slack conversation: you -> typing -> reply -> pill -> report */
+.anim-you {
+  animation: introFadeUp 0.45s 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.anim-bot .ava.bot {
+  animation: introFadeUp 0.35s 1.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.typing {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  background: #eef4fd;
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  width: fit-content;
+  max-height: 40px;
+  margin-bottom: 0.4rem;
+  overflow: hidden;
+  animation:
+    introFadeUp 0.3s 1.7s ease both,
+    dotsHide 0.25s 2.6s ease forwards;
+}
+.typing i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--violet-deep);
+  animation: dotPulse 1s ease-in-out infinite;
+}
+.typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.anim-bot .msg-meta,
+.anim-bot .msg-body > p {
+  animation: introFadeUp 0.45s 2.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.anim-bot .schedule-pill {
+  animation: introFadeUp 0.45s 3.15s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.anim-bot .deliver-card {
+  animation: introFadeUp 0.5s 3.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.mv-slack .dc-bars i:nth-child(1) {
+  animation-delay: 3.65s;
+}
+.mv-slack .dc-bars i:nth-child(2) {
+  animation-delay: 3.75s;
+}
+.mv-slack .dc-bars i:nth-child(3) {
+  animation-delay: 3.85s;
+}
+.mv-slack .dc-bars i:nth-child(4) {
+  animation-delay: 3.95s;
+}
+.mv-slack .dc-bars i:nth-child(5) {
+  animation-delay: 4.05s;
+}
+.mv-slack .dc-bars i:nth-child(6) {
+  animation-delay: 4.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-title,
+  .hero-sub,
+  .hero-actions,
+  .hero-badges,
+  .channel-toggle,
+  .app-mock,
+  .app-mock .mock-view,
+  .anim-you,
+  .anim-bot .ava.bot,
+  .anim-bot .msg-meta,
+  .anim-bot .msg-body > p,
+  .anim-bot .schedule-pill,
+  .anim-bot .deliver-card {
+    animation: none;
+  }
+  .typing {
+    display: none;
+  }
+}
+
 /* logos */
 .logos {
   position: relative;
