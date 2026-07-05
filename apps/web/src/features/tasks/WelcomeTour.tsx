@@ -172,7 +172,7 @@ export function WelcomeTour() {
                 <IntroRow
                   icon={<Radar className="size-4" />}
                   title="Agents work on a schedule"
-                  text="Find leads on Reddit, draft posts, watch competitors. Daily or weekly, you choose."
+                  text="Find leads, draft posts, watch competitors. Daily or weekly, you choose."
                 />
                 <IntroRow
                   icon={<Inbox className="size-4" />}
