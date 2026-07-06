@@ -13,6 +13,11 @@ export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    // Land the confirmation link inside the app (like Google OAuth), so the
+    // route guard carries the just-confirmed user into onboarding. Without
+    // this, Supabase falls back to the Site URL (the marketing landing page)
+    // and the user is left signed in but stranded, having to log in again.
+    options: { emailRedirectTo: `${window.location.origin}/dashboard` },
   });
   if (error) throw error;
   return data;
