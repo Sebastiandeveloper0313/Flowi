@@ -5,6 +5,7 @@
 
 export interface WorkspaceContext {
   name?: string | null;
+  website_url?: string | null;
   business_context?: Record<string, unknown> | null;
   business_model?: string | null;
   business_categories?: string[] | null;
@@ -50,7 +51,9 @@ export async function fetchWorkspaceContext(
 ): Promise<WorkspaceContext | null> {
   const { data } = await client
     .from("teams")
-    .select("name, business_context, business_model, business_categories, autonomy_mode")
+    .select(
+      "name, website_url, business_context, business_model, business_categories, autonomy_mode",
+    )
     .eq("id", teamId)
     .maybeSingle();
   return data ?? null;
@@ -101,6 +104,30 @@ export const QUALITY_STANDARDS = `Quality bar (non-negotiable):
 - No filler openers or closers. Never open with "happy to help", "hope this helps", "great question", "feel free to", "I'd be happy to". Never close with an offer like "happy to...", "let me know if", "DM me", "hope that helps". End on substance.
 - No cliches or AI tells: "in today's fast-paced world", "unlock", "elevate", "game-changer", "dive in", "supercharge", "in conclusion", "navigate the landscape", and the like.
 - Never use em dashes. Use commas, periods, or parentheses instead.`;
+
+/**
+ * How to write the reply that gets posted from the company's own Reddit account.
+ * Unlike the generic quality bar (which forbids links/promotion), the whole
+ * point here is to win the person as a customer, so the product is always named
+ * and the link goes in when the post invites it. Helpful-first + honest
+ * disclosure + link restraint keep the account from being removed or
+ * shadowbanned, which is what actually kills conversion on Reddit.
+ */
+export function redditReplyStandards(ws: WorkspaceContext | null): string {
+  const product = companyName(ws);
+  const url = (ws?.website_url ?? "").trim();
+  return (
+    "How to write draft_reply (it is posted from the company's own Reddit account to win this person as a customer):\n" +
+    "- Lead with a genuinely useful, specific answer to what they actually asked. Helpful-first is what keeps the comment from being removed and makes people trust it.\n" +
+    `- ALWAYS work ${product} in by name, naturally, as the thing you use or built for exactly this. One honest sentence, never a hard pitch, never marketing voice, never a feature list.\n` +
+    (url
+      ? `- Include the link ${url} ONLY when the post invites it: they ask for a tool, a recommendation, a resource, a "link", or "what do you use", or the mention is useless without it. Otherwise name ${product} with NO link. A link in every comment gets the account auto-removed and shadowbanned, so most replies should mention ${product} without a link.\n`
+      : `- No product link is available, so mention ${product} by name only, never invent a URL.\n`) +
+    `- Whenever you name or link ${product}, add a brief honest disclosure ("full disclosure, I built ${product}", "disclaimer, I make ${product}"). It fits Reddit norms, avoids bans, and converts better than hiding it.\n` +
+    "- Short and human: one to a few sentences, like a sharp founder typing a quick reply. No filler openers or closers, no cliches or AI tells, no em dashes.\n" +
+    "- Never recommend, link, or steer toward a competitor."
+  );
+}
 
 /** Shared identity + the hard competitor guard. Used by every prompt. */
 export function operatorPersona(ws: WorkspaceContext | null): string {

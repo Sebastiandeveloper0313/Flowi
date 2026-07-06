@@ -14,7 +14,7 @@ import {
   companyName,
   contextBlock,
   operatorPersona,
-  QUALITY_STANDARDS,
+  redditReplyStandards,
   type WorkspaceContext,
 } from "./marketing.ts";
 import type { RedditPost } from "./reddit.ts";
@@ -228,7 +228,7 @@ async function scoreAndDraft(
 ): Promise<Judged[]> {
   const system =
     operatorPersona(ws) +
-    "\n\nYou are scanning Reddit for genuine sales leads for this company and drafting replies.\n" +
+    "\n\nYou are scanning Reddit for genuine sales leads for this company and drafting the reply that gets posted to win that person as a customer.\n" +
     "A real lead is someone who has the problem this company solves and shows intent to fix it: asking for a " +
     "recommendation, comparing options, frustrated with their current tool, or plainly describing the pain. " +
     "Score mostly on that, the PROBLEM and their INTENT, not on whether they perfectly match the ideal customer " +
@@ -237,10 +237,9 @@ async function scoreAndDraft(
     "just because they look like a small business or a solo founder rather than the ideal profile. Still be honest: " +
     "off-topic posts, people offering a solution, and idle chatter are NOT leads.\n" +
     `Score each post 0-100 (problem + intent, plus a bump for ICP fit) and score ${minRel} or higher whenever they ` +
-    "genuinely have a relevant problem and some intent.\n" +
-    `For any post scoring ${minRel}+, write the reply as a real person leaving a helpful comment: lead with the genuinely ` +
-    "useful answer, and bring up this company's product only if it truly fits the conversation (often it should not appear at all).\n\n" +
-    QUALITY_STANDARDS +
+    "genuinely have a relevant problem and some intent. Write draft_reply only for posts scoring " +
+    `${minRel}+, empty string otherwise.\n\n` +
+    redditReplyStandards(ws) +
     contextBlock(ws);
 
   const list = posts
