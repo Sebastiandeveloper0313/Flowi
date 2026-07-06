@@ -226,6 +226,44 @@ export function isComposioTool(name: string): boolean {
  * Uses the raw execute endpoint (not executeComposioTool) so the full listing is
  * parsed without the model-facing truncation.
  */
+/**
+ * Pull the post-listing children out of a Composio Reddit tool result. Reddit
+ * listings are { kind: "Listing", data: { children: [...] } }, but Composio
+ * nests the payload differently per tool (search puts it under search_results),
+ * so try the known shapes then fall back to a shallow scan for `children`.
+ */
+// deno-lint-ignore no-explicit-any
+function listingChildren(d: any): any[] {
+  const paths = [
+    d?.data?.search_results?.data?.children,
+    d?.data?.data?.children,
+    d?.data?.children,
+    d?.data?.posts,
+    d?.data?.response?.data?.children,
+  ];
+  for (const p of paths) if (Array.isArray(p)) return p;
+  const stack = [d?.data];
+  let hops = 0;
+  while (stack.length && hops++ < 300) {
+    const cur = stack.pop();
+    if (!cur || typeof cur !== "object") continue;
+    // deno-lint-ignore no-explicit-any
+    if (Array.isArray((cur as any).children)) return (cur as any).children;
+    for (const v of Object.values(cur)) if (v && typeof v === "object") stack.push(v);
+  }
+  return [];
+}
+
+// deno-lint-ignore no-explicit-any
+function childrenToPosts(children: any[]): RedditPost[] {
+  if (!Array.isArray(children)) return [];
+  return children
+    .filter((c: { kind?: string }) => c?.kind === "t3" || c?.kind === undefined)
+    .map(mapRedditChild)
+    .filter((p: RedditPost) => p.external_id && p.title);
+}
+
+/** Keyword search across all of Reddit via the user's connected account. */
 export async function redditSearch(
   userId: string,
   query: string,
@@ -243,12 +281,32 @@ export async function redditSearch(
       },
     }),
   });
-  const children = d?.data?.search_results?.data?.children ?? [];
-  if (!Array.isArray(children)) return [];
-  return children
-    .filter((c: { kind?: string }) => c?.kind === "t3" || c?.kind === undefined)
-    .map(mapRedditChild)
-    .filter((p: RedditPost) => p.external_id && p.title);
+  return childrenToPosts(listingChildren(d));
+}
+
+/**
+ * Fetch a subreddit's listing (new/hot/top) directly. This is the freshest,
+ * highest-signal source for lead monitoring: scoping to the communities buyers
+ * post in beats loose global keyword search on both precision and volume.
+ */
+export async function redditSubredditPosts(
+  userId: string,
+  subreddit: string,
+  opts: { sort?: "new" | "hot" | "top" | "rising"; limit?: number } = {},
+): Promise<RedditPost[]> {
+  const d = await composio(`/tools/execute/REDDIT_RETRIEVE_REDDIT_POST`, {
+    method: "POST",
+    signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({
+      user_id: userId,
+      arguments: {
+        subreddit: subreddit.replace(/^r\//i, "").trim(),
+        sort: opts.sort ?? "new",
+        max_results: Math.min(100, Math.max(1, opts.limit ?? 100)),
+      },
+    }),
+  });
+  return childrenToPosts(listingChildren(d));
 }
 
 /** Start a connection: returns a hosted-auth redirect URL for the user to authorize. */
