@@ -6,8 +6,8 @@ export const authKeys = {
   user: ["auth", "user"] as const,
 };
 
-/** True when the URL still carries OAuth tokens from a provider redirect. */
-function returningFromOAuth(): boolean {
+/** True when the URL still carries auth tokens from a provider/confirm redirect. */
+export function returningFromOAuth(): boolean {
   return window.location.hash.includes("access_token") || /[?&]code=/.test(window.location.search);
 }
 
