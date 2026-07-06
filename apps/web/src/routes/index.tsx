@@ -1,12 +1,30 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
+import { returningFromOAuth, userQueryOptions } from "@/auth/queries";
 import { initLanding } from "@/features/landing/initLanding";
-
-import "@/features/landing/landing.css";
 import landingHtml from "@/features/landing/landing.html?raw";
 
+import "@/features/landing/landing.css";
+import { supabase } from "@/integrations/supabase/client";
+
 export const Route = createFileRoute("/")({
+  // A signed-in visitor, or an email-confirm / OAuth redirect that fell back to
+  // the site root (because the app path wasn't in Supabase's redirect allow
+  // list), should be pulled into the app instead of stranded on the marketing
+  // page. Cheap for anonymous visitors: a localStorage session read, no network
+  // unless auth tokens are actually present in the URL.
+  beforeLoad: async ({ context }) => {
+    if (returningFromOAuth()) {
+      const user = await context.queryClient.ensureQueryData(userQueryOptions).catch(() => null);
+      if (user) throw redirect({ to: "/dashboard" });
+      return;
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) throw redirect({ to: "/dashboard" });
+  },
   head: () => ({
     meta: [
       { title: "Sentrive · The AI employee that does the work, on repeat." },
