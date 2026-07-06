@@ -8,10 +8,12 @@ import {
   ArrowLeft,
   Briefcase,
   Building2,
+  Check,
   DollarSign,
   Globe,
   Loader2,
   Tag,
+  TriangleAlert,
   Upload,
   User,
   Users,
@@ -74,7 +76,11 @@ export function Onboarding() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
+  // The site analysis runs in the background while the user answers the quick
+  // steps, so they never sit on a spinner. Only "Finish" waits on it.
+  const [analysis, setAnalysis] = useState<"idle" | "running" | "done" | "error">("idle");
+  const analysisPromise = useRef<Promise<void> | null>(null);
+  const analysisRunId = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -109,6 +115,31 @@ export function Onboarding() {
     await queryClient.invalidateQueries({ queryKey: onboardingKeys.workspace });
   }
 
+  /** Kick off the site analysis in the background; status drives the chip. */
+  function startAnalysis(payload: { website_url: string } | { description: string }) {
+    const runId = ++analysisRunId.current;
+    setAnalysis("running");
+    const p = analyzeWebsite(payload)
+      .then(() => {
+        if (analysisRunId.current !== runId) return; // superseded by a newer run
+        if (teamId) prewarmAgentSuggestions(teamId);
+        setAnalysis("done");
+      })
+      .catch(() => {
+        if (analysisRunId.current !== runId) return;
+        setAnalysis("error");
+      });
+    analysisPromise.current = p;
+  }
+
+  function retryAnalysis() {
+    const payload =
+      form.websiteMode === "description"
+        ? { description: form.description.trim() }
+        : { website_url: form.websiteUrl.trim() };
+    startAnalysis(payload);
+  }
+
   function onPickLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !teamId) return;
@@ -121,7 +152,7 @@ export function Onboarding() {
   }
 
   async function next() {
-    if (busy || analyzing) return;
+    if (busy) return;
     setError(null);
     try {
       // STEP 0 — profile
@@ -140,16 +171,17 @@ export function Onboarding() {
         return;
       }
 
-      // STEP 1 — website analysis
+      // STEP 1 — kick off the site analysis and move on immediately. It runs in
+      // the background (saving business_context server-side) while they answer
+      // the quick steps; only "Finish" waits on it.
       if (step === 1) {
+        setBusy(true);
         const useDesc = form.websiteMode === "description";
-        const payload = useDesc
-          ? { description: form.description.trim() }
-          : { website_url: form.websiteUrl.trim() };
-        setAnalyzing(true);
-        await analyzeWebsite(payload); // saves business_context + url/description server-side
-        // start generating the dashboard's starter agents while they finish onboarding
-        if (teamId) prewarmAgentSuggestions(teamId);
+        startAnalysis(
+          useDesc
+            ? { description: form.description.trim() }
+            : { website_url: form.websiteUrl.trim() },
+        );
         await persist({}, 2);
         setStep(2);
         return;
@@ -182,6 +214,10 @@ export function Onboarding() {
           },
           TOTAL_STEPS,
         );
+        // Make sure the site analysis has landed so the dashboard's first-run
+        // has business context. Usually already done by now (the quick steps
+        // covered the wait), so this is instant.
+        if (analysisPromise.current) await analysisPromise.current.catch(() => {});
         void navigate({ to: "/dashboard", search: { c: undefined } });
         return;
       }
@@ -189,7 +225,6 @@ export function Onboarding() {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setBusy(false);
-      setAnalyzing(false);
     }
   }
 
@@ -252,37 +287,63 @@ export function Onboarding() {
           </div>
 
           <div className="onb-card">
+            {step >= 2 && analysis !== "idle" && (
+              <div
+                className={`mb-4 flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                  analysis === "error"
+                    ? "border-amber-500/40 bg-amber-500/10"
+                    : "border-[#3d82f5]/25 bg-[#3d82f5]/5"
+                }`}
+              >
+                {analysis === "running" && (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-[#3d82f5]" />
+                    <span className="text-muted-foreground">Reading your site…</span>
+                  </>
+                )}
+                {analysis === "done" && (
+                  <>
+                    <Check className="size-4 text-emerald-600" />
+                    <span className="text-muted-foreground">Learned your business</span>
+                  </>
+                )}
+                {analysis === "error" && (
+                  <>
+                    <TriangleAlert className="size-4 text-amber-600" />
+                    <span className="text-muted-foreground">Couldn't read your site.</span>
+                    <button
+                      type="button"
+                      className="text-foreground font-medium underline underline-offset-2"
+                      onClick={retryAnalysis}
+                    >
+                      Retry
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="onb-step" key={step}>
-              {analyzing ? (
-                <div className="onb-preparing">
-                  <Loader2 className="spin size-7 animate-spin" />
-                  <div className="t">Preparing workspace…</div>
-                  <div className="s">Reading your site and learning your business.</div>
-                </div>
-              ) : (
-                renderStep()
-              )}
+              {renderStep()}
             </div>
 
             {error && <p className="onb-error">{error}</p>}
 
-            {!analyzing && (
-              <div className="onb-actions">
-                <Button
-                  className="w-full"
-                  disabled={!canContinue || busy}
-                  onClick={() => void next()}
-                >
-                  {busy && <Loader2 className="size-4 animate-spin" />}
-                  {step === TOTAL_STEPS - 1 ? "Finish" : "Continue"}
-                </Button>
-                {step > 0 && (
-                  <button type="button" className="onb-back" onClick={back}>
-                    <ArrowLeft className="mr-1 inline size-3.5" /> Back
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="onb-actions">
+              <Button
+                className="w-full"
+                disabled={!canContinue || busy}
+                onClick={() => void next()}
+              >
+                {busy && <Loader2 className="size-4 animate-spin" />}
+                {step === TOTAL_STEPS - 1 ? "Finish" : "Continue"}
+              </Button>
+              {step > 0 && (
+                <button type="button" className="onb-back" onClick={back}>
+                  <ArrowLeft className="mr-1 inline size-3.5" /> Back
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="onb-dots">
