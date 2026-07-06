@@ -20,7 +20,11 @@ export function initPostHog() {
     capture_pageleave: true,
     autocapture: true,
     session_recording: {
-      maskAllInputs: true,
+      // Capture what people type (chat prompts, the onboarding website URL) so we
+      // can see intent and where they get stuck. Passwords stay masked; card
+      // details never touch our DOM (Stripe checkout is hosted off-site).
+      maskAllInputs: false,
+      maskInputOptions: { password: true },
     },
   });
 
