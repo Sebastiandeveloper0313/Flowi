@@ -12,6 +12,8 @@ export interface WorkspaceContext {
   autonomy_mode?: "ask" | "auto" | null;
   reply_instructions?: string | null;
   reply_samples?: Array<{ before?: string; after?: string; at?: string }> | null;
+  auto_post_per_day?: number | null;
+  auto_post_gap_minutes?: number | null;
 }
 
 /** How much Sentrive may do on its own. 'ask' is the safe default. */
@@ -54,7 +56,7 @@ export async function fetchWorkspaceContext(
   const { data } = await client
     .from("teams")
     .select(
-      "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples",
+      "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples, auto_post_per_day, auto_post_gap_minutes",
     )
     .eq("id", teamId)
     .maybeSingle();

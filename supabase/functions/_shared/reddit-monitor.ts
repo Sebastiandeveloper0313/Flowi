@@ -11,6 +11,7 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { connectedToolkits, redditSearch, redditSubredditPosts } from "./composio.ts";
 import {
+  autonomyMode,
   companyName,
   contextBlock,
   operatorPersona,
@@ -38,6 +39,8 @@ const TRIAGE_BATCH = 60;
 const TRIAGE_SKIP = 40; // small pools skip triage and go straight to scoring
 const MAX_SCORE = 72; // survivors sent to the expensive scorer
 const SCORE_BATCH = 12; // posts per scoring call (parallel)
+const AUTO_POST_PER_DAY = 10; // fallback daily auto-post cap if unset on the team
+const AUTO_POST_GAP_MIN = 8; // fallback minutes between auto-posts if unset
 const SEEN_CAP = 1500; // rolling set of already-considered post ids
 
 interface MonitorConfig {
@@ -317,6 +320,45 @@ async function resolveQueries(
   };
 }
 
+/**
+ * How many more replies we may auto-queue for this team right now, so a busy run
+ * can't blow past the daily cap. Counts everything committed to auto-posting in
+ * the trailing 24h: replies already posted this way plus ones still queued to go
+ * out. Manual/approved posts don't carry an auto_post_at, so they don't count.
+ */
+async function autoPostBudget(
+  admin: SupabaseClient,
+  teamId: string,
+  perDay: number,
+): Promise<number> {
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const { count } = await admin
+    .from("leads")
+    .select("id", { count: "exact", head: true })
+    .eq("team_id", teamId)
+    .eq("source", "reddit")
+    .not("auto_post_at", "is", null)
+    .gte("auto_post_at", since)
+    .in("status", ["queued", "posted"]);
+  return Math.max(0, perDay - (count ?? 0));
+}
+
+/** The latest already-scheduled auto-post time for this team (ms), or 0 if none. */
+async function lastQueuedAt(admin: SupabaseClient, teamId: string): Promise<number> {
+  const { data } = await admin
+    .from("leads")
+    .select("auto_post_at")
+    .eq("team_id", teamId)
+    .eq("source", "reddit")
+    .eq("status", "queued")
+    .not("auto_post_at", "is", null)
+    .order("auto_post_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const at = (data as { auto_post_at?: string } | null)?.auto_post_at;
+  return at ? new Date(at).getTime() : 0;
+}
+
 /** Run a reddit_monitor agent once. Returns a run summary; persists new leads. */
 export async function runRedditMonitor(
   admin: SupabaseClient,
@@ -412,11 +454,41 @@ export async function runRedditMonitor(
     .sort((a, b) => b.relevance - a.relevance)
     .slice(0, maxLeads);
 
-  // 5. persist leads
+  // 5. persist leads. In auto mode we don't post inside this run: bursting
+  //    replies is exactly what trips Reddit's spam filters. Instead we QUEUE the
+  //    drafts with staggered post times (a base gap plus jitter, so they never
+  //    look clockwork) under a rolling daily cap, and a background poller drips
+  //    them out one at a time. Anything over today's budget stays "new" for
+  //    manual review. In ask mode everything stays "new".
+  const auto = autonomyMode(ws) === "auto";
+  const perDay = Math.max(0, ws?.auto_post_per_day ?? AUTO_POST_PER_DAY);
+  const gapMin = Math.max(1, ws?.auto_post_gap_minutes ?? AUTO_POST_GAP_MIN);
+  let queuedCount = 0;
   if (leads.length) {
-    const rows = leads.map((l) => {
+    let budget = 0;
+    // continue the drip after anything already waiting, so a new run stacks its
+    // posts onto the tail of the queue rather than on top of pending ones.
+    let scheduleFrom = Date.now();
+    if (auto && perDay > 0) {
+      budget = await autoPostBudget(admin, task.team_id, perDay);
+      scheduleFrom = Math.max(scheduleFrom, await lastQueuedAt(admin, task.team_id));
+    }
+
+    const rows: Record<string, unknown>[] = [];
+    for (const l of leads) {
       const p = byId.get(l.external_id)!;
-      return {
+      let status = "new";
+      let autoPostAt: string | null = null;
+      if (auto && queuedCount < budget && l.draft_reply.trim()) {
+        // space this post a jittered gap past the previous one (1.0x-1.6x the
+        // base gap), so posts are minutes apart and never simultaneous.
+        const jitter = 1 + Math.random() * 0.6;
+        scheduleFrom += Math.round(gapMin * 60_000 * jitter);
+        autoPostAt = new Date(scheduleFrom).toISOString();
+        status = "queued";
+        queuedCount++;
+      }
+      rows.push({
         team_id: task.team_id,
         task_id: task.id,
         source: "reddit",
@@ -430,9 +502,10 @@ export async function runRedditMonitor(
         relevance: l.relevance,
         reason: l.reason,
         draft_reply: l.draft_reply,
-        status: "new",
-      };
-    });
+        status,
+        auto_post_at: autoPostAt,
+      });
+    }
     await admin.from("leads").upsert(rows, {
       onConflict: "team_id,source,external_id",
       ignoreDuplicates: true,
@@ -450,7 +523,9 @@ export async function runRedditMonitor(
 
   // richer output: on an empty run, show what it scanned and the closest calls,
   // so a zero is explainable instead of a mystery.
-  const summary = `Found ${leads.length} new Reddit lead${leads.length === 1 ? "" : "s"}`;
+  const summary =
+    `Found ${leads.length} new Reddit lead${leads.length === 1 ? "" : "s"}` +
+    (queuedCount ? `, queued ${queuedCount} to auto-post` : "");
   let output: string;
   if (leads.length) {
     output = leads

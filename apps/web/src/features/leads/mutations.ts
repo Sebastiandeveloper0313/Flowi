@@ -10,6 +10,19 @@ export async function setLeadStatus(id: string, status: LeadStatus, draftReply?:
   if (error) throw error;
 }
 
+/**
+ * Cancel a reply that's scheduled to auto-post: pull it out of the drip queue
+ * and back to New for manual handling. Clears the schedule and retry counter so
+ * the poller skips it.
+ */
+export async function cancelScheduledLead(id: string) {
+  const { error } = await supabase
+    .from("leads")
+    .update({ status: "new", auto_post_at: null, auto_post_attempts: 0 })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 /** Persist an edited draft reply without changing status. */
 export async function updateLeadDraft(id: string, draftReply: string) {
   const { error } = await supabase.from("leads").update({ draft_reply: draftReply }).eq("id", id);

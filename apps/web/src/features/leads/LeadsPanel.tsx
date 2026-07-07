@@ -16,16 +16,29 @@ import { useMemo, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 
-import { useAgentLeads, usePostLeadReply, useSetLeadStatus } from "./hooks";
+import { useAgentLeads, useCancelScheduledLead, usePostLeadReply, useSetLeadStatus } from "./hooks";
 import type { Lead } from "./queries";
 
-type Filter = "new" | "posted" | "dismissed";
+type Filter = "new" | "scheduled" | "posted" | "dismissed";
 
 function timeAgo(iso: string): string {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
+}
+
+/** When a scheduled auto-post is due to go out, in friendly relative terms. */
+function scheduledLabel(iso: string | null): string {
+  if (!iso) return "Scheduled to post";
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 30_000) return "Posting shortly";
+  const min = Math.round(ms / 60_000);
+  if (min < 60) return `Posts in ~${min} min`;
+  const hrs = Math.floor(min / 60);
+  const rem = min % 60;
+  if (hrs < 24) return rem ? `Posts in ~${hrs}h ${rem}m` : `Posts in ~${hrs}h`;
+  return `Posts in ~${Math.floor(hrs / 24)}d`;
 }
 
 function relevanceClass(r: number): string {
@@ -40,21 +53,34 @@ export function LeadsPanel({ taskId }: { taskId: string }) {
   const [filter, setFilter] = useState<Filter>("new");
 
   const counts = useMemo(() => {
-    const c = { new: 0, posted: 0, dismissed: 0 };
+    const c = { new: 0, scheduled: 0, posted: 0, dismissed: 0 };
     for (const l of leads ?? []) {
       if (l.status === "new" || l.status === "approved") c.new++;
+      else if (l.status === "queued") c.scheduled++;
       else if (l.status === "posted") c.posted++;
       else if (l.status === "dismissed") c.dismissed++;
     }
     return c;
   }, [leads]);
 
-  const shown = (leads ?? []).filter((l) =>
-    filter === "new" ? l.status === "new" || l.status === "approved" : l.status === filter,
-  );
+  const shown = (leads ?? [])
+    .filter((l) =>
+      filter === "new"
+        ? l.status === "new" || l.status === "approved"
+        : filter === "scheduled"
+          ? l.status === "queued"
+          : l.status === filter,
+    )
+    // scheduled: show the ones going out soonest first, not by relevance.
+    .sort((a, b) =>
+      filter === "scheduled"
+        ? new Date(a.auto_post_at ?? 0).getTime() - new Date(b.auto_post_at ?? 0).getTime()
+        : 0,
+    );
 
   const TABS: { key: Filter; label: string; n: number }[] = [
     { key: "new", label: "New", n: counts.new },
+    { key: "scheduled", label: "Scheduled", n: counts.scheduled },
     { key: "posted", label: "Posted", n: counts.posted },
     { key: "dismissed", label: "Dismissed", n: counts.dismissed },
   ];
@@ -87,7 +113,9 @@ export function LeadsPanel({ taskId }: { taskId: string }) {
           <p className="text-sm">
             {filter === "new"
               ? "No new leads yet. This agent drafts a reply for each Reddit prospect it finds, and they show up here."
-              : "Nothing here yet."}
+              : filter === "scheduled"
+                ? "Nothing scheduled. In Auto mode, replies queue up here and post automatically, spaced out over time. You can cancel any before it goes out."
+                : "Nothing here yet."}
           </p>
         </div>
       ) : (
@@ -104,11 +132,13 @@ export function LeadsPanel({ taskId }: { taskId: string }) {
 function LeadCard({ lead }: { lead: Lead }) {
   const setStatus = useSetLeadStatus();
   const post = usePostLeadReply();
+  const cancelScheduled = useCancelScheduledLead();
   const { confirm, dialog } = useConfirm();
   const [draft, setDraft] = useState(lead.draft_reply ?? "");
   const [copied, setCopied] = useState(false);
 
   const queued = lead.status === "approved";
+  const scheduled = lead.status === "queued";
   const done = lead.status === "posted" || lead.status === "dismissed";
 
   async function postReply() {
@@ -147,6 +177,11 @@ function LeadCard({ lead }: { lead: Lead }) {
         {queued && (
           <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
             Reply queued
+          </span>
+        )}
+        {scheduled && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+            <Clock className="size-3" /> {scheduledLabel(lead.auto_post_at)}
           </span>
         )}
         {lead.status === "posted" && (
@@ -204,7 +239,56 @@ function LeadCard({ lead }: { lead: Lead }) {
         </div>
       )}
 
-      {!done && !queued && (
+      {scheduled && (
+        <>
+          <div className="mt-3">
+            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium">
+              <MessageSquare className="size-3.5" /> Reply about to post
+            </span>
+            <p className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-sm leading-relaxed whitespace-pre-wrap">
+              {lead.draft_reply}
+            </p>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              <Clock className="size-4" /> {scheduledLabel(lead.auto_post_at)}, automatically.
+            </span>
+            <div className="grow" />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={post.isPending || !(lead.draft_reply ?? "").trim()}
+              onClick={() => post.mutate({ lead, text: lead.draft_reply ?? "" })}
+            >
+              {post.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+              Post now
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              disabled={cancelScheduled.isPending}
+              onClick={() => cancelScheduled.mutate(lead.id)}
+            >
+              <X className="size-4" /> Cancel
+            </Button>
+          </div>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Cancel moves it back to New so you can edit or post it yourself.
+          </p>
+          {post.isError && (
+            <p className="text-destructive mt-2 text-sm">
+              {(post.error as Error)?.message || "Couldn't post the reply. Try again."}
+            </p>
+          )}
+        </>
+      )}
+
+      {!done && !queued && !scheduled && (
         <>
           <div className="mt-4">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium">
