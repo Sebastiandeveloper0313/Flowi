@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useActiveTeamId } from "@/features/workspace/active";
 import { supabase } from "@/integrations/supabase/client";
 
 import { type AutonomyMode, autonomyKeys, autonomyQueryOptions } from "./queries";
 
 export function useAutonomy() {
-  return useQuery(autonomyQueryOptions);
+  return useQuery(autonomyQueryOptions(useActiveTeamId()));
 }
 
 /** Switch the workspace autonomy mode, with an optimistic update for instant feedback. */
@@ -20,18 +21,19 @@ export function useSetAutonomyMode() {
       if (error) throw error;
       return mode;
     },
-    onMutate: async ({ mode }) => {
-      await queryClient.cancelQueries({ queryKey: autonomyKeys.mode });
-      const prev = queryClient.getQueryData(autonomyKeys.mode);
+    onMutate: async ({ teamId, mode }) => {
+      const key = [...autonomyKeys.mode, teamId] as const;
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData(key);
       queryClient.setQueryData(
-        autonomyKeys.mode,
+        key,
         (old: { teamId: string; mode: AutonomyMode } | null | undefined) =>
           old ? { ...old, mode } : old,
       );
-      return { prev };
+      return { prev, key };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev !== undefined) queryClient.setQueryData(autonomyKeys.mode, ctx.prev);
+      if (ctx?.prev !== undefined && ctx?.key) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: autonomyKeys.mode }),
   });

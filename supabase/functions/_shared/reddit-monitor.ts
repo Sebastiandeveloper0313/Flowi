@@ -9,8 +9,14 @@
 // All stages compose from the shared operator persona + quality bar + context.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { connectedToolkits, redditSearch, redditSubredditPosts } from "./composio.ts";
 import {
+  connectedToolkits,
+  executeComposioTool,
+  redditSearch,
+  redditSubredditPosts,
+} from "./composio.ts";
+import {
+  autonomyMode,
   companyName,
   contextBlock,
   operatorPersona,
@@ -38,6 +44,7 @@ const TRIAGE_BATCH = 60;
 const TRIAGE_SKIP = 40; // small pools skip triage and go straight to scoring
 const MAX_SCORE = 72; // survivors sent to the expensive scorer
 const SCORE_BATCH = 12; // posts per scoring call (parallel)
+const AUTO_POST_MAX = 5; // most replies auto-posted per run (auto mode); rest stay for review
 const SEEN_CAP = 1500; // rolling set of already-considered post ids
 
 interface MonitorConfig {
@@ -412,11 +419,30 @@ export async function runRedditMonitor(
     .sort((a, b) => b.relevance - a.relevance)
     .slice(0, maxLeads);
 
-  // 5. persist leads
+  // 5. persist leads. In auto mode the drafts are posted straight to Reddit
+  //    (no Approvals step), capped and sequential so we don't trip Reddit's
+  //    spam filters; anything over the cap or that fails to post stays "new"
+  //    for manual review. In ask mode everything stays "new".
+  const auto = autonomyMode(ws) === "auto";
+  let autoPosted = 0;
   if (leads.length) {
-    const rows = leads.map((l) => {
+    const rows: Record<string, unknown>[] = [];
+    for (const l of leads) {
       const p = byId.get(l.external_id)!;
-      return {
+      let status = "new";
+      if (auto && autoPosted < AUTO_POST_MAX && l.draft_reply.trim()) {
+        try {
+          await executeComposioTool(task.team_id, "REDDIT_POST_REDDIT_COMMENT", {
+            thing_id: p.external_id,
+            text: l.draft_reply,
+          });
+          status = "posted";
+          autoPosted++;
+        } catch {
+          status = "new"; // posting failed, leave it for manual review
+        }
+      }
+      rows.push({
         team_id: task.team_id,
         task_id: task.id,
         source: "reddit",
@@ -430,9 +456,9 @@ export async function runRedditMonitor(
         relevance: l.relevance,
         reason: l.reason,
         draft_reply: l.draft_reply,
-        status: "new",
-      };
-    });
+        status,
+      });
+    }
     await admin.from("leads").upsert(rows, {
       onConflict: "team_id,source,external_id",
       ignoreDuplicates: true,
@@ -450,7 +476,9 @@ export async function runRedditMonitor(
 
   // richer output: on an empty run, show what it scanned and the closest calls,
   // so a zero is explainable instead of a mystery.
-  const summary = `Found ${leads.length} new Reddit lead${leads.length === 1 ? "" : "s"}`;
+  const summary =
+    `Found ${leads.length} new Reddit lead${leads.length === 1 ? "" : "s"}` +
+    (autoPosted ? `, auto-posted ${autoPosted}` : "");
   let output: string;
   if (leads.length) {
     output = leads
