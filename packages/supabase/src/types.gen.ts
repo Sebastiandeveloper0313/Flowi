@@ -637,6 +637,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      create_workspace: {
+        Args: { p_name: string; p_website_url?: string };
+        Returns: string;
+      };
       flowy_dispatch_due_tasks: { Args: never; Returns: undefined };
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean };
       is_team_member: { Args: { p_team_id: string }; Returns: boolean };

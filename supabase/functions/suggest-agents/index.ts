@@ -3,6 +3,7 @@
 // client caches results; calling again generates fresh ideas.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+import { resolveTeamId } from "../_shared/team.ts";
 import { meter } from "../_shared/usage.ts";
 
 const cors = {
@@ -89,10 +90,13 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
+    const { team_id } = await req.json().catch(() => ({}));
+    const teamId = await resolveTeamId(userClient, team_id);
+    if (!teamId) return json({ error: "no team for user" }, 403);
     const { data: team } = await userClient
       .from("teams")
       .select("id, name, website_url, business_context")
-      .limit(1)
+      .eq("id", teamId)
       .maybeSingle();
     if (!team) return json({ error: "no team for user" }, 403);
     if (!team.business_context) {

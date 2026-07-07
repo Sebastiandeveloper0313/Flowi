@@ -4,6 +4,7 @@ import { userQueryOptions } from "@/auth/queries";
 import { SentriveSky } from "@/features/dashboard/brand";
 import { Sidebar } from "@/features/dashboard/Sidebar";
 import { workspaceQueryOptions } from "@/features/onboarding/queries";
+import { ActiveWorkspaceProvider } from "@/features/workspace/active";
 
 import "@/features/dashboard/dashboard.css";
 
@@ -44,12 +45,14 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    <div className="flowy-app">
-      <SentriveSky />
-      <Sidebar />
-      <main className="flowy-main">
-        <Outlet />
-      </main>
-    </div>
+    <ActiveWorkspaceProvider>
+      <div className="flowy-app">
+        <SentriveSky />
+        <Sidebar />
+        <main className="flowy-main">
+          <Outlet />
+        </main>
+      </div>
+    </ActiveWorkspaceProvider>
   );
 }

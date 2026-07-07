@@ -12,19 +12,22 @@ export const taskKeys = {
   myTeam: ["team", "mine"] as const,
 };
 
-/** Recent runs across the team's tasks (RLS-scoped); newest first. */
-export const runsQueryOptions = queryOptions({
-  queryKey: taskKeys.runs,
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from("task_runs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw error;
-    return data;
-  },
-});
+/** Recent runs for the active workspace's tasks; newest first. */
+export const runsQueryOptions = (teamId: string | null) =>
+  queryOptions({
+    queryKey: [...taskKeys.runs, teamId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("task_runs")
+        .select("*")
+        .eq("team_id", teamId!)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!teamId,
+  });
 
 /** Runs for a single task (RLS-scoped); newest first. */
 export const taskRunsQueryOptions = (taskId: string) =>
@@ -57,15 +60,18 @@ export const myTeamQueryOptions = queryOptions({
   staleTime: Number.POSITIVE_INFINITY,
 });
 
-/** All recurring tasks the user can see (RLS scopes this to their team). */
-export const tasksQueryOptions = queryOptions({
-  queryKey: taskKeys.all,
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data;
-  },
-});
+/** The active workspace's recurring tasks (agents), newest first. */
+export const tasksQueryOptions = (teamId: string | null) =>
+  queryOptions({
+    queryKey: [...taskKeys.all, teamId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("team_id", teamId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!teamId,
+  });
