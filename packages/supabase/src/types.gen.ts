@@ -234,6 +234,65 @@ export type Database = {
           },
         ];
       };
+      email_log: {
+        Row: {
+          dedupe_key: string;
+          id: string;
+          kind: string;
+          provider_id: string | null;
+          sent_at: string;
+          team_id: string | null;
+          to_email: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          dedupe_key: string;
+          id?: string;
+          kind: string;
+          provider_id?: string | null;
+          sent_at?: string;
+          team_id?: string | null;
+          to_email?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          dedupe_key?: string;
+          id?: string;
+          kind?: string;
+          provider_id?: string | null;
+          sent_at?: string;
+          team_id?: string | null;
+          to_email?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "email_log_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      email_optout: {
+        Row: {
+          opted_out_at: string | null;
+          token: string;
+          user_id: string;
+        };
+        Insert: {
+          opted_out_at?: string | null;
+          token?: string;
+          user_id: string;
+        };
+        Update: {
+          opted_out_at?: string | null;
+          token?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       leads: {
         Row: {
           author: string | null;
@@ -554,6 +613,7 @@ export type Database = {
           reply_samples: Json;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
+          subscription_canceled_at: string | null;
           subscription_status: string | null;
           team_size: string | null;
           updated_at: string;
@@ -581,6 +641,7 @@ export type Database = {
           reply_samples?: Json;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
+          subscription_canceled_at?: string | null;
           subscription_status?: string | null;
           team_size?: string | null;
           updated_at?: string;
@@ -608,6 +669,7 @@ export type Database = {
           reply_samples?: Json;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
+          subscription_canceled_at?: string | null;
           subscription_status?: string | null;
           team_size?: string | null;
           updated_at?: string;
@@ -652,6 +714,25 @@ export type Database = {
       create_workspace: {
         Args: { p_name: string; p_website_url?: string };
         Returns: string;
+      };
+      email_onboarding_candidates: {
+        Args: never;
+        Returns: {
+          email: string;
+          full_name: string;
+          team_id: string;
+          user_id: string;
+        }[];
+      };
+      email_winback_candidates: {
+        Args: never;
+        Returns: {
+          email: string;
+          full_name: string;
+          subscription_id: string;
+          team_id: string;
+          user_id: string;
+        }[];
       };
       flowy_dispatch_due_tasks: { Args: never; Returns: undefined };
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean };

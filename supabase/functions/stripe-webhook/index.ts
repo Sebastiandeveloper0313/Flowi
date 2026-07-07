@@ -3,6 +3,8 @@
 // Authorized by Stripe's webhook signature (fail closed).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+import { sendCancelConfirmation } from "../_shared/lifecycle-emails.ts";
+
 const enc = new TextEncoder();
 
 /** Verify Stripe-Signature: t=<ts>,v1=<hmac sha256 of "<ts>.<body>">. */
@@ -83,6 +85,27 @@ Deno.serve(async (req: Request) => {
         else if (obj.customer) {
           await admin.from("teams").update(patch).eq("stripe_customer_id", obj.customer);
         }
+
+        // A cancellation scheduled for period end: confirm it by email, once
+        // (the send is deduped per subscription, so repeated updates are safe).
+        if (obj.cancel_at_period_end === true && obj.id) {
+          let tid = teamId as string | undefined;
+          if (!tid && obj.customer) {
+            const { data: t } = await admin
+              .from("teams")
+              .select("id")
+              .eq("stripe_customer_id", obj.customer)
+              .maybeSingle();
+            tid = t?.id;
+          }
+          if (tid) {
+            await sendCancelConfirmation(admin, {
+              teamId: tid,
+              subscriptionId: obj.id,
+              periodEndUnix: obj.current_period_end ?? null,
+            }).catch((e) => console.error("cancel confirm email failed:", e));
+          }
+        }
         break;
       }
       case "customer.subscription.deleted": {
@@ -90,6 +113,7 @@ Deno.serve(async (req: Request) => {
           plan: "free",
           subscription_status: "canceled",
           stripe_subscription_id: null,
+          subscription_canceled_at: new Date().toISOString(),
         };
         const teamId = obj.metadata?.team_id;
         if (teamId) await admin.from("teams").update(patch).eq("id", teamId);
