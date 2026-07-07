@@ -24,10 +24,15 @@ export async function updateLeadDraft(id: string, draftReply: string) {
  * lead "new" on failure so it can be retried. (The Approvals page stays the
  * review queue for actions an agent proposes on its own.)
  */
-export async function postLeadReplyNow(lead: Lead, text: string) {
+export async function postLeadReplyNow(lead: Lead, text: string): Promise<{ edited: boolean }> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // If they rewrote the draft before posting, that's a signal of how they like
+  // their replies. Captured after a successful post so we only learn from real
+  // sends. Best effort: never let learning break posting.
+  const original = (lead.draft_reply ?? "").trim();
+  const edited = original.length > 0 && text.trim() !== original;
   const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
   const { data: approval, error: aerr } = await supabase
     .from("approvals")
@@ -59,4 +64,14 @@ export async function postLeadReplyNow(lead: Lead, text: string) {
     .update({ status: "posted", draft_reply: text })
     .eq("id", lead.id);
   if (lerr) throw lerr;
+
+  if (edited) {
+    await supabase
+      .rpc("record_reply_edit", { p_team_id: lead.team_id, p_before: original, p_after: text })
+      .then(
+        () => {},
+        () => {}, // best effort
+      );
+  }
+  return { edited };
 }

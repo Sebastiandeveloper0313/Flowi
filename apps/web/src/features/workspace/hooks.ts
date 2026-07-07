@@ -21,6 +21,16 @@ export function useAnalyzeWebsite() {
   });
 }
 
+/** Save the user's up-front instructions for how their replies should sound. */
+export function useUpdateReplyInstructions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, instructions }: { teamId: string; instructions: string }) =>
+      updateWorkspace(teamId, { reply_instructions: instructions }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: workspaceKeys.current }),
+  });
+}
+
 /** Save manually-edited business context back to the workspace. */
 export function useSaveBusinessContext() {
   const queryClient = useQueryClient();

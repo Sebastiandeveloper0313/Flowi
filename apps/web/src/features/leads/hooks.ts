@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { approvalKeys } from "@/features/approvals/queries";
+import { workspaceKeys } from "@/features/workspace/queries";
 
 import { postLeadReplyNow, setLeadStatus, updateLeadDraft } from "./mutations";
 import { type Lead, leadKeys, type LeadStatus, leadsByTaskQueryOptions } from "./queries";
@@ -44,6 +45,8 @@ export function usePostLeadReply() {
         queryClient.invalidateQueries({ queryKey: leadKeys.all }),
         queryClient.invalidateQueries({ queryKey: approvalKeys.all }),
         queryClient.invalidateQueries({ queryKey: approvalKeys.pendingCount }),
+        // a captured edit updates the learned reply samples
+        queryClient.invalidateQueries({ queryKey: workspaceKeys.current }),
       ]),
   });
 }
