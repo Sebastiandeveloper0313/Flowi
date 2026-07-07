@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useActiveTeamId } from "@/features/workspace/active";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ToolkitStatus {
@@ -8,7 +9,7 @@ export interface ToolkitStatus {
   status: string;
 }
 
-async function invoke<T>(body: unknown): Promise<T> {
+async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("integrations", { body });
   if (error) throw error;
   if (data && typeof data === "object" && "error" in data) {
@@ -17,14 +18,21 @@ async function invoke<T>(body: unknown): Promise<T> {
   return data as T;
 }
 
-export const integrationKeys = { all: ["integrations"] as const };
+export const integrationKeys = {
+  all: ["integrations"] as const,
+  team: (teamId: string | null) => ["integrations", teamId] as const,
+};
 
-/** The team's connection status per supported toolkit. Set `poll` while a connect is in flight. */
+/** The active workspace's connection status per toolkit. Set `poll` during a connect. */
 export function useIntegrations(poll = false) {
+  const teamId = useActiveTeamId();
   return useQuery({
-    queryKey: integrationKeys.all,
+    queryKey: integrationKeys.team(teamId),
     queryFn: () =>
-      invoke<{ toolkits: ToolkitStatus[] }>({ action: "list" }).then((d) => d.toolkits),
+      invoke<{ toolkits: ToolkitStatus[] }>({ action: "list", team_id: teamId }).then(
+        (d) => d.toolkits,
+      ),
+    enabled: !!teamId,
     refetchInterval: poll ? 3000 : false,
   });
 }
@@ -42,12 +50,13 @@ export function useMissingToolkits(slugs: string[], poll = false) {
   };
 }
 
-/** Start connecting a toolkit; returns the hosted-auth URL to open. */
+/** Start connecting a toolkit for the active workspace; returns the hosted-auth URL. */
 export function useConnectIntegration() {
   const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
   return useMutation({
     mutationFn: (toolkit: string) =>
-      invoke<{ redirect_url: string }>({ action: "connect", toolkit }),
+      invoke<{ redirect_url: string }>({ action: "connect", toolkit, team_id: teamId }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: integrationKeys.all }),
   });
 }

@@ -5,6 +5,7 @@ import { env } from "@/env";
 import { approvalKeys } from "@/features/approvals/queries";
 import { autonomyKeys } from "@/features/autonomy/queries";
 import { taskKeys } from "@/features/tasks/queries";
+import { useActiveTeamId } from "@/features/workspace/active";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CreatedAgent {
@@ -72,6 +73,7 @@ export async function sendChat(
   signal?: AbortSignal,
   onStatus?: (text: string) => void,
   attachments?: Attachment[],
+  teamId?: string | null,
 ): Promise<ChatResponse> {
   const {
     data: { session },
@@ -88,7 +90,7 @@ export async function sendChat(
       apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session?.access_token ?? env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, attachments: files }),
+    body: JSON.stringify({ messages, attachments: files, team_id: teamId ?? undefined }),
     signal,
   });
 
@@ -134,6 +136,7 @@ export async function sendChat(
 
 export function useChat() {
   const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
   return useMutation({
     mutationFn: ({
       messages,
@@ -145,7 +148,7 @@ export function useChat() {
       signal?: AbortSignal;
       onStatus?: (text: string) => void;
       attachments?: Attachment[];
-    }) => sendChat(messages, signal, onStatus, attachments),
+    }) => sendChat(messages, signal, onStatus, attachments, teamId),
     // a created agent should show up in the list immediately; a chat turn may
     // also have queued an action for approval, so refresh those too.
     onSuccess: (data) => {
@@ -161,22 +164,25 @@ export function useChat() {
 
 // ---------------- conversation persistence ----------------
 
-/** The user's recent conversations, newest first (RLS scopes to their team). */
-export const chatsQueryOptions = queryOptions({
-  queryKey: chatKeys.list,
-  queryFn: async (): Promise<ChatRow[]> => {
-    const { data, error } = await supabase
-      .from("chats")
-      .select("id, title, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(20);
-    if (error) throw error;
-    return data ?? [];
-  },
-});
+/** The active workspace's recent conversations, newest first. */
+export const chatsQueryOptions = (teamId: string | null) =>
+  queryOptions({
+    queryKey: [...chatKeys.list, teamId] as const,
+    queryFn: async (): Promise<ChatRow[]> => {
+      const { data, error } = await supabase
+        .from("chats")
+        .select("id, title, updated_at")
+        .eq("team_id", teamId!)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!teamId,
+  });
 
 export function useChats() {
-  return useQuery(chatsQueryOptions);
+  return useQuery(chatsQueryOptions(useActiveTeamId()));
 }
 
 /** Load a single conversation's messages, oldest first. */

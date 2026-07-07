@@ -38,7 +38,7 @@ import {
   useCreateAgentFromProposal,
   useTasks,
 } from "@/features/tasks/hooks";
-import { myTeamQueryOptions } from "@/features/tasks/queries";
+import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
   type AgentProposal,
@@ -159,7 +159,7 @@ function toList(s: string): string[] {
 
 /** A proposed agent shown in chat: fine-tune every field, then create it. */
 function ProposalCard({ proposal }: { proposal: AgentProposal }) {
-  const { data: teamId } = useQuery(myTeamQueryOptions);
+  const teamId = useActiveTeamId();
   const { data: tasks } = useTasks();
   const create = useCreateAgentFromProposal();
   const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
@@ -360,6 +360,7 @@ export function Chat({ chatId }: { chatId?: string }) {
   const chat = useChat();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const activeTeamId = useActiveTeamId();
   const { data: user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -485,9 +486,8 @@ export function Chat({ chatId }: { chatId?: string }) {
 
     // ensure a persisted conversation exists, then save the user's message
     let convoId = chatId ?? ownedRef.current;
-    let teamId: string | null = null;
+    const teamId: string | null = activeTeamId;
     try {
-      teamId = await queryClient.ensureQueryData(myTeamQueryOptions);
       if (teamId) {
         if (!convoId) {
           convoId = await createChat(teamId, t);
