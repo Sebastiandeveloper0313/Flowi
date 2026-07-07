@@ -1,7 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUpRight, Clock, Copy, Loader2, MessageSquare, Send, Target, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  Clock,
+  Copy,
+  Loader2,
+  MessageSquare,
+  Send,
+  Sparkles,
+  Target,
+  X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
@@ -243,6 +253,17 @@ function LeadCard({ lead }: { lead: Lead }) {
         </>
       )}
       {dialog}
+
+      {post.isSuccess && post.data?.edited && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#3d82f5]/25 bg-[#3d82f5]/5 p-3 text-sm">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-[#3d82f5]" />
+          <span className="text-muted-foreground">
+            <span className="text-foreground font-medium">Sentrive is learning your style.</span>{" "}
+            You edited this one, so future drafts will sound more like you. Set your preferences
+            anytime in Settings.
+          </span>
+        </div>
+      )}
 
       {done && (
         <div className="mt-3">

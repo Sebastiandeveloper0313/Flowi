@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Input } from "@workspace/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { AlertTriangle, Brain, Check, Globe, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Brain, Check, Globe, Loader2, MessageSquare, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CancelFlowDialog } from "@/features/billing/CancelFlow";
@@ -20,6 +20,7 @@ import type { BusinessContext } from "@/features/onboarding/mutations";
 import {
   useAnalyzeWebsite,
   useSaveBusinessContext,
+  useUpdateReplyInstructions,
   useWorkspace,
 } from "@/features/workspace/hooks";
 
@@ -274,7 +275,94 @@ function BusinessTab() {
           )}
         </CardContent>
       </Card>
+
+      <ReplyStyleCard />
     </div>
+  );
+}
+
+/**
+ * How the user's Reddit replies should sound. Explicit up-front instructions
+ * plus a live count of the drafts they've refined, which Sentrive learns from.
+ */
+function ReplyStyleCard() {
+  const { data: ws } = useWorkspace();
+  const update = useUpdateReplyInstructions();
+  const [text, setText] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (ws) {
+      setText(ws.reply_instructions ?? "");
+      setDirty(false);
+    }
+  }, [ws]);
+
+  const learned = Array.isArray(ws?.reply_samples) ? ws.reply_samples.length : 0;
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <MessageSquare className="size-4" /> Reply style
+        </CardTitle>
+        <Button
+          size="sm"
+          disabled={!dirty || update.isPending || !ws}
+          onClick={() =>
+            ws &&
+            update.mutate(
+              { teamId: ws.id, instructions: text.trim() },
+              { onSuccess: () => setDirty(false) },
+            )
+          }
+        >
+          {update.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Check className="size-4" />
+          )}
+          Save
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-muted-foreground text-sm">
+          Tell Sentrive how you want your Reddit replies to sound, so drafts match you from the
+          start. For example: tone, length, whether to include your link, phrases to use or avoid.
+        </p>
+        <Textarea
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setDirty(true);
+          }}
+          rows={4}
+          placeholder={
+            'e.g. "Keep it short and casual, lowercase, no emojis. Mention Sentrive naturally, only drop the link if someone asks for a tool. Never sound salesy."'
+          }
+          className="resize-y text-sm"
+        />
+        <div className="flex items-center gap-2 rounded-lg border border-[#3d82f5]/25 bg-[#3d82f5]/5 p-3 text-sm">
+          <Sparkles className="size-4 shrink-0 text-[#3d82f5]" />
+          <span className="text-muted-foreground">
+            {learned > 0 ? (
+              <>
+                <span className="text-foreground font-medium">
+                  Sentrive has learned from {learned} {learned === 1 ? "reply" : "replies"} you
+                  refined.
+                </span>{" "}
+                Every time you edit a draft before posting, it gets a little more like you.
+              </>
+            ) : (
+              <>
+                <span className="text-foreground font-medium">Sentrive learns as you go.</span> When
+                you edit a draft before posting, it picks up your voice for next time.
+              </>
+            )}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

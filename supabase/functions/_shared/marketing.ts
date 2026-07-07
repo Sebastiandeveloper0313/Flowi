@@ -10,6 +10,8 @@ export interface WorkspaceContext {
   business_model?: string | null;
   business_categories?: string[] | null;
   autonomy_mode?: "ask" | "auto" | null;
+  reply_instructions?: string | null;
+  reply_samples?: Array<{ before?: string; after?: string; at?: string }> | null;
 }
 
 /** How much Sentrive may do on its own. 'ask' is the safe default. */
@@ -52,7 +54,7 @@ export async function fetchWorkspaceContext(
   const { data } = await client
     .from("teams")
     .select(
-      "name, website_url, business_context, business_model, business_categories, autonomy_mode",
+      "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples",
     )
     .eq("id", teamId)
     .maybeSingle();
@@ -125,8 +127,35 @@ export function redditReplyStandards(ws: WorkspaceContext | null): string {
       : `- No product link is available, so mention ${product} by name only, never invent a URL.\n`) +
     `- Whenever you name or link ${product}, add a brief honest disclosure ("full disclosure, I built ${product}", "disclaimer, I make ${product}"). It fits Reddit norms, avoids bans, and converts better than hiding it.\n` +
     "- Short and human: one to a few sentences, like a sharp founder typing a quick reply. No filler openers or closers, no cliches or AI tells, no em dashes.\n" +
-    "- Never recommend, link, or steer toward a competitor."
+    "- Never recommend, link, or steer toward a competitor." +
+    replyPersonalization(ws)
   );
+}
+
+/**
+ * The user's own steer on their replies: explicit up-front instructions, plus a
+ * few of the drafts they've rewritten (learned voice). Appended last so it wins
+ * over the defaults where they differ, which is how the agent "learns" a person.
+ */
+function replyPersonalization(ws: WorkspaceContext | null): string {
+  let out = "";
+  const instructions = (ws?.reply_instructions ?? "").trim();
+  if (instructions) {
+    out +=
+      "\n\nThe user gave explicit instructions for how their replies should sound. Follow these over the " +
+      `defaults above wherever they differ:\n${instructions}`;
+  }
+  const samples = (ws?.reply_samples ?? [])
+    .map((s) => (s?.after ?? "").trim())
+    .filter(Boolean)
+    .slice(-4);
+  if (samples.length) {
+    out +=
+      "\n\nThe user has rewritten past drafts to their taste. These are their preferred replies, match this " +
+      "voice, length, phrasing, and how they handle the product mention and link:\n" +
+      samples.map((s, i) => `Example ${i + 1}:\n${s}`).join("\n\n");
+  }
+  return out;
 }
 
 /** Shared identity + the hard competitor guard. Used by every prompt. */
