@@ -4,7 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Input } from "@workspace/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { AlertTriangle, Brain, Check, Globe, Loader2, MessageSquare, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Brain,
+  Check,
+  Globe,
+  Loader2,
+  MessageSquare,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CancelFlowDialog } from "@/features/billing/CancelFlow";
@@ -20,6 +29,7 @@ import type { BusinessContext } from "@/features/onboarding/mutations";
 import {
   useAnalyzeWebsite,
   useSaveBusinessContext,
+  useUpdateAutoPostPacing,
   useUpdateReplyInstructions,
   useWorkspace,
 } from "@/features/workspace/hooks";
@@ -277,7 +287,109 @@ function BusinessTab() {
       </Card>
 
       <ReplyStyleCard />
+      <AutoPostPacingCard />
     </div>
+  );
+}
+
+/**
+ * How fast Auto mode posts Reddit replies. Auto mode never bursts: it drips
+ * replies out one at a time, spaced apart, under a daily cap. These are the two
+ * knobs, so users can keep it well inside what their account can safely handle.
+ */
+function AutoPostPacingCard() {
+  const { data: ws } = useWorkspace();
+  const update = useUpdateAutoPostPacing();
+  const [perDay, setPerDay] = useState(10);
+  const [gap, setGap] = useState(8);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (ws) {
+      setPerDay(ws.auto_post_per_day ?? 10);
+      setGap(ws.auto_post_gap_minutes ?? 8);
+      setDirty(false);
+    }
+  }, [ws]);
+
+  const clampedPerDay = Math.max(0, Math.min(100, Math.round(perDay || 0)));
+  const clampedGap = Math.max(1, Math.min(240, Math.round(gap || 0)));
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldCheck className="size-4" /> Auto-post pacing
+        </CardTitle>
+        <Button
+          size="sm"
+          disabled={!dirty || update.isPending || !ws}
+          onClick={() =>
+            ws &&
+            update.mutate(
+              { teamId: ws.id, perDay: clampedPerDay, gapMinutes: clampedGap },
+              { onSuccess: () => setDirty(false) },
+            )
+          }
+        >
+          {update.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Check className="size-4" />
+          )}
+          Save
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-muted-foreground text-sm">
+          When Auto mode is on, Sentrive never posts replies all at once, that's how accounts get
+          flagged. It spaces them out and drips them to Reddit one at a time. These limits keep it
+          gentle; lower them if your account is new.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <label htmlFor="ap-per-day" className="text-sm font-medium">
+              Max replies per day
+            </label>
+            <Input
+              id="ap-per-day"
+              type="number"
+              min={0}
+              max={100}
+              value={perDay}
+              onChange={(e) => {
+                setPerDay(e.target.valueAsNumber);
+                setDirty(true);
+              }}
+              className="max-w-[9rem] text-sm"
+            />
+            <p className="text-muted-foreground text-xs">
+              A hard ceiling across all your lead agents. Set 0 to pause auto-posting.
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="ap-gap" className="text-sm font-medium">
+              Minutes between replies
+            </label>
+            <Input
+              id="ap-gap"
+              type="number"
+              min={1}
+              max={240}
+              value={gap}
+              onChange={(e) => {
+                setGap(e.target.valueAsNumber);
+                setDirty(true);
+              }}
+              className="max-w-[9rem] text-sm"
+            />
+            <p className="text-muted-foreground text-xs">
+              The gap Sentrive waits between posts (it adds a little randomness on top).
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

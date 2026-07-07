@@ -237,6 +237,8 @@ export type Database = {
       leads: {
         Row: {
           author: string | null;
+          auto_post_at: string | null;
+          auto_post_attempts: number;
           created_at: string;
           draft_reply: string | null;
           external_id: string;
@@ -256,6 +258,8 @@ export type Database = {
         };
         Insert: {
           author?: string | null;
+          auto_post_at?: string | null;
+          auto_post_attempts?: number;
           created_at?: string;
           draft_reply?: string | null;
           external_id: string;
@@ -275,6 +279,8 @@ export type Database = {
         };
         Update: {
           author?: string | null;
+          auto_post_at?: string | null;
+          auto_post_attempts?: number;
           created_at?: string;
           draft_reply?: string | null;
           external_id?: string;
@@ -527,6 +533,8 @@ export type Database = {
       };
       teams: {
         Row: {
+          auto_post_gap_minutes: number;
+          auto_post_per_day: number;
           autonomy_mode: string;
           business_categories: string[];
           business_context: Json | null;
@@ -552,6 +560,8 @@ export type Database = {
           website_url: string | null;
         };
         Insert: {
+          auto_post_gap_minutes?: number;
+          auto_post_per_day?: number;
           autonomy_mode?: string;
           business_categories?: string[];
           business_context?: Json | null;
@@ -577,6 +587,8 @@ export type Database = {
           website_url?: string | null;
         };
         Update: {
+          auto_post_gap_minutes?: number;
+          auto_post_per_day?: number;
           autonomy_mode?: string;
           business_categories?: string[];
           business_context?: Json | null;

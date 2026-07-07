@@ -91,7 +91,8 @@ export function AutonomyToggle() {
               <Send className="mt-0.5 size-4 shrink-0 text-[#ea580c]" />
               <span>
                 <span className="font-medium">Reddit replies post automatically</span> from your
-                connected account when your lead agents run (up to a few per run).
+                connected account, spaced out and capped per day so your account stays safe. Tune
+                the pace in Settings.
               </span>
             </li>
             <li className="flex items-start gap-2.5">

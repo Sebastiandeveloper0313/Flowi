@@ -4,6 +4,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { Cron } from "npm:croner@9";
 
+import { dripAutoPosts } from "../_shared/auto-post.ts";
 import { runTaskOnce, type TaskRow } from "../_shared/runner.ts";
 
 const BATCH = 100; // tasks processed per invocation; the rest catch the next minute
@@ -77,5 +78,9 @@ Deno.serve(async (req: Request) => {
     else if (result.status === "failed") failed++;
   }
 
-  return json({ checked: tasks?.length ?? 0, ran, initialized, failed, at: nowIso });
+  // Drain any Reddit auto-posts that are due (auto mode). Dripped one per team
+  // per tick so they never burst, even when several fall due at once.
+  const drip = await dripAutoPosts(admin).catch(() => ({ posted: 0, failed: 0, due: 0 }));
+
+  return json({ checked: tasks?.length ?? 0, ran, initialized, failed, drip, at: nowIso });
 });

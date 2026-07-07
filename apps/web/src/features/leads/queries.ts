@@ -4,7 +4,7 @@ import type { Tables } from "@workspace/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Lead = Tables<"leads">;
-export type LeadStatus = "new" | "approved" | "dismissed" | "posted";
+export type LeadStatus = "new" | "approved" | "queued" | "dismissed" | "posted";
 
 export const leadKeys = {
   all: ["leads"] as const,

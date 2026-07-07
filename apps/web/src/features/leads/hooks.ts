@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { approvalKeys } from "@/features/approvals/queries";
 import { workspaceKeys } from "@/features/workspace/queries";
 
-import { postLeadReplyNow, setLeadStatus, updateLeadDraft } from "./mutations";
+import { cancelScheduledLead, postLeadReplyNow, setLeadStatus, updateLeadDraft } from "./mutations";
 import { type Lead, leadKeys, type LeadStatus, leadsByTaskQueryOptions } from "./queries";
 
 export function useAgentLeads(taskId: string) {
@@ -22,6 +22,15 @@ export function useSetLeadStatus() {
       status: LeadStatus;
       draftReply?: string;
     }) => setLeadStatus(id, status, draftReply),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: leadKeys.all }),
+  });
+}
+
+/** Pull a scheduled auto-post reply back out of the drip queue, into New. */
+export function useCancelScheduledLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cancelScheduledLead(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: leadKeys.all }),
   });
 }

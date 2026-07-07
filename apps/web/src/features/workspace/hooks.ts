@@ -36,6 +36,27 @@ export function useUpdateReplyInstructions() {
   });
 }
 
+/** Save the auto-mode posting pace: how many replies per day and how far apart. */
+export function useUpdateAutoPostPacing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      teamId,
+      perDay,
+      gapMinutes,
+    }: {
+      teamId: string;
+      perDay: number;
+      gapMinutes: number;
+    }) =>
+      updateWorkspace(teamId, {
+        auto_post_per_day: perDay,
+        auto_post_gap_minutes: gapMinutes,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: workspaceKeys.current }),
+  });
+}
+
 /** Save manually-edited business context back to the workspace. */
 export function useSaveBusinessContext() {
   const queryClient = useQueryClient();
