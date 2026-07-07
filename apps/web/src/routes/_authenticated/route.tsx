@@ -4,6 +4,7 @@ import { userQueryOptions } from "@/auth/queries";
 import { SentriveSky } from "@/features/dashboard/brand";
 import { Sidebar } from "@/features/dashboard/Sidebar";
 import { workspaceQueryOptions } from "@/features/onboarding/queries";
+import { WhatsNewDialog } from "@/features/whatsnew/WhatsNewDialog";
 import { ActiveWorkspaceProvider } from "@/features/workspace/active";
 
 import "@/features/dashboard/dashboard.css";
@@ -52,6 +53,7 @@ function AuthenticatedLayout() {
         <main className="flowy-main">
           <Outlet />
         </main>
+        <WhatsNewDialog />
       </div>
     </ActiveWorkspaceProvider>
   );
