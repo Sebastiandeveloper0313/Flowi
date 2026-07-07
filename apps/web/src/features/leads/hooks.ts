@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { approvalKeys } from "@/features/approvals/queries";
 
-import { queueLeadReply, setLeadStatus, updateLeadDraft } from "./mutations";
+import { postLeadReplyNow, setLeadStatus, updateLeadDraft } from "./mutations";
 import { type Lead, leadKeys, type LeadStatus, leadsByTaskQueryOptions } from "./queries";
 
 export function useAgentLeads(taskId: string) {
@@ -34,11 +34,11 @@ export function useUpdateLeadDraft() {
   });
 }
 
-/** Queue a lead's reply as an approval to post on Reddit. */
-export function useQueueLeadReply() {
+/** Post a lead's reply to Reddit right now (the click is the approval). */
+export function usePostLeadReply() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ lead, text }: { lead: Lead; text: string }) => queueLeadReply(lead, text),
+    mutationFn: ({ lead, text }: { lead: Lead; text: string }) => postLeadReplyNow(lead, text),
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: leadKeys.all }),

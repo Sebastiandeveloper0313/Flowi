@@ -1,10 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowUpRight, Clock, Copy, MessageSquare, Send, Target, X } from "lucide-react";
+import { ArrowUpRight, Clock, Copy, Loader2, MessageSquare, Send, Target, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { useAgentLeads, useQueueLeadReply, useSetLeadStatus } from "./hooks";
+import { useConfirm } from "@/components/useConfirm";
+
+import { useAgentLeads, usePostLeadReply, useSetLeadStatus } from "./hooks";
 import type { Lead } from "./queries";
 
 type Filter = "new" | "posted" | "dismissed";
@@ -91,12 +93,23 @@ export function LeadsPanel({ taskId }: { taskId: string }) {
 
 function LeadCard({ lead }: { lead: Lead }) {
   const setStatus = useSetLeadStatus();
-  const queue = useQueueLeadReply();
+  const post = usePostLeadReply();
+  const { confirm, dialog } = useConfirm();
   const [draft, setDraft] = useState(lead.draft_reply ?? "");
   const [copied, setCopied] = useState(false);
 
   const queued = lead.status === "approved";
   const done = lead.status === "posted" || lead.status === "dismissed";
+
+  async function postReply() {
+    const ok = await confirm({
+      title: lead.subreddit ? `Post to r/${lead.subreddit}?` : "Post this reply to Reddit?",
+      description:
+        "This posts your reply to Reddit from your connected account right now. You can still delete it on Reddit afterwards.",
+      confirmLabel: "Post reply",
+    });
+    if (ok) post.mutate({ lead, text: draft });
+  }
 
   async function copyReply() {
     try {
@@ -205,12 +218,13 @@ function LeadCard({ lead }: { lead: Lead }) {
               </a>
             </Button>
             <div className="grow" />
-            <Button
-              size="sm"
-              disabled={queue.isPending || !draft.trim()}
-              onClick={() => queue.mutate({ lead, text: draft })}
-            >
-              <Send className="size-4" /> Post reply
+            <Button size="sm" disabled={post.isPending || !draft.trim()} onClick={postReply}>
+              {post.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+              {post.isPending ? "Posting…" : "Post reply"}
             </Button>
             <Button
               size="sm"
@@ -221,8 +235,14 @@ function LeadCard({ lead }: { lead: Lead }) {
               <X className="size-4" /> Dismiss
             </Button>
           </div>
+          {post.isError && (
+            <p className="text-destructive mt-2 text-sm">
+              {(post.error as Error)?.message || "Couldn't post the reply. Try again."}
+            </p>
+          )}
         </>
       )}
+      {dialog}
 
       {done && (
         <div className="mt-3">
