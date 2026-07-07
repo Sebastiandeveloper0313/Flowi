@@ -17,30 +17,46 @@ export async function updateLeadDraft(id: string, draftReply: string) {
 }
 
 /**
- * Queue a lead's reply to be posted to Reddit. Creates an approval (which the
- * user approves on the Approvals page to actually post) and marks the lead as
- * queued, saving any edits to the reply.
+ * Post a lead's reply to Reddit now. The user is looking at the reply and
+ * clicked post, so their click IS the approval, no detour to the Approvals
+ * page. We still record an approval row for the audit trail, then execute it
+ * immediately through the same vetted path the Approvals page uses. Leaves the
+ * lead "new" on failure so it can be retried. (The Approvals page stays the
+ * review queue for actions an agent proposes on its own.)
  */
-export async function queueLeadReply(lead: Lead, text: string) {
+export async function postLeadReplyNow(lead: Lead, text: string) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
-  const { error: aerr } = await supabase.from("approvals").insert({
-    team_id: lead.team_id,
-    task_id: lead.task_id,
-    created_by: user?.id ?? null,
-    source: "agent",
-    tool_slug: "REDDIT_POST_REDDIT_COMMENT",
-    tool_args: { thing_id: lead.external_id, text },
-    title: lead.subreddit ? `Post a reply in r/${lead.subreddit}` : "Post a reply on Reddit",
-    detail: preview,
-    status: "pending",
+  const { data: approval, error: aerr } = await supabase
+    .from("approvals")
+    .insert({
+      team_id: lead.team_id,
+      task_id: lead.task_id,
+      created_by: user?.id ?? null,
+      source: "agent",
+      tool_slug: "REDDIT_POST_REDDIT_COMMENT",
+      tool_args: { thing_id: lead.external_id, text },
+      title: lead.subreddit ? `Post a reply in r/${lead.subreddit}` : "Post a reply on Reddit",
+      detail: preview,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (aerr || !approval) throw aerr ?? new Error("Could not prepare the reply.");
+
+  const { data, error } = await supabase.functions.invoke("approvals", {
+    body: { approval_id: approval.id, decision: "approve" },
   });
-  if (aerr) throw aerr;
+  if (error) throw error;
+  if (data?.status !== "executed") {
+    throw new Error(data?.error || "Reddit didn't accept the reply. Try again.");
+  }
+
   const { error: lerr } = await supabase
     .from("leads")
-    .update({ status: "approved", draft_reply: text })
+    .update({ status: "posted", draft_reply: text })
     .eq("id", lead.id);
   if (lerr) throw lerr;
 }
