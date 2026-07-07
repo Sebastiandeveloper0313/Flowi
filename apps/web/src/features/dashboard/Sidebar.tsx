@@ -24,6 +24,7 @@ import { useUser } from "@/auth/hooks";
 import { useConfirm } from "@/components/useConfirm";
 import { usePendingApprovalCount } from "@/features/approvals/hooks";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
+import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
@@ -84,6 +85,12 @@ export function Sidebar() {
           )}
         </button>
       </div>
+
+      {!collapsed && (
+        <div className="flowy-ws">
+          <WorkspaceSwitcher />
+        </div>
+      )}
 
       <nav className="flowy-nav">
         {NAV.map(({ to, label, icon: Icon, exact }) => {

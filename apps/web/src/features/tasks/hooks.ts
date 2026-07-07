@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { leadKeys } from "@/features/leads/queries";
+import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
   type AgentProposalInput,
@@ -14,24 +15,20 @@ import {
   updateTaskConfig,
   updateTaskSchedule,
 } from "./mutations";
-import {
-  myTeamQueryOptions,
-  runsQueryOptions,
-  taskKeys,
-  taskRunsQueryOptions,
-  tasksQueryOptions,
-} from "./queries";
+import { runsQueryOptions, taskKeys, taskRunsQueryOptions, tasksQueryOptions } from "./queries";
 
+/** The active workspace's team id, in the { data } shape callers expect. */
 export function useMyTeam() {
-  return useQuery(myTeamQueryOptions);
+  const teamId = useActiveTeamId();
+  return { data: teamId } as const;
 }
 
 export function useTasks() {
-  return useQuery(tasksQueryOptions);
+  return useQuery(tasksQueryOptions(useActiveTeamId()));
 }
 
 export function useRuns() {
-  return useQuery(runsQueryOptions);
+  return useQuery(runsQueryOptions(useActiveTeamId()));
 }
 
 export function useTaskRuns(taskId: string) {

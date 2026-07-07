@@ -50,6 +50,7 @@ export async function uploadLogo(teamId: string, file: File): Promise<string> {
 export async function analyzeWebsite(input: {
   website_url?: string;
   description?: string;
+  team_id?: string;
 }): Promise<BusinessContext> {
   const { data, error } = await supabase.functions.invoke("analyze-website", { body: input });
   if (error) throw error;

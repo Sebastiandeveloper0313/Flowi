@@ -9,6 +9,7 @@ import {
   listConnections,
   SUPPORTED_TOOLKITS,
 } from "../_shared/composio.ts";
+import { resolveTeamId } from "../_shared/team.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -42,15 +43,10 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { data: membership } = await userClient
-      .from("team_members")
-      .select("team_id")
-      .limit(1)
-      .maybeSingle();
-    const teamId = membership?.team_id;
-    if (!teamId) return json({ error: "no team for user" }, 403);
+    const { action, toolkit, team_id } = await req.json().catch(() => ({}));
 
-    const { action, toolkit } = await req.json().catch(() => ({}));
+    const teamId = await resolveTeamId(userClient, team_id);
+    if (!teamId) return json({ error: "no team for user" }, 403);
 
     // List the toolkits we support and the team's current connection status for each.
     if (action === "list") {

@@ -32,7 +32,9 @@ export async function fetchAgentSuggestions(
     }
   }
 
-  const { data, error } = await supabase.functions.invoke("suggest-agents", { body: {} });
+  const { data, error } = await supabase.functions.invoke("suggest-agents", {
+    body: { team_id: teamId },
+  });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   const suggestions = (data?.suggestions ?? []) as AgentSuggestion[];

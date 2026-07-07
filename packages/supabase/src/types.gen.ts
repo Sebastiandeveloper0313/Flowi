@@ -542,6 +542,8 @@ export type Database = {
           onboarding_step: number;
           owner_role: string | null;
           plan: string;
+          reply_instructions: string | null;
+          reply_samples: Json;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
           subscription_status: string | null;
@@ -565,6 +567,8 @@ export type Database = {
           onboarding_step?: number;
           owner_role?: string | null;
           plan?: string;
+          reply_instructions?: string | null;
+          reply_samples?: Json;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           subscription_status?: string | null;
@@ -588,6 +592,8 @@ export type Database = {
           onboarding_step?: number;
           owner_role?: string | null;
           plan?: string;
+          reply_instructions?: string | null;
+          reply_samples?: Json;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           subscription_status?: string | null;
@@ -631,9 +637,17 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      create_workspace: {
+        Args: { p_name: string; p_website_url?: string };
+        Returns: string;
+      };
       flowy_dispatch_due_tasks: { Args: never; Returns: undefined };
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean };
       is_team_member: { Args: { p_team_id: string }; Returns: boolean };
+      record_reply_edit: {
+        Args: { p_after: string; p_before: string; p_team_id: string };
+        Returns: undefined;
+      };
       slack_store_workspace: {
         Args: {
           p_bot_token: string;

@@ -13,6 +13,7 @@ import {
   toolsForUser,
 } from "../_shared/composio.ts";
 import { autonomyMode, chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
+import { resolveTeamId } from "../_shared/team.ts";
 import { meter } from "../_shared/usage.ts";
 
 const cors = {
@@ -145,7 +146,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   try {
-    const { messages, attachments } = await req.json().catch(() => ({}));
+    const { messages, attachments, team_id } = await req.json().catch(() => ({}));
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "messages array is required" }, 400);
     }
@@ -162,12 +163,7 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { data: membership } = await userClient
-      .from("team_members")
-      .select("team_id")
-      .limit(1)
-      .maybeSingle();
-    const teamId = membership?.team_id;
+    const teamId = await resolveTeamId(userClient, team_id);
     if (!teamId) return json({ error: "no team for user" }, 403);
 
     // Server-side daily budget, so even a client bypassing the UI can't drain
