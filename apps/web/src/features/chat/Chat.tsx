@@ -121,16 +121,11 @@ function fileToAttachment(file: File): Promise<Attachment> {
 
 function SentriveAvatar() {
   return (
-    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6]">
-      <svg viewBox="0 0 100 100" className="size-4" aria-hidden="true">
-        <path
-          d="M34 32h34M34 50h27M34 68h18"
-          stroke="white"
-          strokeWidth={9}
-          strokeLinecap="round"
-        />
-      </svg>
-    </span>
+    <img
+      src="/sentrive.png"
+      alt="Sentrive"
+      className="size-7 shrink-0 rounded-lg object-cover shadow-sm shadow-[#1566e6]/20"
+    />
   );
 }
 
