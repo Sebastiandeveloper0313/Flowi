@@ -5,12 +5,14 @@ import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
   type AgentProposalInput,
+  type AgentUpdateChanges,
   bulkDeleteTasks,
   createAgentFromProposal,
   createTask,
   deleteTask,
   runTask,
   setTaskStatus,
+  updateAgentFields,
   updateTaskChannel,
   updateTaskConfig,
   updateTaskSchedule,
@@ -63,6 +65,16 @@ export function useCreateAgentFromProposal() {
   return useMutation({
     mutationFn: ({ teamId, proposal }: { teamId: string; proposal: AgentProposalInput }) =>
       createAgentFromProposal(teamId, proposal),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+/** Apply a confirmed chat edit to an existing agent. */
+export function useUpdateAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ agentId, changes }: { agentId: string; changes: AgentUpdateChanges }) =>
+      updateAgentFields(agentId, changes),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   });
 }

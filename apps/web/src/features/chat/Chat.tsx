@@ -22,6 +22,7 @@ import {
   Loader2,
   Mic,
   Paperclip,
+  Pencil,
   Plus,
   Sparkles,
   Square,
@@ -37,11 +38,13 @@ import {
   scheduleLabel,
   useCreateAgentFromProposal,
   useTasks,
+  useUpdateAgent,
 } from "@/features/tasks/hooks";
 import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
   type AgentProposal,
+  type AgentUpdate,
   type Attachment,
   chatKeys,
   createChat,
@@ -351,6 +354,113 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
   );
 }
 
+/**
+ * A proposed change to an existing agent. Shows exactly what will change and
+ * applies only when the user clicks Confirm, so an edit is never silent.
+ */
+function UpdateCard({ update }: { update: AgentUpdate }) {
+  const apply = useUpdateAgent();
+  const [done, setDone] = useState(false);
+  const c = update.changes;
+
+  const shell =
+    "border-primary/15 bg-card mt-1 max-w-md overflow-hidden rounded-2xl border shadow-sm";
+
+  if (done) {
+    return (
+      <div className={shell}>
+        <div className="flex items-start gap-3 p-4">
+          <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+            <Pencil className="size-4" />
+          </span>
+          <p className="text-[13px] leading-snug font-semibold">{update.title} updated</p>
+        </div>
+        <div className="bg-muted/30 border-t px-4 py-2.5">
+          <Link
+            to="/agents/$agentId"
+            params={{ agentId: update.agentId }}
+            className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
+          >
+            <CheckCircle2 className="size-3.5" /> Change applied, open the agent
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={shell}>
+      <div className="flex items-start gap-3 p-4">
+        <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+          <Pencil className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] leading-snug font-semibold">Update {update.title}</p>
+          <ul className="text-muted-foreground mt-1.5 space-y-1 text-[12px]">
+            {c.title !== undefined && (
+              <li className="flex items-center gap-1.5">
+                <Pencil className="size-3" /> Rename to “{c.title}”
+              </li>
+            )}
+            {c.schedule_cron !== undefined && (
+              <li className="flex items-center gap-1.5">
+                <CalendarClock className="size-3" /> Schedule: {scheduleLabel(c.schedule_cron)}
+              </li>
+            )}
+            {c.channel !== undefined && (
+              <li className="flex items-center gap-1.5">
+                <Hash className="size-3" /> Delivery: {channelLabel(c.channel)}
+              </li>
+            )}
+            {c.instructions !== undefined && (
+              <li className="flex items-center gap-1.5">
+                <Sparkles className="size-3" /> Instructions updated
+              </li>
+            )}
+            {c.keywords !== undefined && (
+              <li className="flex items-center gap-1.5">
+                <Hash className="size-3" /> Keywords:{" "}
+                {c.keywords.join(", ") || "auto from business"}
+              </li>
+            )}
+            {c.subreddits !== undefined && (
+              <li className="flex items-center gap-1.5">
+                <Hash className="size-3" /> Subreddits:{" "}
+                {c.subreddits.map((s) => `r/${s}`).join(", ") || "all of Reddit"}
+              </li>
+            )}
+          </ul>
+          {apply.isError && (
+            <p className="text-destructive mt-2 text-[11px]">
+              {(apply.error as Error)?.message || "Couldn't apply the change. Try again."}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="bg-muted/30 flex justify-end border-t px-4 py-2.5">
+        <Button
+          size="sm"
+          className="h-8 rounded-lg text-xs"
+          disabled={apply.isPending}
+          onClick={() =>
+            apply.mutate(
+              { agentId: update.agentId, changes: c },
+              { onSuccess: () => setDone(true) },
+            )
+          }
+        >
+          {apply.isPending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Check className="size-3.5" />
+          )}
+          Confirm change
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function Chat({ chatId }: { chatId?: string }) {
   const chat = useChat();
   const navigate = useNavigate();
@@ -529,6 +639,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             content: data.reply,
             created: data.created,
             proposals: data.proposals,
+            updates: data.updates,
           };
           setMessages((m) => [...m, reply]);
           setTyping(0); // reveal the new reply character by character
@@ -755,6 +866,9 @@ export function Chat({ chatId }: { chatId?: string }) {
                       ))}
                       {m.proposals?.map((p) => (
                         <ProposalCard key={p.id} proposal={p} />
+                      ))}
+                      {m.updates?.map((u) => (
+                        <UpdateCard key={u.id} update={u} />
                       ))}
                       <div className="pt-0.5">
                         <CopyButton text={m.content} />
