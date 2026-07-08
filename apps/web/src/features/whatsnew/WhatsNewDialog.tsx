@@ -1,8 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@workspace/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { userQueryOptions } from "@/auth/queries";
 import { track } from "@/integrations/posthog";
 
 import { RELEASES } from "./releases";
@@ -17,10 +19,12 @@ const SEEN_KEY = "sentrive.whatsnew.seen";
  */
 export function WhatsNewDialog() {
   const latest = RELEASES[0];
+  const { data: user } = useQuery(userQueryOptions);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!latest) return;
+    if (!latest || !user) return;
+
     let seen: string | null = null;
     try {
       seen = localStorage.getItem(SEEN_KEY);
@@ -28,13 +32,29 @@ export function WhatsNewDialog() {
       /* ignore */
     }
     if (seen === latest.id) return;
+
+    // Only tell people about a release if they were already a user when it
+    // shipped. Someone who signed up afterwards (incl. brand-new accounts still
+    // in first-run) already has the feature, so we mark it seen silently rather
+    // than popping it on top of their onboarding.
+    const createdMs = user.created_at ? new Date(user.created_at).getTime() : 0;
+    const releaseMs = latest.at ? new Date(latest.at).getTime() : 0;
+    if (createdMs && releaseMs && createdMs >= releaseMs) {
+      try {
+        localStorage.setItem(SEEN_KEY, latest.id);
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
     // Let the app paint first so it lands as its own moment.
     const timer = setTimeout(() => {
       setOpen(true);
       track("whats_new_shown", { release: latest.id });
     }, 800);
     return () => clearTimeout(timer);
-  }, [latest]);
+  }, [latest, user]);
 
   function dismiss() {
     if (latest) {
