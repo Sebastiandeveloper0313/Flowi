@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Check,
   Loader2,
+  MessageSquarePlus,
   PenLine,
   Radar,
   RefreshCw,
@@ -107,6 +108,20 @@ export function SuggestedAgents() {
             />
           ))}
         </div>
+      )}
+
+      {!isLoading && (
+        <button
+          type="button"
+          onClick={() => {
+            track("suggestions_describe_own");
+            window.dispatchEvent(new CustomEvent("sentrive:focus-composer"));
+          }}
+          className="text-muted-foreground hover:text-foreground hover:bg-muted/40 mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed py-3 text-sm transition-colors"
+        >
+          <MessageSquarePlus className="size-4" /> Want something else? Describe your own in the
+          chat
+        </button>
       )}
     </section>
   );
