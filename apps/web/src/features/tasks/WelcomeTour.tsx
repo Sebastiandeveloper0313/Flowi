@@ -7,6 +7,7 @@ import {
   Check,
   Inbox,
   Loader2,
+  MessageSquarePlus,
   PenLine,
   Radar,
   ShieldCheck,
@@ -97,6 +98,15 @@ export function WelcomeTour() {
       deployed: created.length,
     });
     setOpen(false);
+  }
+
+  // Escape hatch from the suggestions: hand the user to the chat to describe
+  // their own agent, so the three ideas never feel like the only choices.
+  function describeOwn() {
+    track("welcome_tour_describe_own");
+    finish("skipped");
+    // Let the dialog close, then bring the chat composer underneath into focus.
+    setTimeout(() => window.dispatchEvent(new CustomEvent("sentrive:focus-composer")), 350);
   }
 
   async function deploy() {
@@ -249,6 +259,14 @@ export function WelcomeTour() {
                   ))
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={describeOwn}
+                className="text-muted-foreground hover:text-foreground hover:bg-muted/40 mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-3 text-sm transition-colors"
+              >
+                <MessageSquarePlus className="size-4" /> None of these fit? Describe your own
+              </button>
 
               {createError && (
                 <p className="text-destructive mt-3 text-xs">

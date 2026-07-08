@@ -372,7 +372,23 @@ export function Chat({ chatId }: { chatId?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const voice = useVoiceInput(setInput);
+
+  // Let other surfaces (the welcome tour, the suggestions section) hand a user
+  // off to the chat to describe their own agent: they dispatch this event and we
+  // bring the composer into view and focus it, so it never feels like the only
+  // options are the ones we suggested.
+  useEffect(() => {
+    function focusComposer() {
+      const el = composerRef.current;
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.focus();
+    }
+    window.addEventListener("sentrive:focus-composer", focusComposer);
+    return () => window.removeEventListener("sentrive:focus-composer", focusComposer);
+  }, []);
 
   async function addFiles(files: File[]) {
     const accepted: Attachment[] = [];
@@ -619,6 +635,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         </div>
       )}
       <Textarea
+        ref={composerRef}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
