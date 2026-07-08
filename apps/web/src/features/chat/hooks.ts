@@ -25,17 +25,35 @@ export interface AgentProposal {
   subreddits: string[];
 }
 
+/** A proposed change to an existing agent, confirmed on a card. */
+export interface AgentUpdate {
+  id: string;
+  agentId: string;
+  title: string;
+  kind: "content" | "reddit_monitor";
+  changes: {
+    title?: string;
+    instructions?: string;
+    schedule_cron?: string | null;
+    channel?: string;
+    keywords?: string[];
+    subreddits?: string[];
+  };
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
+  updates?: AgentUpdate[];
 }
 
 export interface ChatResponse {
   reply: string;
   created: CreatedAgent[];
   proposals: AgentProposal[];
+  updates: AgentUpdate[];
 }
 
 export interface Attachment {
@@ -60,6 +78,7 @@ interface StreamEvent {
   reply?: string;
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
+  updates?: AgentUpdate[];
   error?: string;
 }
 
@@ -98,7 +117,12 @@ export async function sendChat(
   if (!res.headers.get("content-type")?.includes("text/event-stream") || !res.body) {
     const data = (await res.json().catch(() => ({}))) as Partial<ChatResponse> & { error?: string };
     if (!res.ok || data.error) throw new Error(data.error ?? `Chat failed (${res.status})`);
-    return { reply: data.reply ?? "Done.", created: data.created ?? [], proposals: [] };
+    return {
+      reply: data.reply ?? "Done.",
+      created: data.created ?? [],
+      proposals: [],
+      updates: [],
+    };
   }
 
   const reader = res.body.getReader();
@@ -126,6 +150,7 @@ export async function sendChat(
           reply: evt.reply ?? "Done.",
           created: evt.created ?? [],
           proposals: evt.proposals ?? [],
+          updates: evt.updates ?? [],
         };
       else if (evt.type === "error") throw new Error(evt.error ?? "Chat failed");
     }
@@ -189,7 +214,7 @@ export function useChats() {
 export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> {
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("role, content, created_agents, proposals")
+    .select("role, content, created_agents, proposals, updates")
     .eq("chat_id", chatId)
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -198,6 +223,7 @@ export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> 
     content: m.content,
     created: (m.created_agents as CreatedAgent[] | null) ?? undefined,
     proposals: (m.proposals as AgentProposal[] | null) ?? undefined,
+    updates: (m.updates as AgentUpdate[] | null) ?? undefined,
   }));
 }
 
@@ -231,6 +257,7 @@ export async function saveMessage(
     content: message.content,
     created_agents: message.created ?? [],
     proposals: message.proposals ?? [],
+    updates: message.updates ?? [],
   });
   if (error) throw error;
 }

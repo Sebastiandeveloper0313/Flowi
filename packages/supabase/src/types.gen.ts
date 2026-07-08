@@ -120,6 +120,7 @@ export type Database = {
           proposals: Json;
           role: string;
           team_id: string;
+          updates: Json;
         };
         Insert: {
           chat_id: string;
@@ -130,6 +131,7 @@ export type Database = {
           proposals?: Json;
           role: string;
           team_id: string;
+          updates?: Json;
         };
         Update: {
           chat_id?: string;
@@ -140,6 +142,7 @@ export type Database = {
           proposals?: Json;
           role?: string;
           team_id?: string;
+          updates?: Json;
         };
         Relationships: [
           {

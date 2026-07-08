@@ -78,6 +78,48 @@ const TOOL = {
   },
 };
 
+const UPDATE_TOOL = {
+  name: "update_agent",
+  description:
+    "Change an agent the user ALREADY created (from the current agents list), instead of making a new one. Use whenever they want to adjust, edit, rename, reschedule, refocus, or retarget an existing agent (e.g. 'make it run twice a day', 'also watch r/hvac', 'change the instructions to...'). This does NOT apply immediately: the user sees a card showing what changes and clicks Confirm. Only include the fields that should change; leave the rest out. If it is unclear which existing agent they mean, ask a brief question instead of guessing.",
+  input_schema: {
+    type: "object",
+    properties: {
+      agent_id: {
+        type: "string",
+        description: "The id of the existing agent to change, taken from the current agents list.",
+      },
+      title: { type: "string", description: "New name, only if renaming." },
+      instructions: {
+        type: "string",
+        description: "Full replacement instructions, only if the user wants them changed.",
+      },
+      schedule_cron: {
+        type: "string",
+        description:
+          "New 5-field cron, only if the schedule should change. Use 'once' for one-off.",
+      },
+      channel: {
+        type: "string",
+        enum: ["dashboard", "email"],
+        description: "New delivery, only if it should change.",
+      },
+      keywords: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "reddit_monitor only: replacement search phrases, only if the user names them.",
+      },
+      subreddits: {
+        type: "array",
+        items: { type: "string" },
+        description: "reddit_monitor only: replacement subreddits (no 'r/'), only if changing.",
+      },
+    },
+    required: ["agent_id"],
+  },
+};
+
 const SET_AUTONOMY_TOOL = {
   name: "set_autonomy_mode",
   description:
@@ -112,6 +154,47 @@ interface AgentProposal {
   kind: "content" | "reddit_monitor";
   keywords: string[];
   subreddits: string[];
+}
+
+/** A proposed change to an existing agent the user confirms on a card. */
+interface AgentUpdate {
+  id: string; // tool_use id, used as the card key
+  agentId: string;
+  title: string; // the agent's name (new if renamed, else current), for the card
+  kind: "content" | "reddit_monitor";
+  changes: {
+    title?: string;
+    instructions?: string;
+    schedule_cron?: string | null;
+    channel?: string;
+    keywords?: string[];
+    subreddits?: string[];
+  };
+}
+
+interface ExistingAgent {
+  id: string;
+  title: string;
+  kind: string;
+  instructions: string | null;
+  schedule_cron: string | null;
+  channel: string | null;
+  status: string | null;
+}
+
+/** Compact list of the team's agents, so the model can reference and edit them. */
+function existingAgentsBlock(agents: ExistingAgent[]): string {
+  if (!agents.length) return "";
+  const lines = agents.map(
+    (a) =>
+      `- id: ${a.id} | "${a.title}" | ${a.kind === "reddit_monitor" ? "Reddit leads" : "content"} | ` +
+      `schedule: ${a.schedule_cron ?? "one-off"} | delivery: ${a.channel ?? "dashboard"} | ${a.status ?? "active"}`,
+  );
+  return (
+    "\n\nTHIS WORKSPACE'S CURRENT AGENTS (use update_agent with the exact id to change one; " +
+    "never propose a new agent when the user wants to change one of these):\n" +
+    lines.join("\n")
+  );
 }
 
 /** Friendly "what I'm doing" text for a tool call, shown live in the chat. */
@@ -188,7 +271,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const ws = await fetchWorkspaceContext(userClient, teamId);
-    const system = chatSystem(ws);
+
+    // The team's existing agents, so the chat can edit them (update_agent) rather
+    // than only ever creating new ones. RLS-scoped to this team.
+    const { data: agentRows } = await userClient
+      .from("tasks")
+      .select("id, title, kind, instructions, schedule_cron, channel, status")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false })
+      .limit(25);
+    const agents = (agentRows ?? []) as ExistingAgent[];
+    const agentsById = new Map(agents.map((a) => [a.id, a]));
+
+    const system = chatSystem(ws) + existingAgentsBlock(agents);
     let mode = autonomyMode(ws);
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
@@ -239,6 +334,7 @@ Deno.serve(async (req: Request) => {
         const working: Msg[] = [...convo];
         const created: Array<{ id: string; title: string }> = [];
         const proposals: AgentProposal[] = [];
+        const updates: AgentUpdate[] = [];
         let reply = "";
         try {
           for (let i = 0; i < 10; i++) {
@@ -254,7 +350,7 @@ Deno.serve(async (req: Request) => {
                 model: "claude-opus-4-8",
                 max_tokens: 2048,
                 system,
-                tools: [TOOL, SET_AUTONOMY_TOOL, ...connectedTools],
+                tools: [TOOL, UPDATE_TOOL, SET_AUTONOMY_TOOL, ...connectedTools],
                 messages: working,
               }),
             });
@@ -287,8 +383,9 @@ Deno.serve(async (req: Request) => {
                       cron = null;
                     }
                   }
-                  const kind = inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
-                  const proposal = {
+                  const kind: "content" | "reddit_monitor" =
+                    inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+                  const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),
                     instructions: String(inp.instructions ?? ""),
@@ -314,6 +411,76 @@ Deno.serve(async (req: Request) => {
                       `click Create to set it up. Do not say it is created, active, or running; it ` +
                       `is only a proposal until they create it. Keep your reply to a short line.`,
                   });
+                } else if (block.name === "update_agent") {
+                  send({ type: "status", text: "Updating the agent" });
+                  const inp = block.input ?? {};
+                  const target = agentsById.get(String(inp.agent_id ?? ""));
+                  if (!target) {
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content:
+                        "No agent with that id exists in this workspace. Check the current agents " +
+                        "list and use the exact id, or ask the user which agent they mean.",
+                      is_error: true,
+                    });
+                  } else {
+                    const changes: AgentUpdate["changes"] = {};
+                    if (typeof inp.title === "string" && inp.title.trim())
+                      changes.title = inp.title.trim().slice(0, 200);
+                    if (typeof inp.instructions === "string" && inp.instructions.trim())
+                      changes.instructions = inp.instructions.trim();
+                    if (
+                      typeof inp.channel === "string" &&
+                      ["dashboard", "email"].includes(inp.channel)
+                    )
+                      changes.channel = inp.channel;
+                    if (typeof inp.schedule_cron === "string") {
+                      const raw = inp.schedule_cron.trim();
+                      if (raw === "once" || raw === "") {
+                        changes.schedule_cron = null;
+                      } else {
+                        try {
+                          new Cron(raw);
+                          changes.schedule_cron = raw;
+                        } catch {
+                          // ignore an invalid cron rather than break the edit
+                        }
+                      }
+                    }
+                    if (target.kind === "reddit_monitor") {
+                      if (Array.isArray(inp.keywords))
+                        changes.keywords = inp.keywords.map(String).slice(0, 12);
+                      if (Array.isArray(inp.subreddits))
+                        changes.subreddits = inp.subreddits.map(String).slice(0, 12);
+                    }
+
+                    if (Object.keys(changes).length === 0) {
+                      toolResults.push({
+                        type: "tool_result",
+                        tool_use_id: block.id,
+                        content:
+                          "Nothing to change was provided. Ask the user what they want adjusted.",
+                        is_error: true,
+                      });
+                    } else {
+                      updates.push({
+                        id: block.id,
+                        agentId: target.id,
+                        title: changes.title ?? target.title,
+                        kind: target.kind === "reddit_monitor" ? "reddit_monitor" : "content",
+                        changes,
+                      });
+                      toolResults.push({
+                        type: "tool_result",
+                        tool_use_id: block.id,
+                        content:
+                          `Proposed a change to "${target.title}". The user sees a card with what ` +
+                          `changes and clicks Confirm to apply it. Do not say it is already changed; ` +
+                          `it applies only when they confirm. Keep your reply to a short line.`,
+                      });
+                    }
+                  }
                 } else if (block.name === "set_autonomy_mode") {
                   const next = block.input?.mode === "auto" ? "auto" : "ask";
                   const { error } = await userClient
@@ -392,7 +559,7 @@ Deno.serve(async (req: Request) => {
           }
           // Honor the no-em-dash rule regardless of the model.
           reply = reply.replace(/\s*—\s*/g, ", ");
-          send({ type: "done", reply: reply || "Done.", created, proposals });
+          send({ type: "done", reply: reply || "Done.", created, proposals, updates });
         } catch (e) {
           send({ type: "error", error: e instanceof Error ? e.message : String(e) });
         } finally {

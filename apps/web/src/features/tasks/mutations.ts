@@ -76,6 +76,50 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
   return data;
 }
 
+export interface AgentUpdateChanges {
+  title?: string;
+  instructions?: string;
+  schedule_cron?: string | null;
+  channel?: string;
+  keywords?: string[];
+  subreddits?: string[];
+}
+
+/**
+ * Apply a confirmed chat edit to an existing agent. Scalar fields map straight
+ * onto the row; keywords/subreddits live in the jsonb config, so we merge them
+ * in and pin them as user-set so the Reddit agent honors them instead of
+ * re-deriving its own.
+ */
+export async function updateAgentFields(agentId: string, changes: AgentUpdateChanges) {
+  const patch: Record<string, unknown> = {};
+  if (changes.title !== undefined) patch.title = changes.title.slice(0, 200);
+  if (changes.instructions !== undefined) patch.instructions = changes.instructions;
+  if (changes.channel !== undefined) patch.channel = changes.channel;
+  if (changes.schedule_cron !== undefined) patch.schedule_cron = changes.schedule_cron;
+
+  if (changes.keywords !== undefined || changes.subreddits !== undefined) {
+    const { data: current } = await supabase
+      .from("tasks")
+      .select("config")
+      .eq("id", agentId)
+      .single();
+    const cfg = ((current?.config as Record<string, unknown> | null) ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const nextCfg = { ...cfg };
+    if (changes.keywords !== undefined) nextCfg.keywords = changes.keywords;
+    if (changes.subreddits !== undefined) nextCfg.subreddits = changes.subreddits;
+    nextCfg.keywords_source = "user";
+    patch.config = nextCfg;
+  }
+
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await supabase.from("tasks").update(patch).eq("id", agentId);
+  if (error) throw error;
+}
+
 export async function runTask(taskId: string) {
   const { data, error } = await supabase.functions.invoke("run-task", {
     body: { task_id: taskId },
