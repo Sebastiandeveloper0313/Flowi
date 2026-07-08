@@ -16,12 +16,14 @@ function ChatPage() {
   const { c } = Route.useSearch();
   const inConversation = Boolean(c);
 
-  // Keep <Chat /> mounted across the landing <-> conversation switch: the wrapper
-  // is stable and Chat decides its own layout (centered landing vs full-height
-  // conversation). Remounting it here would drop the just-sent message.
+  // Keep <Chat /> mounted across the landing <-> conversation switch: only the
+  // wrapper classes change, Chat is never remounted, so a just-sent message
+  // survives. In a conversation, drop the centered max-width so Chat spans the
+  // full width and its scrollbar sits at the window's right edge (it still
+  // centers its own message column). On the landing, keep it centered.
   return (
-    <div className="px-6 lg:px-12">
-      <div className="mx-auto w-full max-w-3xl">
+    <div className={inConversation ? undefined : "px-6 lg:px-12"}>
+      <div className={inConversation ? "w-full" : "mx-auto w-full max-w-3xl"}>
         <Chat chatId={c} />
       </div>
       {!inConversation && (
