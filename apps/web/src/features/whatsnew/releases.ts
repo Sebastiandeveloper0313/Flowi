@@ -10,7 +10,11 @@ export interface Release {
   /** Stable, unique, sortable id. Bump this to make a release pop up once. */
   id: string;
   title: string;
+  /** Human label shown in the card, e.g. "July 2026". */
   date: string;
+  /** When it shipped (ISO). Users who signed up after this never see the card,
+   *  they already have the feature, so it's not "new" to them. */
+  at: string;
   highlights: ReleaseHighlight[];
 }
 
@@ -24,6 +28,7 @@ export const RELEASES: Release[] = [
     id: "2026-07-multi-product",
     title: "Run all your products from one account",
     date: "July 2026",
+    at: "2026-07-06T00:00:00Z",
     highlights: [
       {
         icon: Layers,
