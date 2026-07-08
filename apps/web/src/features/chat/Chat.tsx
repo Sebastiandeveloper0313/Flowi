@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { type ChangeEvent, type ClipboardEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
@@ -671,21 +672,27 @@ export function Chat({ chatId }: { chatId?: string }) {
 
   const empty = messages.length === 0;
 
-  const lightbox = preview ? (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
-      <button
-        type="button"
-        className="absolute inset-0 cursor-zoom-out"
-        aria-label="Close preview"
-        onClick={() => setPreview(null)}
-      />
-      <img
-        src={preview}
-        alt=""
-        className="relative max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
-      />
-    </div>
-  ) : null;
+  // Portal to <body> so the overlay escapes .flowy-main's stacking context and
+  // covers the whole viewport, including the sidebar (which sits at a higher
+  // z-index inside the app shell). Without this it's trapped below the sidebar.
+  const lightbox = preview
+    ? createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-6">
+          <button
+            type="button"
+            className="absolute inset-0 cursor-zoom-out"
+            aria-label="Close preview"
+            onClick={() => setPreview(null)}
+          />
+          <img
+            src={preview}
+            alt=""
+            className="relative max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+          />
+        </div>,
+        document.body,
+      )
+    : null;
 
   const composer = (
     <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[1.7rem] border p-4 shadow-[0_24px_60px_-32px_rgba(16,48,120,0.4)] transition focus-within:ring-4">
