@@ -159,6 +159,13 @@ export async function executeTask(
         : "\n\nThis agent is a Reddit poster, but Reddit is NOT connected for this workspace, so you " +
           `cannot post. Write ONE genuinely valuable, non-spammy Reddit post (a title and a body) for ${target} ` +
           "and deliver it as a draft for the user to review. Do not claim you posted, scheduled, or queued it.";
+      // The post body is Reddit markdown, so let it use formatting where it aids
+      // readability, without looking like an ad.
+      system +=
+        "\n\nThe body is Reddit markdown, so format it where it genuinely helps the reader: **bold** the " +
+        "key point, keep paragraphs short, and use bullet or numbered lists for steps or comparisons. Do " +
+        "not over-format or make it look like marketing; match how well-received posts in that subreddit " +
+        "actually read.";
       const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
       if (recentPosts.length) {
         system +=
