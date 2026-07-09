@@ -53,6 +53,7 @@ import {
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
+import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 import { RunDot, TaskStatusBadge } from "@/features/tasks/ui";
@@ -244,6 +245,12 @@ function AgentDetailPage() {
               <DeliveryEditor agent={agent} />
               <Separator />
               <AutonomyEditor agent={agent} isReddit={isReddit} />
+              {agent.kind === "facebook_post" && (
+                <>
+                  <Separator />
+                  <PostMediaEditor agent={agent} />
+                </>
+              )}
             </CardContent>
           </Card>
 

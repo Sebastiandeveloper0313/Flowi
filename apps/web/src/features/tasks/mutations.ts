@@ -151,6 +151,35 @@ export async function updateTaskConfig(id: string, config: Record<string, unknow
   if (error) throw error;
 }
 
+export interface AgentMedia {
+  url: string;
+  type: "image" | "video";
+}
+
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024; // 50MB
+
+/**
+ * Upload an image/video the user wants a poster agent to attach to its posts.
+ * Stored in the public agent-media bucket under the team's folder; the returned
+ * public URL is what the social APIs fetch at post time.
+ */
+export async function uploadAgentMedia(
+  teamId: string,
+  agentId: string,
+  file: File,
+): Promise<AgentMedia> {
+  if (file.size > MAX_MEDIA_BYTES) throw new Error("File must be 50MB or smaller.");
+  const isVideo = file.type.startsWith("video/");
+  const ext = (file.name.split(".").pop() || (isVideo ? "mp4" : "png")).toLowerCase();
+  const path = `${teamId}/${agentId}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("agent-media")
+    .upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  const { data } = supabase.storage.from("agent-media").getPublicUrl(path);
+  return { url: data.publicUrl, type: isVideo ? "video" : "image" };
+}
+
 export async function deleteTask(id: string) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;

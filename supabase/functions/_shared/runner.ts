@@ -179,12 +179,22 @@ export async function executeTask(
     // ban dynamics), gated by autonomy like the other posters; with no connection
     // it degrades to an honest draft.
     if (task.kind === "facebook_post") {
+      // The user may have attached their own image/video to go out with the post.
+      const media = task.config?.media as { url?: string; type?: string } | undefined;
+      const mediaUrl = typeof media?.url === "string" ? media.url : "";
+      const mediaType = media?.type === "video" ? "video" : mediaUrl ? "image" : "";
+      const publishStep =
+        mediaType === "image"
+          ? `then PUBLISH it to that Page WITH the attached image by calling the Facebook create-photo-post tool: pass the Page id, the image url ${mediaUrl}, and your post text as the message/caption.`
+          : mediaType === "video"
+            ? `then PUBLISH it to that Page WITH the attached video by calling the Facebook create-video-post tool: pass the Page id, the video url ${mediaUrl} as the file_url, and your post text as the description.`
+            : "then PUBLISH the post to that Page by calling the Facebook create-post tool.";
       system += facebookConnected
         ? "\n\nThis agent is a Facebook Page poster. Write ONE on-brand Facebook post grounded in the " +
           "business and aimed at its audience (a clear hook, real value, a warm tone that fits Facebook; " +
           "no hashtag spam, no em dashes). FIRST call the Facebook get-pages tool to find the business's " +
-          "Page and its id, then PUBLISH the post to that Page by calling the Facebook create-post tool. " +
-          "Do not just draft it, actually call the tool."
+          `Page and its id, ${publishStep} Do not just draft it, actually call the tool.` +
+          (mediaType ? ` The user attached this ${mediaType} to include with the post.` : "")
         : "\n\nThis agent is a Facebook Page poster, but Facebook is NOT connected for this workspace, so " +
           "you cannot publish. Write ONE polished, on-brand Facebook post and deliver it as the result " +
           "for the user to review. Do not claim you posted, scheduled, or queued it.";
