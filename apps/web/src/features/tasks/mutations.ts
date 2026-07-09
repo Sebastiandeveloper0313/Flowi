@@ -37,7 +37,7 @@ export interface AgentProposalInput {
   channel: string;
   schedule_cron: string | null;
   timezone: string;
-  kind: "content" | "reddit_monitor" | "linkedin_post";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
   keywords: string[];
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent

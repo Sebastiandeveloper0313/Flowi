@@ -45,7 +45,10 @@ const SUGGEST_TOOL = {
               description: "5-field cron, e.g. '0 9 * * *' daily 9am, '0 9 * * 1' Mondays 9am.",
             },
             channel: { type: "string", enum: ["dashboard", "email"] },
-            kind: { type: "string", enum: ["content", "reddit_monitor", "linkedin_post"] },
+            kind: {
+              type: "string",
+              enum: ["content", "reddit_monitor", "linkedin_post", "seo_blog"],
+            },
             keywords: {
               type: "array",
               items: { type: "string" },
@@ -72,7 +75,7 @@ Given the business context, propose EXACTLY three agents:
 2. A linkedin_post agent that writes and publishes an on-brand LinkedIn post to the user's LinkedIn, grounded in what the business does and aimed at their audience. Two or three times a week, business mornings. (This kind publishes to LinkedIn on each run, so it needs LinkedIn connected; the user approves each post unless they turn on auto.)
 3. Your best judgment: pick the most valuable third agent for THIS business (for example a weekly competitor scan delivered by email, a second Reddit angle for a different audience segment, or a content agent that drafts blog-style articles).
 
-The kinds you can use: reddit_monitor (finds leads and drafts replies), linkedin_post (writes and publishes LinkedIn posts), content (produces a written deliverable to the dashboard or email, no publishing).
+The kinds you can use: reddit_monitor (finds leads and drafts replies), linkedin_post (writes and publishes LinkedIn posts), seo_blog (writes a complete SEO blog article for their website and delivers the draft), content (produces a written deliverable to the dashboard or email, no publishing). A weekly seo_blog is a strong third pick for businesses that would benefit from search traffic.
 
 Rules: every title and pitch must be specific to the business, never generic. Instructions must be self-contained and reference the product and audience. Schedules in cron, sensible times (morning, business days where relevant). Never use em dashes anywhere; use commas, periods, or parentheses.`;
 
@@ -168,7 +171,9 @@ Deno.serve(async (req: Request) => {
             ? "reddit_monitor"
             : s.kind === "linkedin_post"
               ? "linkedin_post"
-              : "content",
+              : s.kind === "seo_blog"
+                ? "seo_blog"
+                : "content",
         keywords: Array.isArray(s.keywords) ? s.keywords.slice(0, 8).map(String) : [],
         subreddits: Array.isArray(s.subreddits) ? s.subreddits.slice(0, 8).map(String) : [],
       }));
