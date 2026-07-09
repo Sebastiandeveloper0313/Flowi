@@ -7,6 +7,7 @@ import {
   Briefcase,
   CalendarClock,
   Check,
+  FileText,
   Loader2,
   MessageSquarePlus,
   PenLine,
@@ -160,7 +161,13 @@ function SuggestionCard({
   });
 
   const Icon =
-    s.kind === "reddit_monitor" ? Radar : s.kind === "linkedin_post" ? Briefcase : PenLine;
+    s.kind === "reddit_monitor"
+      ? Radar
+      : s.kind === "linkedin_post"
+        ? Briefcase
+        : s.kind === "seo_blog"
+          ? FileText
+          : PenLine;
 
   return (
     <Card className="flex flex-col">

@@ -76,6 +76,15 @@ export async function executeTask(
         "hashtag spam, no em dashes), then PUBLISH it by calling the LinkedIn create-post tool. Do " +
         "not just draft it, actually call the tool. If LinkedIn is not connected, say so and stop.";
     }
+    if (task.kind === "seo_blog") {
+      system +=
+        "\n\nThis agent is an SEO blog writer for the business's own website. Write ONE complete, " +
+        "publish-ready article grounded in the business, its product, and its audience, targeting " +
+        "real search intent: a compelling title, a one-line meta description, clear H2/H3 structure, " +
+        "and 800 to 1500 words of genuinely useful content (no fluff, no em dashes). Use web_search " +
+        "to check the topic, angles, and what already ranks. Return the full article as the result " +
+        "(title, then meta description, then the body). Do not publish it anywhere, just deliver it.";
+    }
 
     // Tools available this run:
     //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses
