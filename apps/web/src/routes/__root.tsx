@@ -20,6 +20,7 @@ import {
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { AlertCircle, FileQuestion } from "lucide-react";
 
+import { CrispChat } from "@/features/support/CrispChat";
 import TanStackQueryDevtools from "@/integrations/tanstack-query/devtools";
 import TanStackRouterDevTools from "@/integrations/tanstack-router/devtools";
 
@@ -38,6 +39,7 @@ function RootComponent() {
     <TooltipProvider>
       <HeadContent />
       <Outlet />
+      <CrispChat />
       <Analytics />
       {import.meta.env.DEV && (
         <TanStackDevtools plugins={[TanStackRouterDevTools, TanStackQueryDevtools]} />
