@@ -27,7 +27,8 @@ export interface AgentProposal {
     | "linkedin_post"
     | "seo_blog"
     | "reddit_post"
-    | "facebook_post";
+    | "facebook_post"
+    | "facebook_dm";
   keywords: string[];
   subreddits: string[];
 }
@@ -43,7 +44,8 @@ export interface AgentUpdate {
     | "linkedin_post"
     | "seo_blog"
     | "reddit_post"
-    | "facebook_post";
+    | "facebook_post"
+    | "facebook_dm";
   changes: {
     title?: string;
     instructions?: string;

@@ -189,6 +189,23 @@ export async function executeTask(
           recentPosts.map((p, i) => `${i + 1}. ${p}`).join("\n\n");
       }
     }
+    // A Facebook Messenger responder answers the Page's inbox: it reads live
+    // conversations, drafts a reply to each unanswered customer message, and
+    // sends it (approval-gated in Ask mode). No recency memory: it works from
+    // the live conversation history.
+    if (task.kind === "facebook_dm") {
+      system += facebookConnected
+        ? "\n\nThis agent answers the business's Facebook Page inbox. FIRST call the Facebook get-pages " +
+          "tool to find the Page and its id, then read the Page's recent conversations and, for the ones " +
+          "that need it, their messages. For each conversation whose LATEST message is from the customer " +
+          "and has not yet been answered by the Page, draft a warm, on-brand reply that genuinely answers " +
+          "them (concise, human, no canned corporate tone, no em dashes) and send it with the Facebook " +
+          "send-message tool. Skip conversations the Page already replied to. When you are done, briefly " +
+          "summarize which conversations you replied to (or that the inbox was already clear)."
+        : "\n\nThis agent answers the business's Facebook Page inbox, but Facebook is NOT connected for " +
+          "this workspace, so you cannot read or reply to messages. Tell the user to connect Facebook on " +
+          "the Integrations page, and stop.";
+    }
     if (task.kind === "seo_blog") {
       system +=
         "\n\nThis agent is an SEO blog writer for the business's own website. Write ONE complete, " +
@@ -341,6 +358,14 @@ export async function executeTask(
       return {
         summary: "Draft ready, connect Facebook to publish",
         output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
+      };
+    }
+    if (task.kind === "facebook_dm" && !facebookConnected) {
+      return {
+        summary: "Connect Facebook to answer your inbox",
+        output:
+          "Facebook isn't connected, so this agent can't read or reply to your Page messages. " +
+          "Connect Facebook on the Integrations page, then run it again.",
       };
     }
 
