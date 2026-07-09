@@ -30,6 +30,7 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "GMAIL_LIST_THREADS",
     "GMAIL_GET_PROFILE",
     "GMAIL_SEND_EMAIL",
+    "GMAIL_REPLY_TO_THREAD",
   ],
   reddit: [
     "REDDIT_SEARCH_ACROSS_SUBREDDITS",
@@ -61,6 +62,7 @@ const CURATED_TOOLS: Record<string, string[]> = {
 // decide. Everything not listed here is a safe read that runs instantly.
 const WRITE_TOOLS = new Set<string>([
   "GMAIL_SEND_EMAIL",
+  "GMAIL_REPLY_TO_THREAD",
   "REDDIT_POST_REDDIT_COMMENT",
   "REDDIT_CREATE_REDDIT_POST",
   "LINKEDIN_CREATE_LINKED_IN_POST",
