@@ -373,6 +373,15 @@ ANTHROPIC_API_KEY = "env(ANTHROPIC_API_KEY)"
 # verify_jwt = true
 # static_files = ["./functions/my-function/data.json"]
 
+# The scheduler is invoked by the pg_cron dispatcher with a dedicated shared
+# secret (FLOWY_SCHEDULER_SECRET), not a user JWT, so the gateway must let it
+# through. The function fails closed: it verifies that secret itself before
+# doing anything, so making it public here does not weaken security. This
+# decouples the scheduler from the service-role key, which cannot silently
+# break it again on a key rotation.
+[functions.run-due-tasks]
+verify_jwt = false
+
 # ---------------------------------------------------------------------------
 # Analytics
 # ---------------------------------------------------------------------------
