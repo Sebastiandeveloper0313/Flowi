@@ -153,6 +153,9 @@ Deno.serve(async (req: Request) => {
       const messages: { role: string; content: unknown }[] = [
         { role: "user", content: userMessage },
       ];
+      // web_search/web_fetch run in a server-side container; a paused turn must
+      // echo the same container id back on the follow-up request.
+      let container: string | undefined;
 
       for (let i = 0; i < 5; i++) {
         const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -169,6 +172,7 @@ Deno.serve(async (req: Request) => {
             system: SYSTEM,
             ...(tools ? { tools } : {}),
             messages,
+            ...(container ? { container } : {}),
           }),
         });
         if (!res.ok) {
@@ -177,6 +181,8 @@ Deno.serve(async (req: Request) => {
         }
         const data = await res.json();
         content = data.content ?? [];
+        const cid = typeof data.container === "string" ? data.container : data.container?.id;
+        if (cid) container = cid;
         if (data.stop_reason === "pause_turn") {
           messages.push({ role: "assistant", content });
           continue;
