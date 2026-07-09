@@ -1,13 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { approvalKeys } from "@/features/approvals/queries";
+import { useActiveTeamId } from "@/features/workspace/active";
 import { workspaceKeys } from "@/features/workspace/queries";
 
 import { cancelScheduledLead, postLeadReplyNow, setLeadStatus, updateLeadDraft } from "./mutations";
-import { type Lead, leadKeys, type LeadStatus, leadsByTaskQueryOptions } from "./queries";
+import {
+  type Lead,
+  leadKeys,
+  type LeadStatus,
+  leadsByTaskQueryOptions,
+  pendingLeadRepliesQueryOptions,
+} from "./queries";
 
 export function useAgentLeads(taskId: string) {
   return useQuery(leadsByTaskQueryOptions(taskId));
+}
+
+/** Reddit reply drafts across the workspace still waiting to be reviewed/posted. */
+export function usePendingLeadReplies() {
+  return useQuery(pendingLeadRepliesQueryOptions(useActiveTeamId()));
 }
 
 export function useSetLeadStatus() {
