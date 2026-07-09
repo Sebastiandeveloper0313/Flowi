@@ -14,7 +14,8 @@ import {
 import { useApprovals, useDecideApproval } from "@/features/approvals/hooks";
 import type { Approval } from "@/features/approvals/queries";
 import { PageHeader } from "@/features/dashboard/ui";
-import { formatWhen } from "@/features/tasks/hooks";
+import { usePendingLeadReplies } from "@/features/leads/hooks";
+import { formatWhen, useTasks } from "@/features/tasks/hooks";
 
 export const Route = createFileRoute("/_authenticated/approvals")({
   component: ApprovalsPage,
@@ -22,10 +23,15 @@ export const Route = createFileRoute("/_authenticated/approvals")({
 
 function ApprovalsPage() {
   const { data: approvals, isLoading } = useApprovals();
+  const { data: leadGroups } = usePendingLeadReplies();
+  const { data: tasks } = useTasks();
   const decide = useDecideApproval();
 
   const pending = (approvals ?? []).filter((a) => a.status === "pending");
   const decided = (approvals ?? []).filter((a) => a.status !== "pending").slice(0, 20);
+  const replyGroups = leadGroups ?? [];
+  const replyTotal = replyGroups.reduce((s, g) => s + g.count, 0);
+  const caughtUp = pending.length === 0 && replyTotal === 0;
 
   return (
     <div className="flowy-page">
@@ -34,11 +40,46 @@ function ApprovalsPage() {
         subtitle="Nothing happens behind your back. Anything an agent needs a yes for waits here."
       />
 
+      {/* Reddit reply drafts are approval-shaped: they only post when you click.
+          Surface them here (with a link to review in context) so this page
+          honestly reflects everything waiting on you. */}
+      {replyTotal > 0 && (
+        <section className="mb-8">
+          <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+            Replies to review
+          </h2>
+          <div className="grid gap-2">
+            {replyGroups.map((g) => {
+              const title = tasks?.find((t) => t.id === g.taskId)?.title ?? "Reddit agent";
+              return (
+                <Link
+                  key={g.taskId}
+                  to="/agents/$agentId"
+                  params={{ agentId: g.taskId }}
+                  className="bg-card hover:border-primary/40 flex items-center justify-between gap-3 rounded-xl border px-4 py-3.5 transition"
+                >
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                      <Sparkles className="size-3.5 shrink-0" /> {title}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {g.count} repl{g.count === 1 ? "y" : "ies"} drafted, waiting for you to review
+                      and post
+                    </p>
+                  </div>
+                  <span className="text-primary shrink-0 text-sm font-medium">Review</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {isLoading ? (
         <div className="text-muted-foreground flex items-center gap-2 py-16 text-sm">
           <Loader2 className="size-4 animate-spin" /> Loading approvals…
         </div>
-      ) : pending.length === 0 ? (
+      ) : caughtUp ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
             <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
@@ -48,7 +89,7 @@ function ApprovalsPage() {
             <p className="text-muted-foreground text-sm">No agents are waiting on your approval.</p>
           </CardContent>
         </Card>
-      ) : (
+      ) : pending.length === 0 ? null : (
         <div className="grid gap-4">
           {pending.map((a) => {
             const busy = decide.isPending && decide.variables?.id === a.id;
