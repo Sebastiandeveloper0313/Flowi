@@ -23,7 +23,6 @@ import {
   useResumeSubscription,
   useSubscriptionDetails,
 } from "@/features/billing/hooks";
-import { CHANNEL_LABELS, type Channel } from "@/features/dashboard/mock";
 import { PageHeader } from "@/features/dashboard/ui";
 import type { BusinessContext } from "@/features/onboarding/mutations";
 import {
@@ -43,22 +42,18 @@ function SettingsPage() {
     <div className="flowy-page">
       <PageHeader
         title="Settings"
-        subtitle="What Sentrive knows about your business, channels, billing, and your account."
+        subtitle="What Sentrive knows about your business, billing, and your account."
       />
 
       <Tabs defaultValue="business">
         <TabsList className="mb-6">
           <TabsTrigger value="business">Business</TabsTrigger>
-          <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
         <TabsContent value="business">
           <BusinessTab />
-        </TabsContent>
-        <TabsContent value="channels">
-          <ChannelsTab />
         </TabsContent>
         <TabsContent value="billing">
           <BillingTab />
@@ -473,45 +468,6 @@ function ReplyStyleCard() {
             )}
           </span>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ChannelsTab() {
-  const channels: { key: Channel; connected: boolean; detail: string }[] = [
-    { key: "discord", connected: true, detail: "#results · Acme HQ" },
-    { key: "telegram", connected: true, detail: "@acme_ops" },
-    { key: "slack", connected: true, detail: "Acme HQ workspace" },
-    { key: "whatsapp", connected: true, detail: "+1 (415) •••• 22" },
-    { key: "email", connected: true, detail: "founder@acme.com" },
-  ];
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Delivery channels</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1">
-        {channels.map((c, i) => (
-          <div
-            key={c.key}
-            className={`flex items-center justify-between py-3 ${i > 0 ? "border-t" : ""}`}
-          >
-            <div>
-              <div className="text-sm font-medium">{CHANNEL_LABELS[c.key]}</div>
-              <div className="text-muted-foreground text-xs">{c.detail}</div>
-            </div>
-            {c.connected ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                <Check className="size-3" /> Connected
-              </span>
-            ) : (
-              <Button size="sm" variant="outline">
-                Connect
-              </Button>
-            )}
-          </div>
-        ))}
       </CardContent>
     </Card>
   );
