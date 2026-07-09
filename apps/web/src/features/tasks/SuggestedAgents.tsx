@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
-  ArrowRight,
   Briefcase,
   CalendarClock,
-  Check,
   FileText,
   Loader2,
   MessageSquarePlus,
@@ -15,17 +12,15 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-import { ConnectButton, toolkitName } from "@/features/integrations/ConnectCta";
-import { useMissingToolkits } from "@/features/integrations/hooks";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 
-import { scheduleLabel, useRunTask, useTasks } from "./hooks";
+import { AgentCreatedJourney } from "./AgentCreatedJourney";
+import { scheduleLabel, useTasks } from "./hooks";
 import { createAgentFromProposal } from "./mutations";
 import { taskKeys } from "./queries";
-import { requiredToolkits } from "./requirements";
 import { fetchAgentSuggestions, type AgentSuggestion } from "./suggestions";
 
 /**
@@ -189,7 +184,7 @@ function SuggestionCard({
           </p>
         )}
         {createdId ? (
-          <PostCreateJourney agentId={createdId} suggestion={s} />
+          <AgentCreatedJourney agentId={createdId} kind={s.kind} />
         ) : (
           <Button size="sm" disabled={create.isPending} onClick={() => create.mutate()}>
             {create.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -198,114 +193,5 @@ function SuggestionCard({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-/**
- * After "Create agent" the card becomes a guide: connect the integration the
- * agent needs (one click, polls until the OAuth tab finishes), kick off the
- * first run, then jump to the results. No dead ends.
- */
-function PostCreateJourney({
-  agentId,
-  suggestion: s,
-}: {
-  agentId: string;
-  suggestion: AgentSuggestion;
-}) {
-  const needs = requiredToolkits({ kind: s.kind });
-  const { missing, loaded } = useMissingToolkits(needs);
-  const run = useRunTask();
-  const started = useRef(false);
-
-  // The first run starts itself the moment the agent can actually succeed:
-  // right away when nothing needs connecting, or as soon as the connection
-  // lands. Creating the agent was the deliberate act; no second ask.
-  const readyToRun = loaded && missing.length === 0;
-  useEffect(() => {
-    if (!readyToRun || started.current) return;
-    started.current = true;
-    run.mutate(agentId);
-  }, [readyToRun, agentId, run]);
-
-  const viewAgentLink = (
-    <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-      <Link to="/agents/$agentId" params={{ agentId }}>
-        View agent
-      </Link>
-    </Button>
-  );
-
-  if (!loaded) {
-    return (
-      <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-        <Loader2 className="size-3.5 animate-spin" /> Agent created…
-      </p>
-    );
-  }
-
-  if (missing.length > 0) {
-    const names = missing.map(toolkitName).join(" and ");
-    return (
-      <div className="flex flex-col gap-1.5">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-          <Check className="size-3.5" /> Agent created
-        </p>
-        <p className="text-muted-foreground text-xs">
-          One step left: connect {names} and the first scan starts by itself.
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {missing.map((slug) => (
-            <ConnectButton key={slug} toolkit={slug} />
-          ))}
-          {viewAgentLink}
-        </div>
-      </div>
-    );
-  }
-
-  if (run.isSuccess) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-          <Check className="size-3.5" /> First run done
-        </p>
-        <Button size="sm" asChild>
-          <Link to="/agents/$agentId" params={{ agentId }}>
-            See what it found <ArrowRight className="size-3.5" />
-          </Link>
-        </Button>
-      </div>
-    );
-  }
-
-  if (run.isError) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <p className="text-destructive text-xs">
-          {(run.error as Error)?.message || "The first run failed."}
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button size="sm" disabled={run.isPending} onClick={() => run.mutate(agentId)}>
-            <Sparkles className="size-3.5" /> Run again
-          </Button>
-          {viewAgentLink}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-        <Check className="size-3.5" /> Agent created
-      </p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Button size="sm" disabled>
-          <Loader2 className="size-3.5 animate-spin" /> Running first scan…
-        </Button>
-        {viewAgentLink}
-      </div>
-    </div>
   );
 }

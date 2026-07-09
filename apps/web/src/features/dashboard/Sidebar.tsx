@@ -9,6 +9,7 @@ import {
   Activity,
   Bot,
   CheckCheck,
+  LayoutGrid,
   MessageSquarePlus,
   MoreHorizontal,
   PanelLeftClose,
@@ -32,6 +33,7 @@ import { SentriveLogo } from "./brand";
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
   { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/library", label: "Library", icon: LayoutGrid },
   { to: "/activity", label: "Activity", icon: Activity },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
