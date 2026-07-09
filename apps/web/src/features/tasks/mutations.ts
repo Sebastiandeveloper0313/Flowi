@@ -43,7 +43,8 @@ export interface AgentProposalInput {
     | "linkedin_post"
     | "seo_blog"
     | "reddit_post"
-    | "facebook_post";
+    | "facebook_post"
+    | "facebook_dm";
   keywords: string[];
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent

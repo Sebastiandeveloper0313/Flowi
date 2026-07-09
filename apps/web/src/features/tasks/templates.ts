@@ -2,6 +2,7 @@ import {
   Briefcase,
   Eye,
   FileText,
+  Inbox,
   Lightbulb,
   type LucideIcon,
   MessageSquare,
@@ -120,6 +121,22 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     channel: "dashboard",
     instructions:
       "Write one on-brand Facebook post for our business's Page: a clear hook, genuine value tied to what we do, and a warm, human tone that fits Facebook. No hashtag spam. Then publish it to our Facebook Page.",
+  },
+  {
+    id: "facebook-messenger",
+    name: "Facebook Messenger Responder",
+    tagline: "Drafts replies to your Facebook Page messages, ready to approve.",
+    outcome: "Drafts replies for approval",
+    description:
+      "Checks your Facebook Page inbox a couple of times a day and drafts a warm, on-brand reply to every unanswered customer message. You approve before anything sends, so people get fast answers without you watching the inbox.",
+    icon: Inbox,
+    category: "Social media",
+    kind: "facebook_dm",
+    schedule_cron: "0 10,16 * * *",
+    scheduleLabel: "Twice daily",
+    channel: "dashboard",
+    instructions:
+      "Check our Facebook Page inbox for new customer messages. For each conversation where the customer's latest message hasn't been answered yet, draft a warm, on-brand reply that genuinely helps them, and send it. Skip anything we've already replied to. Keep replies concise and human.",
   },
   {
     id: "seo-blog-writer",

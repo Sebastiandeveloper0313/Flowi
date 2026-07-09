@@ -9,5 +9,6 @@ export function requiredToolkits(task: { kind?: string | null }): string[] {
   if (task.kind === "reddit_post") return ["reddit"];
   if (task.kind === "linkedin_post") return ["linkedin"];
   if (task.kind === "facebook_post") return ["facebook"];
+  if (task.kind === "facebook_dm") return ["facebook"];
   return [];
 }
