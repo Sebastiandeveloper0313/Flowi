@@ -14,6 +14,7 @@ import { requiredToolkits } from "@/features/tasks/requirements";
 import {
   AGENT_TEMPLATES,
   type AgentTemplate,
+  TEMPLATE_CATEGORIES,
   templateToProposal,
 } from "@/features/tasks/templates";
 import { useWorkspace } from "@/features/workspace/hooks";
@@ -39,10 +40,9 @@ function LibraryPage() {
   const teamId = ws?.id ?? null;
   const company = ws?.name && ws.name !== "My team" ? ws.name : "your business";
 
-  // One flat grid instead of a section per category: with only a handful of
-  // templates, per-category rows strand lone cards and leave big empty gaps.
-  // The category still shows as a chip on each card. Templates are kept in
-  // category order so related ones sit near each other.
+  // A section per category, each an even two-up row: the categories are sized
+  // so every section fills its row (no lone card stranded beside empty columns),
+  // which keeps the grouping the page wants without the awkward gaps.
   return (
     <div className="flowy-page">
       <PageHeader
@@ -50,15 +50,28 @@ function LibraryPage() {
         subtitle={`Ready-made marketing agents for ${company}. Add any with one click, you approve everything before it ships.`}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {AGENT_TEMPLATES.map((t) => (
-          <TemplateCard
-            key={t.id}
-            template={t}
-            teamId={teamId}
-            existingAgentId={existingByTemplate.get(t.id) ?? null}
-          />
-        ))}
+      <div className="flex flex-col gap-8">
+        {TEMPLATE_CATEGORIES.map((category) => {
+          const items = AGENT_TEMPLATES.filter((t) => t.category === category);
+          if (items.length === 0) return null;
+          return (
+            <section key={category}>
+              <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+                {category}
+              </h2>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {items.map((t) => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    teamId={teamId}
+                    existingAgentId={existingByTemplate.get(t.id) ?? null}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
@@ -91,19 +104,14 @@ function TemplateCard({
   return (
     <Card className="hover:border-primary/40 flex flex-col shadow-[0_24px_50px_-46px_rgba(16,48,120,0.45)] transition-colors">
       <CardContent className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2.5">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white shadow-sm shadow-[#1566e6]/25">
             <Icon className="size-5" />
           </span>
-          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px] font-medium">
-            {t.category}
-          </span>
+          <h3 className="font-semibold">{t.name}</h3>
         </div>
 
-        <div>
-          <h3 className="font-semibold">{t.name}</h3>
-          <p className="text-foreground/90 mt-1 text-sm">{t.tagline}</p>
-        </div>
+        <p className="text-foreground/90 text-sm">{t.tagline}</p>
         <p className="text-muted-foreground flex-1 text-sm">{t.description}</p>
 
         <div className="text-muted-foreground flex flex-col gap-1.5 border-t pt-3 text-xs">
