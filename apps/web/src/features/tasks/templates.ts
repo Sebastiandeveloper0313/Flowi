@@ -7,6 +7,7 @@ import {
   MessageSquare,
   PenLine,
   Radar,
+  Share2,
 } from "lucide-react";
 
 import type { AgentProposalInput } from "./mutations";
@@ -103,6 +104,22 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     channel: "dashboard",
     instructions:
       "Write one genuinely valuable Reddit post for a subreddit where our audience spends time. Lead with real substance (an insight, a useful resource, or an honest story) that stands on its own. Check the subreddit's rules with web search first, respect its self-promotion norms, and mention us only where it fits, with an honest disclosure. Then submit it. Never post something that reads as an ad.",
+  },
+  {
+    id: "facebook-poster",
+    name: "Facebook Page Poster",
+    tagline: "Publishes an on-brand post to your Facebook Page every week.",
+    outcome: "Publishes to Facebook",
+    description:
+      "Writes a warm, on-brand post grounded in what you do and publishes it to your business's Facebook Page. In Ask mode it waits for your approval first; in Auto it just ships.",
+    icon: Share2,
+    category: "Social media",
+    kind: "facebook_post",
+    schedule_cron: "0 8 * * 3",
+    scheduleLabel: "Weekly, Wed 8am",
+    channel: "dashboard",
+    instructions:
+      "Write one on-brand Facebook post for our business's Page: a clear hook, genuine value tied to what we do, and a warm, human tone that fits Facebook. No hashtag spam. Then publish it to our Facebook Page.",
   },
   {
     id: "seo-blog-writer",

@@ -102,6 +102,7 @@ export async function executeTask(
       (t) => t.name === "LINKEDIN_CREATE_LINKED_IN_POST",
     );
     const redditConnected = connectedTools.some((t) => t.name === "REDDIT_CREATE_REDDIT_POST");
+    const facebookConnected = connectedTools.some((t) => t.name === "FACEBOOK_CREATE_POST");
 
     // A LinkedIn poster publishes when it can (the autonomy gate decides whether
     // the post goes out now or waits for approval); with no connection it falls
@@ -163,6 +164,28 @@ export async function executeTask(
           "\n\nThese are the posts this agent has already produced, most recent first. Do NOT reuse " +
           "their topic, angle, or subreddit framing: pick a clearly different direction this time. This " +
           "list is your ONLY record of past posts, so do not reference or invent anything beyond it.\n\n" +
+          recentPosts.map((p, i) => `${i + 1}. ${p}`).join("\n\n");
+      }
+    }
+    // A Facebook Page poster publishes to the business's own Page (low risk, no
+    // ban dynamics), gated by autonomy like the other posters; with no connection
+    // it degrades to an honest draft.
+    if (task.kind === "facebook_post") {
+      system += facebookConnected
+        ? "\n\nThis agent is a Facebook Page poster. Write ONE on-brand Facebook post grounded in the " +
+          "business and aimed at its audience (a clear hook, real value, a warm tone that fits Facebook; " +
+          "no hashtag spam, no em dashes). FIRST call the Facebook get-pages tool to find the business's " +
+          "Page and its id, then PUBLISH the post to that Page by calling the Facebook create-post tool. " +
+          "Do not just draft it, actually call the tool."
+        : "\n\nThis agent is a Facebook Page poster, but Facebook is NOT connected for this workspace, so " +
+          "you cannot publish. Write ONE polished, on-brand Facebook post and deliver it as the result " +
+          "for the user to review. Do not claim you posted, scheduled, or queued it.";
+      const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
+      if (recentPosts.length) {
+        system +=
+          "\n\nThese are the posts this agent has already produced, most recent first. Do NOT reuse " +
+          "their topic, hook, or angle: pick a clearly different direction this time. This list is your " +
+          "ONLY record of past posts, so do not reference or invent anything beyond it.\n\n" +
           recentPosts.map((p, i) => `${i + 1}. ${p}`).join("\n\n");
       }
     }
@@ -308,6 +331,15 @@ export async function executeTask(
         "Connect Reddit on the Integrations page, then run this agent again to review and approve it.";
       return {
         summary: "Draft ready, connect Reddit to post",
+        output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
+      };
+    }
+    if (task.kind === "facebook_post" && !facebookConnected) {
+      const notice =
+        "Facebook isn't connected, so this post could not be published or sent for approval. " +
+        "Connect Facebook on the Integrations page, then run this agent again to review and approve it.";
+      return {
+        summary: "Draft ready, connect Facebook to publish",
         output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
       };
     }
