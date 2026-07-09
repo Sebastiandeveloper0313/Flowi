@@ -21,7 +21,7 @@ export interface AgentProposal {
   channel: string;
   schedule_cron: string | null;
   timezone: string;
-  kind: "content" | "reddit_monitor";
+  kind: "content" | "reddit_monitor" | "linkedin_post";
   keywords: string[];
   subreddits: string[];
 }
@@ -31,7 +31,7 @@ export interface AgentUpdate {
   id: string;
   agentId: string;
   title: string;
-  kind: "content" | "reddit_monitor";
+  kind: "content" | "reddit_monitor" | "linkedin_post";
   changes: {
     title?: string;
     instructions?: string;

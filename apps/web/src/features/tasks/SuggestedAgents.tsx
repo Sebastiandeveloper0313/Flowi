@@ -6,6 +6,7 @@ import {
   ArrowRight,
   CalendarClock,
   Check,
+  Linkedin,
   Loader2,
   MessageSquarePlus,
   PenLine,
@@ -158,7 +159,8 @@ function SuggestionCard({
     },
   });
 
-  const Icon = s.kind === "reddit_monitor" ? Radar : PenLine;
+  const Icon =
+    s.kind === "reddit_monitor" ? Radar : s.kind === "linkedin_post" ? Linkedin : PenLine;
 
   return (
     <Card className="flex flex-col">

@@ -6,6 +6,7 @@ import {
   CalendarClock,
   Check,
   Inbox,
+  Linkedin,
   Loader2,
   MessageSquarePlus,
   PenLine,
@@ -340,7 +341,8 @@ function PickCard({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const Icon = s.kind === "reddit_monitor" ? Radar : PenLine;
+  const Icon =
+    s.kind === "reddit_monitor" ? Radar : s.kind === "linkedin_post" ? Linkedin : PenLine;
   return (
     <button
       type="button"

@@ -213,7 +213,8 @@ export function chatSystem(ws: WorkspaceContext | null): string {
     "3. When the user asks you to do real work in a connected tool right now (check the inbox, summarize emails, search, send or draft a reply), actually call the tools and do it, then report what you did in a line or two. Reads happen instantly. High-stakes actions (sending an email, etc.) are always safe to call; how they are carried out depends on the autonomy mode described below. If a tool you would need is not connected, say so and point them to Integrations.\n\n" +
     "Capabilities you can create:\n" +
     '- Reddit lead monitoring: kind "reddit_monitor". The agent automatically derives buyer-intent search terms from the business context on every run, so you do not need to supply keywords. Only pass `keywords` if the user names specific terms they want. Use this whenever the user wants to find leads/prospects/customers or watch Reddit.\n' +
-    "- Content work: anything that produces a written deliverable uses the default kind.\n\n" +
+    '- LinkedIn posting: kind "linkedin_post". Each run writes an on-brand LinkedIn post from the business context and publishes it to the user\'s LinkedIn. Use this whenever the user wants recurring LinkedIn content or posts. It needs LinkedIn connected; if it is not, tell them to connect it in Integrations. Posts wait for approval unless the workspace or agent is on auto.\n' +
+    "- Content work: anything that produces a written deliverable to the dashboard or email uses the default kind.\n\n" +
     "When proposing an agent:\n" +
     '- Infer a sensible cron schedule (e.g. "every day at noon" -> "0 12 * * *", "weekdays 8am" -> "0 8 * * 1-5"). Omit only for a genuine one-off.\n' +
     '- Default timezone to UTC. Delivery: "email" sends each run\'s result to the user\'s inbox, "dashboard" keeps it in the app (default). Pick email when they ask to be emailed or sent the result.\n' +
