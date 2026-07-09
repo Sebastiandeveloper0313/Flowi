@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
-import { CalendarClock, Check, Loader2, Plug } from "lucide-react";
+import { CalendarClock, Check, ChevronDown, Loader2, Plug } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader } from "@/features/dashboard/ui";
@@ -40,9 +40,6 @@ function LibraryPage() {
   const teamId = ws?.id ?? null;
   const company = ws?.name && ws.name !== "My team" ? ws.name : "your business";
 
-  // A section per category, each an even two-up row: the categories are sized
-  // so every section fills its row (no lone card stranded beside empty columns),
-  // which keeps the grouping the page wants without the awkward gaps.
   return (
     <div className="flowy-page">
       <PageHeader
@@ -55,25 +52,65 @@ function LibraryPage() {
           const items = AGENT_TEMPLATES.filter((t) => t.category === category);
           if (items.length === 0) return null;
           return (
-            <section key={category}>
-              <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
-                {category}
-              </h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {items.map((t) => (
-                  <TemplateCard
-                    key={t.id}
-                    template={t}
-                    teamId={teamId}
-                    existingAgentId={existingByTemplate.get(t.id) ?? null}
-                  />
-                ))}
-              </div>
-            </section>
+            <CategorySection
+              key={category}
+              category={category}
+              items={items}
+              teamId={teamId}
+              existingByTemplate={existingByTemplate}
+            />
           );
         })}
       </div>
     </div>
+  );
+}
+
+// How many templates a category shows before a "See all" toggle. Two full rows
+// at the three-up layout, so a category with many agents stays compact until the
+// user expands it.
+const INITIAL_PER_CATEGORY = 6;
+
+function CategorySection({
+  category,
+  items,
+  teamId,
+  existingByTemplate,
+}: {
+  category: string;
+  items: AgentTemplate[];
+  teamId: string | null;
+  existingByTemplate: Map<string, string>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? items : items.slice(0, INITIAL_PER_CATEGORY);
+
+  return (
+    <section>
+      <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+        {category}
+      </h2>
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {shown.map((t) => (
+          <TemplateCard
+            key={t.id}
+            template={t}
+            teamId={teamId}
+            existingAgentId={existingByTemplate.get(t.id) ?? null}
+          />
+        ))}
+      </div>
+      {items.length > INITIAL_PER_CATEGORY && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-primary hover:bg-primary/5 mt-3 flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium transition-colors"
+        >
+          {expanded ? "Show less" : `See all ${items.length}`}
+          <ChevronDown className={`size-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -103,7 +140,7 @@ function TemplateCard({
 
   return (
     <Card className="hover:border-primary/40 flex flex-col shadow-[0_24px_50px_-46px_rgba(16,48,120,0.45)] transition-colors">
-      <CardContent className="flex flex-1 flex-col gap-3 p-5">
+      <CardContent className="flex flex-col gap-3 p-5">
         <div className="flex items-center gap-2.5">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white shadow-sm shadow-[#1566e6]/25">
             <Icon className="size-5" />
@@ -112,7 +149,7 @@ function TemplateCard({
         </div>
 
         <p className="text-foreground/90 text-sm">{t.tagline}</p>
-        <p className="text-muted-foreground flex-1 text-sm">{t.description}</p>
+        <p className="text-muted-foreground text-sm">{t.description}</p>
 
         <div className="text-muted-foreground flex flex-col gap-1.5 border-t pt-3 text-xs">
           <span className="flex items-center gap-1.5">
