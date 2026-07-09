@@ -45,6 +45,25 @@ export interface ExecuteContext {
   runId?: string | null;
 }
 
+/**
+ * A task's own recent finished outputs, most recent first, trimmed for prompt
+ * use. Gives a posting agent real memory of what it already produced so it can
+ * avoid repeating itself, without it having to invent a history it can't recall.
+ */
+async function recentTaskOutputs(client: SupabaseClient, taskId: string): Promise<string[]> {
+  const { data } = await client
+    .from("task_runs")
+    .select("output")
+    .eq("task_id", taskId)
+    .eq("status", "succeeded")
+    .order("created_at", { ascending: false })
+    .limit(5);
+  return (data ?? [])
+    .map((r) => (typeof r.output === "string" ? r.output.trim() : ""))
+    .filter(Boolean)
+    .map((o) => o.slice(0, 600));
+}
+
 /** Produce the finished work for a task (real Claude call, or a preview when no key is set). */
 export async function executeTask(
   task: TaskRow,
@@ -67,14 +86,51 @@ export async function executeTask(
   const timeout = setTimeout(() => controller.abort(), 150_000); // hard cap
   try {
     let system = runnerSystem(ws);
-    // A LinkedIn poster doesn't just draft: it must publish. The autonomy gate
-    // still decides whether the post goes out now (auto) or waits for approval.
+
+    // Tools available this run:
+    //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses
+    //    the turn (stop_reason "pause_turn") while it works.
+    //  - the workspace's connected tools (Gmail, etc.) via Composio: client-side
+    //    tools we execute (stop_reason "tool_use"), scoped to this team's accounts.
+    const connectedTools = composioEnabled()
+      ? await toolsForUser(task.team_id).catch(() => [])
+      : [];
+    // Can this workspace actually publish to LinkedIn right now? A linkedin_post
+    // agent with no live connection can only draft, and we must be honest about
+    // that rather than let a green run imply the post went out.
+    const linkedinConnected = connectedTools.some(
+      (t) => t.name === "LINKEDIN_CREATE_LINKED_IN_POST",
+    );
+
+    // A LinkedIn poster publishes when it can (the autonomy gate decides whether
+    // the post goes out now or waits for approval); with no connection it falls
+    // back to an honest draft, flagged in the run output below.
     if (task.kind === "linkedin_post") {
-      system +=
-        "\n\nThis agent is a LinkedIn poster. Write ONE on-brand LinkedIn post grounded in the " +
-        "business and aimed at its audience (a strong hook, real substance, a clear takeaway; no " +
-        "hashtag spam, no em dashes), then PUBLISH it by calling the LinkedIn create-post tool. Do " +
-        "not just draft it, actually call the tool. If LinkedIn is not connected, say so and stop.";
+      system += linkedinConnected
+        ? "\n\nThis agent is a LinkedIn poster. Write ONE on-brand LinkedIn post grounded in the " +
+          "business and aimed at its audience (a strong hook, real substance, a clear takeaway; no " +
+          "hashtag spam, no em dashes), then PUBLISH it by calling the LinkedIn create-post tool. Do " +
+          "not just draft it, actually call the tool."
+        : "\n\nThis agent is a LinkedIn poster, but LinkedIn is NOT connected for this workspace, so " +
+          "you cannot publish. Write ONE polished, on-brand LinkedIn post (a strong hook, real " +
+          "substance, a clear takeaway; no hashtag spam, no em dashes) and deliver it as the result " +
+          "for the user to review. Do not claim you posted, scheduled, or queued it.";
+      // Real recency memory: hand the agent its own recent posts so it varies
+      // topic and hook instead of repeating itself week to week, and so it never
+      // has to invent an ongoing thread it can't actually remember.
+      const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
+      if (recentPosts.length) {
+        system +=
+          "\n\nThese are the posts this agent has already produced, most recent first. Do NOT reuse " +
+          "their topic, hook, or angle: deliberately pick a clearly different direction this time. " +
+          "This list is your ONLY record of past posts, so do not reference or invent anything " +
+          "beyond it.\n\n" +
+          recentPosts.map((p, i) => `${i + 1}. ${p}`).join("\n\n");
+      } else {
+        system +=
+          "\n\nThis is the first post for this agent and you have no record of earlier ones, so " +
+          "write a strong standalone post and do not pretend to continue a prior thread.";
+      }
     }
     if (task.kind === "seo_blog") {
       system +=
@@ -86,14 +142,6 @@ export async function executeTask(
         "(title, then meta description, then the body). Do not publish it anywhere, just deliver it.";
     }
 
-    // Tools available this run:
-    //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses
-    //    the turn (stop_reason "pause_turn") while it works.
-    //  - the workspace's connected tools (Gmail, etc.) via Composio: client-side
-    //    tools we execute (stop_reason "tool_use"), scoped to this team's accounts.
-    const connectedTools = composioEnabled()
-      ? await toolsForUser(task.team_id).catch(() => [])
-      : [];
     const tools: unknown[] = [
       { type: "web_search_20260209", name: "web_search", max_uses: 5 },
       ...connectedTools,
@@ -207,6 +255,20 @@ export async function executeTask(
       .trim();
     // Deterministically honor the no-em-dash rule regardless of the model.
     const output = raw.replace(/\s*—\s*/g, ", ");
+
+    // A LinkedIn agent that couldn't publish (no live connection) must not look
+    // like a normal success: lead with a plain notice so the empty Approvals tab
+    // makes sense, while still keeping the draft it produced.
+    if (task.kind === "linkedin_post" && !linkedinConnected) {
+      const notice =
+        "LinkedIn isn't connected, so this post could not be published or sent for approval. " +
+        "Connect LinkedIn on the Integrations page, then run this agent again to review and approve it.";
+      return {
+        summary: "Draft ready, connect LinkedIn to publish",
+        output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
+      };
+    }
+
     const firstLine = output.split("\n").find((l) => l.trim()) ?? "Done";
     return { summary: firstLine.slice(0, 140), output: output || "(empty response)" };
   } finally {
