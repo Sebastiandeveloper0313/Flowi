@@ -90,7 +90,7 @@ function CategorySection({
       <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
         {category}
       </h2>
-      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((t) => (
           <TemplateCard
             key={t.id}
@@ -140,7 +140,7 @@ function TemplateCard({
 
   return (
     <Card className="hover:border-primary/40 flex flex-col shadow-[0_24px_50px_-46px_rgba(16,48,120,0.45)] transition-colors">
-      <CardContent className="flex flex-col gap-3 p-5">
+      <CardContent className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-center gap-2.5">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white shadow-sm shadow-[#1566e6]/25">
             <Icon className="size-5" />
@@ -151,7 +151,7 @@ function TemplateCard({
         <p className="text-foreground/90 text-sm">{t.tagline}</p>
         <p className="text-muted-foreground text-sm">{t.description}</p>
 
-        <div className="text-muted-foreground flex flex-col gap-1.5 border-t pt-3 text-xs">
+        <div className="text-muted-foreground mt-auto flex flex-col gap-1.5 border-t pt-3 text-xs">
           <span className="flex items-center gap-1.5">
             <CalendarClock className="size-3.5 shrink-0" /> {t.scheduleLabel}
           </span>
