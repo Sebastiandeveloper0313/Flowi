@@ -138,6 +138,22 @@ const SET_AUTONOMY_TOOL = {
   },
 };
 
+const ANALYZE_TOOL = {
+  name: "analyze_website",
+  description:
+    "Read the user's company website and update what Sentrive knows about their business (the business context that grounds every agent and reply). Use this whenever the user gives you a website URL, asks you to look at or read their site, or when you clearly do not know what their business does and a URL is available. It scrapes the site and saves the result. Afterwards, tell the user in one or two lines what you now understand about their business and that it's saved, do not dump raw fields.",
+  input_schema: {
+    type: "object",
+    properties: {
+      website_url: {
+        type: "string",
+        description: "The company website URL to read (e.g. 'https://acme.com').",
+      },
+    },
+    required: ["website_url"],
+  },
+};
+
 interface Msg {
   role: "user" | "assistant";
   content: unknown;
@@ -335,6 +351,7 @@ Deno.serve(async (req: Request) => {
         const created: Array<{ id: string; title: string }> = [];
         const proposals: AgentProposal[] = [];
         const updates: AgentUpdate[] = [];
+        let contextUpdated = false;
         let reply = "";
         try {
           for (let i = 0; i < 10; i++) {
@@ -350,7 +367,7 @@ Deno.serve(async (req: Request) => {
                 model: "claude-opus-4-8",
                 max_tokens: 2048,
                 system,
-                tools: [TOOL, UPDATE_TOOL, SET_AUTONOMY_TOOL, ...connectedTools],
+                tools: [TOOL, UPDATE_TOOL, ANALYZE_TOOL, SET_AUTONOMY_TOOL, ...connectedTools],
                 messages: working,
               }),
             });
@@ -505,6 +522,60 @@ Deno.serve(async (req: Request) => {
                           : "Autonomy set to ask. Sentrive will queue actions for your approval.",
                     });
                   }
+                } else if (block.name === "analyze_website") {
+                  send({ type: "status", text: "Reading the website" });
+                  const site = String(block.input?.website_url ?? "").trim();
+                  if (!site) {
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: "No URL was provided. Ask the user for their website URL.",
+                      is_error: true,
+                    });
+                  } else {
+                    try {
+                      // Reuse the analyze-website function (scrape + extract + save),
+                      // as the user, so it lands in their workspace context.
+                      const res = await fetch(`${url}/functions/v1/analyze-website`, {
+                        method: "POST",
+                        headers: {
+                          "content-type": "application/json",
+                          Authorization: authHeader,
+                          apikey: anon,
+                        },
+                        body: JSON.stringify({ website_url: site, team_id: teamId }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok || data?.error) {
+                        toolResults.push({
+                          type: "tool_result",
+                          tool_use_id: block.id,
+                          content:
+                            `Could not read ${site}: ${data?.error ?? `error ${res.status}`}. Ask the user ` +
+                            "to double-check the URL, or they can paste a short description of the business instead.",
+                          is_error: true,
+                        });
+                      } else {
+                        contextUpdated = true;
+                        toolResults.push({
+                          type: "tool_result",
+                          tool_use_id: block.id,
+                          content:
+                            `Read ${site} and saved the updated business context: ${JSON.stringify(data.context ?? {})}. ` +
+                            "Tell the user in one or two lines what you now understand about their business and that it's saved. Do not paste the raw fields.",
+                        });
+                      }
+                    } catch (e) {
+                      toolResults.push({
+                        type: "tool_result",
+                        tool_use_id: block.id,
+                        content:
+                          `Error reading ${site}: ${e instanceof Error ? e.message : String(e)}. Ask the ` +
+                          "user to paste a short description of their business instead.",
+                        is_error: true,
+                      });
+                    }
+                  }
                 } else if (
                   isComposioTool(block.name) &&
                   isWriteTool(block.name) &&
@@ -559,7 +630,14 @@ Deno.serve(async (req: Request) => {
           }
           // Honor the no-em-dash rule regardless of the model.
           reply = reply.replace(/\s*—\s*/g, ", ");
-          send({ type: "done", reply: reply || "Done.", created, proposals, updates });
+          send({
+            type: "done",
+            reply: reply || "Done.",
+            created,
+            proposals,
+            updates,
+            contextUpdated,
+          });
         } catch (e) {
           send({ type: "error", error: e instanceof Error ? e.message : String(e) });
         } finally {
