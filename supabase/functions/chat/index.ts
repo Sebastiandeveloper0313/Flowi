@@ -57,9 +57,9 @@ const TOOL = {
       },
       kind: {
         type: "string",
-        enum: ["content", "reddit_monitor", "linkedin_post"],
+        enum: ["content", "reddit_monitor", "linkedin_post", "seo_blog"],
         description:
-          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts. It needs LinkedIn connected in Integrations.",
+          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content.",
       },
       keywords: {
         type: "array",
@@ -167,7 +167,7 @@ interface AgentProposal {
   channel: string;
   schedule_cron: string | null;
   timezone: string;
-  kind: "content" | "reddit_monitor" | "linkedin_post";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
   keywords: string[];
   subreddits: string[];
 }
@@ -177,7 +177,7 @@ interface AgentUpdate {
   id: string; // tool_use id, used as the card key
   agentId: string;
   title: string; // the agent's name (new if renamed, else current), for the card
-  kind: "content" | "reddit_monitor" | "linkedin_post";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
   changes: {
     title?: string;
     instructions?: string;
@@ -203,7 +203,7 @@ function existingAgentsBlock(agents: ExistingAgent[]): string {
   if (!agents.length) return "";
   const lines = agents.map(
     (a) =>
-      `- id: ${a.id} | "${a.title}" | ${a.kind === "reddit_monitor" ? "Reddit leads" : a.kind === "linkedin_post" ? "LinkedIn posts" : "content"} | ` +
+      `- id: ${a.id} | "${a.title}" | ${a.kind === "reddit_monitor" ? "Reddit leads" : a.kind === "linkedin_post" ? "LinkedIn posts" : a.kind === "seo_blog" ? "SEO blog" : "content"} | ` +
       `schedule: ${a.schedule_cron ?? "one-off"} | delivery: ${a.channel ?? "dashboard"} | ${a.status ?? "active"}`,
   );
   return (
@@ -400,12 +400,14 @@ Deno.serve(async (req: Request) => {
                       cron = null;
                     }
                   }
-                  const kind: "content" | "reddit_monitor" | "linkedin_post" =
+                  const kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog" =
                     inp.kind === "reddit_monitor"
                       ? "reddit_monitor"
                       : inp.kind === "linkedin_post"
                         ? "linkedin_post"
-                        : "content";
+                        : inp.kind === "seo_blog"
+                          ? "seo_blog"
+                          : "content";
                   const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),
@@ -494,7 +496,9 @@ Deno.serve(async (req: Request) => {
                             ? "reddit_monitor"
                             : target.kind === "linkedin_post"
                               ? "linkedin_post"
-                              : "content",
+                              : target.kind === "seo_blog"
+                                ? "seo_blog"
+                                : "content",
                         changes,
                       });
                       toolResults.push({

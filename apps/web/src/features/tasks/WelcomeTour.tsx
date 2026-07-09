@@ -6,6 +6,7 @@ import {
   Briefcase,
   CalendarClock,
   Check,
+  FileText,
   Inbox,
   Loader2,
   MessageSquarePlus,
@@ -342,7 +343,13 @@ function PickCard({
   onToggle: () => void;
 }) {
   const Icon =
-    s.kind === "reddit_monitor" ? Radar : s.kind === "linkedin_post" ? Briefcase : PenLine;
+    s.kind === "reddit_monitor"
+      ? Radar
+      : s.kind === "linkedin_post"
+        ? Briefcase
+        : s.kind === "seo_blog"
+          ? FileText
+          : PenLine;
   return (
     <button
       type="button"
