@@ -297,9 +297,9 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
         )}
       </button>
       {open && (
-        <pre className="text-muted-foreground max-h-72 overflow-auto border-t px-3.5 py-3 text-xs whitespace-pre-wrap">
+        <div className="text-foreground/80 max-h-96 overflow-auto border-t px-4 py-3.5 text-sm leading-relaxed whitespace-pre-wrap">
           {body}
-        </pre>
+        </div>
       )}
     </div>
   );
