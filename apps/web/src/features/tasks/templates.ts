@@ -25,13 +25,12 @@ export interface AgentTemplate {
   instructions: string;
 }
 
-/** Section order on the page. Every template's `category` must be one of these. */
-export const TEMPLATE_CATEGORIES = [
-  "Lead generation",
-  "Social media",
-  "SEO & content",
-  "Market intelligence",
-] as const;
+/**
+ * Section order on the page. Kept to a small set of evenly-filled categories
+ * (two templates each) so every section is a full row and no card is stranded
+ * beside empty columns. Every template's `category` must be one of these.
+ */
+export const TEMPLATE_CATEGORIES = ["Leads & research", "Social media", "SEO & content"] as const;
 
 export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
@@ -42,7 +41,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     description:
       "Every day it searches Reddit for buyer-intent posts in your space, then writes a helpful, non-spammy reply for each real match. You approve before anything is sent.",
     icon: Radar,
-    category: "Lead generation",
+    category: "Leads & research",
     kind: "reddit_monitor",
     schedule_cron: "0 9 * * *",
     scheduleLabel: "Daily, 9am",
@@ -122,7 +121,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     description:
       "Tracks your main competitors and emails you a short brief on what moved this week: messaging, pricing, launches, campaigns, plus any opening it creates for you. Uses live web search.",
     icon: Eye,
-    category: "Market intelligence",
+    category: "Leads & research",
     kind: "content",
     schedule_cron: "0 7 * * 1",
     scheduleLabel: "Weekly, Mon 7am",
