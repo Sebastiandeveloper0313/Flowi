@@ -9,6 +9,7 @@ import {
   MessageSquare,
   PenLine,
   Radar,
+  Recycle,
   Share2,
 } from "lucide-react";
 
@@ -191,6 +192,22 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     channel: "dashboard",
     instructions:
       "Brainstorm 5 fresh, specific content ideas for us this week (posts, articles, or hooks), each tied to our audience's real problems and our positioning. For each, give a one-line angle and a sentence on why it would land. Keep them concrete and usable, never generic filler.",
+  },
+  {
+    id: "content-repurposer",
+    name: "Content Repurposer",
+    tagline: "One idea, reshaped into a post for every channel.",
+    outcome: "Delivers a multi-channel pack",
+    description:
+      "Takes one core message or a recent piece of your content and rewrites it natively for each channel: a LinkedIn post, a Facebook post, an X post, and a short email blurb. One idea, ready to post everywhere, in each platform's own voice.",
+    icon: Recycle,
+    category: "SEO & content",
+    kind: "content",
+    schedule_cron: "0 8 * * 2",
+    scheduleLabel: "Weekly, Tue 8am",
+    channel: "dashboard",
+    instructions:
+      "Take one strong core message about our business (or a recent piece of our content, checking our site with web search if useful) and repurpose it into platform-native drafts, each written in that channel's voice and format:\n- LinkedIn: a professional post with a hook and a clear takeaway.\n- Facebook: a warmer, more conversational version.\n- X: one punchy post under 280 characters (or a short thread if it needs room).\n- Email: a 2 to 3 sentence blurb for a newsletter.\nPick a fresh angle each week, label each section clearly, and do not use em dashes. Deliver the drafts only, do not publish anything.",
   },
   {
     id: "competitor-watch",
