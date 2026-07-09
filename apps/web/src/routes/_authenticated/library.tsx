@@ -66,10 +66,10 @@ function LibraryPage() {
   );
 }
 
-// How many templates a category shows before a "See all" toggle. Two full rows
-// at the three-up layout, so a category with many agents stays compact until the
-// user expands it.
-const INITIAL_PER_CATEGORY = 6;
+// How many templates a category shows before a "See all" toggle. One full row
+// at the three-up layout, so the page stays compact no matter how many agents a
+// category holds; the rest are one click away.
+const INITIAL_PER_CATEGORY = 3;
 
 function CategorySection({
   category,
@@ -87,9 +87,23 @@ function CategorySection({
 
   return (
     <section>
-      <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
-        {category}
-      </h2>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          {category}
+        </h2>
+        {items.length > INITIAL_PER_CATEGORY && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-primary hover:bg-primary/5 -mr-1 flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium transition-colors"
+          >
+            {expanded ? "Show less" : `See all ${items.length}`}
+            <ChevronDown
+              className={`size-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((t) => (
           <TemplateCard
@@ -100,16 +114,6 @@ function CategorySection({
           />
         ))}
       </div>
-      {items.length > INITIAL_PER_CATEGORY && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="text-primary hover:bg-primary/5 mt-3 flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium transition-colors"
-        >
-          {expanded ? "Show less" : `See all ${items.length}`}
-          <ChevronDown className={`size-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
-        </button>
-      )}
     </section>
   );
 }
