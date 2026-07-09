@@ -11,11 +11,11 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { connectedToolkits, redditSearch, redditSubredditPosts } from "./composio.ts";
 import {
-  autonomyMode,
   companyName,
   contextBlock,
   operatorPersona,
   redditReplyStandards,
+  taskAutonomy,
   type WorkspaceContext,
 } from "./marketing.ts";
 import type { RedditPost } from "./reddit.ts";
@@ -460,7 +460,7 @@ export async function runRedditMonitor(
   //    look clockwork) under a rolling daily cap, and a background poller drips
   //    them out one at a time. Anything over today's budget stays "new" for
   //    manual review. In ask mode everything stays "new".
-  const auto = autonomyMode(ws) === "auto";
+  const auto = taskAutonomy(task, ws) === "auto";
   const perDay = Math.max(0, ws?.auto_post_per_day ?? AUTO_POST_PER_DAY);
   const gapMin = Math.max(1, ws?.auto_post_gap_minutes ?? AUTO_POST_GAP_MIN);
   let queuedCount = 0;

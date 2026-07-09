@@ -504,6 +504,7 @@ export type Database = {
       };
       tasks: {
         Row: {
+          autonomy_mode: string | null;
           channel: string;
           config: Json;
           created_at: string;
@@ -521,6 +522,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          autonomy_mode?: string | null;
           channel?: string;
           config?: Json;
           created_at?: string;
@@ -538,6 +540,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          autonomy_mode?: string | null;
           channel?: string;
           config?: Json;
           created_at?: string;

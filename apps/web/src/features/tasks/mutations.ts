@@ -165,3 +165,9 @@ export async function updateTaskChannel(id: string, channel: string) {
   const { error } = await supabase.from("tasks").update({ channel }).eq("id", id);
   if (error) throw error;
 }
+
+/** Set this agent's own Auto/Ask override (null inherits the workspace default). */
+export async function updateTaskAutonomy(id: string, mode: "ask" | "auto" | null) {
+  const { error } = await supabase.from("tasks").update({ autonomy_mode: mode }).eq("id", id);
+  if (error) throw error;
+}

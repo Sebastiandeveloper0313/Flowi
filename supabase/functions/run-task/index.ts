@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
     const { data: task, error: taskErr } = await userClient
       .from("tasks")
       .select(
-        "id, team_id, title, instructions, channel, schedule_cron, timezone, status, kind, config",
+        "id, team_id, title, instructions, channel, schedule_cron, timezone, status, kind, config, autonomy_mode",
       )
       .eq("id", task_id)
       .single();
