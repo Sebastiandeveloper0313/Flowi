@@ -33,6 +33,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { useAutonomy, useSetAutonomyMode } from "@/features/autonomy/hooks";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
@@ -240,6 +241,8 @@ function AgentDetailPage() {
               <Row label="Last run" value={formatWhen(agent.last_run_at)} />
               <Separator />
               <DeliveryEditor agent={agent} />
+              <Separator />
+              <AutonomyEditor isReddit={isReddit} />
             </CardContent>
           </Card>
 
@@ -451,6 +454,63 @@ function ScheduleEditor({ agent }: { agent: Task }) {
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+/**
+ * Auto vs Ask for this workspace. On a Reddit agent it's the "post for me"
+ * switch: Auto queues and drips replies to Reddit on its own; Ask leaves them as
+ * drafts to approve. It's a workspace-wide setting, so we say so, and confirm
+ * before turning Auto on since posts go out publicly as the user.
+ */
+function AutonomyEditor({ isReddit }: { isReddit: boolean }) {
+  const { data } = useAutonomy();
+  const setMode = useSetAutonomyMode();
+  const { confirm, dialog } = useConfirm();
+  if (!data) return null;
+
+  async function onChange(mode: "ask" | "auto") {
+    if (!data) return;
+    if (mode === "auto" && data.mode !== "auto") {
+      const ok = await confirm({
+        title: "Turn on Auto mode?",
+        description: isReddit
+          ? "Sentrive will post replies automatically from your connected Reddit account, spaced out and capped per day so your account stays safe. This applies to every agent in this workspace, and posts go out as you. You can switch back to Ask anytime."
+          : "Sentrive will carry out high-stakes actions (posting, sending) on its own, without waiting for your approval. This applies to every agent in this workspace. You can switch back to Ask anytime.",
+        confirmLabel: "Turn on Auto",
+      });
+      if (!ok) return;
+    }
+    setMode.mutate({ teamId: data.teamId, mode });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground">{isReddit ? "Posting" : "Autonomy"}</span>
+        <Select
+          value={data.mode}
+          disabled={setMode.isPending}
+          onValueChange={(v) => onChange(v as "ask" | "auto")}
+        >
+          <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="ask">Ask first (you approve)</SelectItem>
+            <SelectItem value="auto">Auto ({isReddit ? "post" : "act"} for me)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <p className="text-muted-foreground mt-1.5 text-xs">
+        {data.mode === "auto"
+          ? isReddit
+            ? "Replies post automatically, spaced out and capped per day. Applies to your whole workspace."
+            : "Actions run automatically without waiting for approval. Applies to your whole workspace."
+          : "Sentrive drafts and waits for your approval. Applies to your whole workspace."}
+      </p>
+      {dialog}
     </div>
   );
 }
