@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useUser } from "@/auth/hooks";
+import { useConfirm } from "@/components/useConfirm";
+import { useDeleteAccount, useUpdateProfileName } from "@/features/account/hooks";
 import { CancelFlowDialog } from "@/features/billing/CancelFlow";
 import {
   useBillingRedirect,
@@ -25,6 +28,7 @@ import {
 } from "@/features/billing/hooks";
 import { CHANNEL_LABELS, type Channel } from "@/features/dashboard/mock";
 import { PageHeader } from "@/features/dashboard/ui";
+import { useProfile } from "@/features/onboarding/hooks";
 import type { BusinessContext } from "@/features/onboarding/mutations";
 import {
   useAnalyzeWebsite,
@@ -646,6 +650,31 @@ function BillingTab() {
 }
 
 function AccountTab() {
+  const { data: user } = useUser();
+  const { data: profile } = useProfile();
+  const updateName = useUpdateProfileName();
+  const deleteAccount = useDeleteAccount();
+  const { confirm, dialog } = useConfirm();
+
+  const [name, setName] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setName(profile?.full_name ?? "");
+    setDirty(false);
+  }, [profile]);
+
+  async function onDelete() {
+    const ok = await confirm({
+      title: "Delete your account?",
+      description:
+        "This permanently deletes your account, every workspace you own, all agents, leads, and chats, and cancels your subscription. This cannot be undone.",
+      confirmLabel: "Delete everything",
+      destructive: true,
+    });
+    if (ok) deleteAccount.mutate();
+  }
+
   return (
     <div className="space-y-5">
       <Card>
@@ -653,37 +682,77 @@ function AccountTab() {
           <CardTitle className="text-base">Profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Field label="Name" value="Sebastian" />
-          <Field label="Email" value="founder@acme.com" />
-          <Button size="sm">Save changes</Button>
+          <div className="grid gap-1.5">
+            <label htmlFor="acc-name" className="text-sm font-medium">
+              Name
+            </label>
+            <Input
+              id="acc-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setDirty(true);
+              }}
+              placeholder="Your name"
+              className="max-w-sm"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="acc-email" className="text-sm font-medium">
+              Email
+            </label>
+            <Input
+              id="acc-email"
+              value={user?.email ?? ""}
+              readOnly
+              disabled
+              className="max-w-sm"
+            />
+            <p className="text-muted-foreground text-xs">
+              Your login email. Contact support to change it.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            disabled={!dirty || updateName.isPending}
+            onClick={() => updateName.mutate(name, { onSuccess: () => setDirty(false) })}
+          >
+            {updateName.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Check className="size-4" />
+            )}
+            Save changes
+          </Button>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
           <CardTitle className="text-base text-rose-600">Danger zone</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-between">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-muted-foreground text-sm">
-            Permanently delete your account and all agents.
+            Permanently delete your account, workspaces, and agents. Cancels your subscription. This
+            can't be undone.
           </p>
           <Button
             variant="outline"
             size="sm"
             className="border-rose-200 text-rose-600 hover:bg-rose-50"
+            disabled={deleteAccount.isPending}
+            onClick={onDelete}
           >
+            {deleteAccount.isPending && <Loader2 className="size-4 animate-spin" />}
             Delete account
           </Button>
+          {deleteAccount.isError && (
+            <p className="text-destructive w-full text-xs">
+              {(deleteAccount.error as Error)?.message || "Couldn't delete the account. Try again."}
+            </p>
+          )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1.5">
-      <label className="text-sm font-medium">{label}</label>
-      <Input defaultValue={value} className="max-w-sm" />
+      {dialog}
     </div>
   );
 }
