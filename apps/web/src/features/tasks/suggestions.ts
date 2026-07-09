@@ -8,7 +8,7 @@ export interface AgentSuggestion {
   schedule_cron: string;
   timezone: string;
   channel: string;
-  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog" | "reddit_post";
   keywords: string[];
   subreddits: string[];
 }

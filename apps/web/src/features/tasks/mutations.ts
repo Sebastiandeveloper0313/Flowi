@@ -37,7 +37,7 @@ export interface AgentProposalInput {
   channel: string;
   schedule_cron: string | null;
   timezone: string;
-  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog" | "reddit_post";
   keywords: string[];
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent
@@ -53,6 +53,10 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
   const config: Record<string, unknown> = p.proposalId ? { proposal_id: p.proposalId } : {};
   if (p.kind === "reddit_monitor") {
     config.keywords = p.keywords;
+    config.subreddits = p.subreddits;
+  }
+  // A Reddit poster targets specific subreddits; the runner reads them from config.
+  if (p.kind === "reddit_post") {
     config.subreddits = p.subreddits;
   }
 

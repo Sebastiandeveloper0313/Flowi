@@ -35,6 +35,7 @@ const CURATED_TOOLS: Record<string, string[]> = {
     "REDDIT_SEARCH_ACROSS_SUBREDDITS",
     "REDDIT_RETRIEVE_POST_COMMENTS",
     "REDDIT_POST_REDDIT_COMMENT",
+    "REDDIT_CREATE_REDDIT_POST",
   ],
   linkedin: [
     // GET_MY_INFO gives the member URN; GET_COMPANY_INFO lists the company
@@ -61,6 +62,7 @@ const CURATED_TOOLS: Record<string, string[]> = {
 const WRITE_TOOLS = new Set<string>([
   "GMAIL_SEND_EMAIL",
   "REDDIT_POST_REDDIT_COMMENT",
+  "REDDIT_CREATE_REDDIT_POST",
   "LINKEDIN_CREATE_LINKED_IN_POST",
   "FACEBOOK_CREATE_POST",
   "FACEBOOK_CREATE_COMMENT",
