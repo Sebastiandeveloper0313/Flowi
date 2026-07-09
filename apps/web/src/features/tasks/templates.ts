@@ -5,6 +5,7 @@ import {
   Inbox,
   Lightbulb,
   type LucideIcon,
+  Mail,
   MessageSquare,
   PenLine,
   Radar,
@@ -39,7 +40,12 @@ export interface AgentTemplate {
 /**
  * Section order on the page. Every template's `category` must be one of these.
  */
-export const TEMPLATE_CATEGORIES = ["Leads & research", "Social media", "SEO & content"] as const;
+export const TEMPLATE_CATEGORIES = [
+  "Leads & research",
+  "Social media",
+  "Inbox & replies",
+  "SEO & content",
+] as const;
 
 export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
@@ -130,13 +136,29 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     description:
       "Checks your Facebook Page inbox a couple of times a day and drafts a warm, on-brand reply to every unanswered customer message. You approve before anything sends, so people get fast answers without you watching the inbox.",
     icon: Inbox,
-    category: "Social media",
+    category: "Inbox & replies",
     kind: "facebook_dm",
     schedule_cron: "0 10,16 * * *",
     scheduleLabel: "Twice daily",
     channel: "dashboard",
     instructions:
       "Check our Facebook Page inbox for new customer messages. For each conversation where the customer's latest message hasn't been answered yet, draft a warm, on-brand reply that genuinely helps them, and send it. Skip anything we've already replied to. Keep replies concise and human.",
+  },
+  {
+    id: "email-responder",
+    name: "Email Inbox Responder",
+    tagline: "Drafts replies to the emails that actually need one.",
+    outcome: "Drafts replies for approval",
+    description:
+      "Reads your connected inbox a couple of times a day and drafts a helpful, on-brand reply to every genuine message that needs one (customer questions, prospect inquiries), skipping newsletters and automated mail. You approve before anything sends.",
+    icon: Mail,
+    category: "Inbox & replies",
+    kind: "email_responder",
+    schedule_cron: "0 9,14 * * 1-5",
+    scheduleLabel: "Weekdays, twice a day",
+    channel: "dashboard",
+    instructions:
+      "Check our email inbox for new, unread messages. For each genuine message from a real person that needs a reply (a customer question, a prospect or sales inquiry, a partnership ask), draft a warm, on-brand reply that actually answers them and send it in-thread. Skip newsletters, receipts, notifications, and anything we've already replied to. Keep replies concise and human.",
   },
   {
     id: "seo-blog-writer",

@@ -103,6 +103,7 @@ export async function executeTask(
     );
     const redditConnected = connectedTools.some((t) => t.name === "REDDIT_CREATE_REDDIT_POST");
     const facebookConnected = connectedTools.some((t) => t.name === "FACEBOOK_CREATE_POST");
+    const gmailConnected = connectedTools.some((t) => t.name === "GMAIL_REPLY_TO_THREAD");
 
     // A LinkedIn poster publishes when it can (the autonomy gate decides whether
     // the post goes out now or waits for approval); with no connection it falls
@@ -205,6 +206,23 @@ export async function executeTask(
         : "\n\nThis agent answers the business's Facebook Page inbox, but Facebook is NOT connected for " +
           "this workspace, so you cannot read or reply to messages. Tell the user to connect Facebook on " +
           "the Integrations page, and stop.";
+    }
+    // An email inbox responder triages the connected Gmail and drafts replies to
+    // genuine messages that need one. The reply tool is approval-gated, so in Ask
+    // mode each draft waits for the user before it sends.
+    if (task.kind === "email_responder") {
+      system += gmailConnected
+        ? "\n\nThis agent triages the business's email inbox and replies. Fetch recent UNREAD emails from " +
+          'the primary inbox (use a query like "is:unread in:inbox newer_than:2d" with a small limit and ' +
+          "full content). For each email that is a GENUINE message from a real person that warrants a reply " +
+          "(a customer question, a prospect or sales inquiry, a partnership ask), draft a helpful, on-brand " +
+          "reply that actually answers them (warm, concise, human, no canned corporate tone, no em dashes) " +
+          "and send it in that thread with the Gmail reply-to-thread tool. SKIP newsletters, notifications, " +
+          "receipts, automated or no-reply emails, marketing, and anything already replied to. When done, " +
+          "briefly summarize which emails you replied to (or that the inbox needed nothing)."
+        : "\n\nThis agent answers the business's email inbox, but Gmail is NOT connected for this workspace, " +
+          "so you cannot read or reply to email. Tell the user to connect Gmail on the Integrations page, " +
+          "and stop.";
     }
     if (task.kind === "seo_blog") {
       system +=
@@ -366,6 +384,14 @@ export async function executeTask(
         output:
           "Facebook isn't connected, so this agent can't read or reply to your Page messages. " +
           "Connect Facebook on the Integrations page, then run it again.",
+      };
+    }
+    if (task.kind === "email_responder" && !gmailConnected) {
+      return {
+        summary: "Connect Gmail to answer your inbox",
+        output:
+          "Gmail isn't connected, so this agent can't read or reply to your email. " +
+          "Connect Gmail on the Integrations page, then run it again.",
       };
     }
 
