@@ -1,4 +1,13 @@
-import { Briefcase, Eye, FileText, Lightbulb, type LucideIcon, PenLine, Radar } from "lucide-react";
+import {
+  Briefcase,
+  Eye,
+  FileText,
+  Lightbulb,
+  type LucideIcon,
+  MessageSquare,
+  PenLine,
+  Radar,
+} from "lucide-react";
 
 import type { AgentProposalInput } from "./mutations";
 
@@ -26,9 +35,7 @@ export interface AgentTemplate {
 }
 
 /**
- * Section order on the page. Kept to a small set of evenly-filled categories
- * (two templates each) so every section is a full row and no card is stranded
- * beside empty columns. Every template's `category` must be one of these.
+ * Section order on the page. Every template's `category` must be one of these.
  */
 export const TEMPLATE_CATEGORIES = ["Leads & research", "Social media", "SEO & content"] as const;
 
@@ -80,6 +87,22 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     channel: "dashboard",
     instructions:
       "Draft one ready-to-post LinkedIn update in our brand voice: a scroll-stopping hook, a useful point grounded in what we do, and a light call to engagement. Deliver it as clean text I can copy and paste. Do not post it anywhere.",
+  },
+  {
+    id: "reddit-poster",
+    name: "Reddit Community Poster",
+    tagline: "Posts genuinely useful content to Reddit, the safe way.",
+    outcome: "Posts (you approve first)",
+    description:
+      "Reddit removes anything that reads as an ad, so this writes a value-first post (a real insight, resource, or story), checks the subreddit's rules first, and mentions you only where it's allowed. Every post waits for your approval before it goes live.",
+    icon: MessageSquare,
+    category: "Social media",
+    kind: "reddit_post",
+    schedule_cron: "0 9 * * 1",
+    scheduleLabel: "Weekly, Mon 9am",
+    channel: "dashboard",
+    instructions:
+      "Write one genuinely valuable Reddit post for a subreddit where our audience spends time. Lead with real substance (an insight, a useful resource, or an honest story) that stands on its own. Check the subreddit's rules with web search first, respect its self-promotion norms, and mention us only where it fits, with an honest disclosure. Then submit it. Never post something that reads as an ad.",
   },
   {
     id: "seo-blog-writer",

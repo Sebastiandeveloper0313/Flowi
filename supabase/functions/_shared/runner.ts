@@ -101,6 +101,7 @@ export async function executeTask(
     const linkedinConnected = connectedTools.some(
       (t) => t.name === "LINKEDIN_CREATE_LINKED_IN_POST",
     );
+    const redditConnected = connectedTools.some((t) => t.name === "REDDIT_CREATE_REDDIT_POST");
 
     // A LinkedIn poster publishes when it can (the autonomy gate decides whether
     // the post goes out now or waits for approval); with no connection it falls
@@ -130,6 +131,39 @@ export async function executeTask(
         system +=
           "\n\nThis is the first post for this agent and you have no record of earlier ones, so " +
           "write a strong standalone post and do not pretend to continue a prior thread.";
+      }
+    }
+    // A Reddit poster is the highest ban-risk agent: Reddit removes overt
+    // self-promotion and can ban the account. The directive forces a value-first,
+    // rule-aware post, the autonomy gate still holds it for approval in Ask mode,
+    // and with no connection it degrades to an honest draft.
+    if (task.kind === "reddit_post") {
+      const rawSubs = task.config?.subreddits;
+      const subs = Array.isArray(rawSubs)
+        ? rawSubs.map((s) => String(s).replace(/^r\//i, "")).filter(Boolean)
+        : [];
+      const target = subs.length
+        ? `the subreddit(s) ${subs.map((s) => `r/${s}`).join(", ")}`
+        : "a subreddit where this business's audience actually spends time";
+      system += redditConnected
+        ? "\n\nThis agent is a Reddit poster. Reddit is strict about self-promotion: an overtly " +
+          "promotional post gets removed and can get the account banned. Write ONE genuinely valuable " +
+          `post for ${target} that stands on its own (a real insight, a useful resource, or an honest ` +
+          "story), and mention the business only if the subreddit's rules allow it, with a brief honest " +
+          "disclosure. FIRST use web_search to check that subreddit's rules, whether self-promotion is " +
+          "allowed, and what kind of posts do well there; if promotion is banned, write a purely helpful " +
+          "post with no promotion. Then submit it by calling the Reddit create-post tool with the " +
+          "subreddit, a title, and the body. No clickbait, no hashtag spam, no em dashes."
+        : "\n\nThis agent is a Reddit poster, but Reddit is NOT connected for this workspace, so you " +
+          `cannot post. Write ONE genuinely valuable, non-spammy Reddit post (a title and a body) for ${target} ` +
+          "and deliver it as a draft for the user to review. Do not claim you posted, scheduled, or queued it.";
+      const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
+      if (recentPosts.length) {
+        system +=
+          "\n\nThese are the posts this agent has already produced, most recent first. Do NOT reuse " +
+          "their topic, angle, or subreddit framing: pick a clearly different direction this time. This " +
+          "list is your ONLY record of past posts, so do not reference or invent anything beyond it.\n\n" +
+          recentPosts.map((p, i) => `${i + 1}. ${p}`).join("\n\n");
       }
     }
     if (task.kind === "seo_blog") {
@@ -265,6 +299,15 @@ export async function executeTask(
         "Connect LinkedIn on the Integrations page, then run this agent again to review and approve it.";
       return {
         summary: "Draft ready, connect LinkedIn to publish",
+        output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
+      };
+    }
+    if (task.kind === "reddit_post" && !redditConnected) {
+      const notice =
+        "Reddit isn't connected, so this post could not be submitted or sent for approval. " +
+        "Connect Reddit on the Integrations page, then run this agent again to review and approve it.";
+      return {
+        summary: "Draft ready, connect Reddit to post",
         output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
       };
     }

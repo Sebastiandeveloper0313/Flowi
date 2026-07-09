@@ -57,9 +57,9 @@ const TOOL = {
       },
       kind: {
         type: "string",
-        enum: ["content", "reddit_monitor", "linkedin_post", "seo_blog"],
+        enum: ["content", "reddit_monitor", "linkedin_post", "seo_blog", "reddit_post"],
         description:
-          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content.",
+          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first.",
       },
       keywords: {
         type: "array",
@@ -71,7 +71,7 @@ const TOOL = {
         type: "array",
         items: { type: "string" },
         description:
-          "For reddit_monitor: optional subreddits to focus on (names without 'r/'). Omit to search all of Reddit.",
+          "For reddit_monitor: optional subreddits to focus on (names without 'r/'), omit to search all of Reddit. For reddit_post: the subreddit(s) to post to (names without 'r/').",
       },
     },
     required: ["title", "instructions"],
@@ -167,7 +167,7 @@ interface AgentProposal {
   channel: string;
   schedule_cron: string | null;
   timezone: string;
-  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog" | "reddit_post";
   keywords: string[];
   subreddits: string[];
 }
@@ -177,7 +177,7 @@ interface AgentUpdate {
   id: string; // tool_use id, used as the card key
   agentId: string;
   title: string; // the agent's name (new if renamed, else current), for the card
-  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog";
+  kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog" | "reddit_post";
   changes: {
     title?: string;
     instructions?: string;
@@ -400,14 +400,21 @@ Deno.serve(async (req: Request) => {
                       cron = null;
                     }
                   }
-                  const kind: "content" | "reddit_monitor" | "linkedin_post" | "seo_blog" =
+                  const kind:
+                    | "content"
+                    | "reddit_monitor"
+                    | "linkedin_post"
+                    | "seo_blog"
+                    | "reddit_post" =
                     inp.kind === "reddit_monitor"
                       ? "reddit_monitor"
                       : inp.kind === "linkedin_post"
                         ? "linkedin_post"
                         : inp.kind === "seo_blog"
                           ? "seo_blog"
-                          : "content";
+                          : inp.kind === "reddit_post"
+                            ? "reddit_post"
+                            : "content";
                   const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),
