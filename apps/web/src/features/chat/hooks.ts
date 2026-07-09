@@ -6,6 +6,7 @@ import { approvalKeys } from "@/features/approvals/queries";
 import { autonomyKeys } from "@/features/autonomy/queries";
 import { taskKeys } from "@/features/tasks/queries";
 import { useActiveTeamId } from "@/features/workspace/active";
+import { workspaceKeys } from "@/features/workspace/queries";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CreatedAgent {
@@ -54,6 +55,8 @@ export interface ChatResponse {
   created: CreatedAgent[];
   proposals: AgentProposal[];
   updates: AgentUpdate[];
+  /** True when the turn re-analyzed the website and updated the business context. */
+  contextUpdated: boolean;
 }
 
 export interface Attachment {
@@ -79,6 +82,7 @@ interface StreamEvent {
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
   updates?: AgentUpdate[];
+  contextUpdated?: boolean;
   error?: string;
 }
 
@@ -122,6 +126,7 @@ export async function sendChat(
       created: data.created ?? [],
       proposals: [],
       updates: [],
+      contextUpdated: false,
     };
   }
 
@@ -151,6 +156,7 @@ export async function sendChat(
           created: evt.created ?? [],
           proposals: evt.proposals ?? [],
           updates: evt.updates ?? [],
+          contextUpdated: evt.contextUpdated ?? false,
         };
       else if (evt.type === "error") throw new Error(evt.error ?? "Chat failed");
     }
@@ -179,6 +185,11 @@ export function useChat() {
     onSuccess: (data) => {
       if (data.created?.length) {
         void queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      }
+      // The AI re-read the website and updated the business context: refresh the
+      // workspace so Settings and grounding reflect it without a reload.
+      if (data.contextUpdated) {
+        void queryClient.invalidateQueries({ queryKey: workspaceKeys.current });
       }
       void queryClient.invalidateQueries({ queryKey: approvalKeys.all });
       void queryClient.invalidateQueries({ queryKey: approvalKeys.pendingCount });
