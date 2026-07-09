@@ -13,6 +13,7 @@ import {
   runTask,
   setTaskStatus,
   updateAgentFields,
+  updateTaskAutonomy,
   updateTaskChannel,
   updateTaskConfig,
   updateTaskSchedule,
@@ -65,6 +66,16 @@ export function useCreateAgentFromProposal() {
   return useMutation({
     mutationFn: ({ teamId, proposal }: { teamId: string; proposal: AgentProposalInput }) =>
       createAgentFromProposal(teamId, proposal),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+/** Set one agent's own Auto/Ask override. */
+export function useUpdateTaskAutonomy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mode }: { id: string; mode: "ask" | "auto" | null }) =>
+      updateTaskAutonomy(id, mode),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   });
 }

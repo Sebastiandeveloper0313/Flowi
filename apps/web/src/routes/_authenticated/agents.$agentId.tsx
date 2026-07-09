@@ -33,7 +33,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
-import { useAutonomy, useSetAutonomyMode } from "@/features/autonomy/hooks";
+import { useAutonomy } from "@/features/autonomy/hooks";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
@@ -48,6 +48,7 @@ import {
   useSetTaskStatus,
   useTaskRuns,
   useTasks,
+  useUpdateTaskAutonomy,
   useUpdateTaskChannel,
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
@@ -242,7 +243,7 @@ function AgentDetailPage() {
               <Separator />
               <DeliveryEditor agent={agent} />
               <Separator />
-              <AutonomyEditor isReddit={isReddit} />
+              <AutonomyEditor agent={agent} isReddit={isReddit} />
             </CardContent>
           </Card>
 
@@ -459,30 +460,34 @@ function ScheduleEditor({ agent }: { agent: Task }) {
 }
 
 /**
- * Auto vs Ask for this workspace. On a Reddit agent it's the "post for me"
- * switch: Auto queues and drips replies to Reddit on its own; Ask leaves them as
- * drafts to approve. It's a workspace-wide setting, so we say so, and confirm
- * before turning Auto on since posts go out publicly as the user.
+ * Auto vs Ask for THIS agent. On a Reddit agent it's the "post for me" switch:
+ * Auto queues and drips replies to Reddit on its own; Ask leaves them as drafts
+ * to approve. The setting is per agent (falling back to the workspace default
+ * when never set), so one agent can auto-post while others stay on Ask. We
+ * confirm before turning Auto on since posts go out publicly as the user.
  */
-function AutonomyEditor({ isReddit }: { isReddit: boolean }) {
-  const { data } = useAutonomy();
-  const setMode = useSetAutonomyMode();
+function AutonomyEditor({ agent, isReddit }: { agent: Task; isReddit: boolean }) {
+  const { data: ws } = useAutonomy();
+  const update = useUpdateTaskAutonomy();
   const { confirm, dialog } = useConfirm();
-  if (!data) return null;
+
+  // This agent's own choice if it has one, else the workspace default.
+  const override =
+    agent.autonomy_mode === "auto" || agent.autonomy_mode === "ask" ? agent.autonomy_mode : null;
+  const effective: "ask" | "auto" = override ?? ws?.mode ?? "ask";
 
   async function onChange(mode: "ask" | "auto") {
-    if (!data) return;
-    if (mode === "auto" && data.mode !== "auto") {
+    if (mode === "auto" && effective !== "auto") {
       const ok = await confirm({
-        title: "Turn on Auto mode?",
+        title: "Turn on Auto for this agent?",
         description: isReddit
-          ? "Sentrive will post replies automatically from your connected Reddit account, spaced out and capped per day so your account stays safe. This applies to every agent in this workspace, and posts go out as you. You can switch back to Ask anytime."
-          : "Sentrive will carry out high-stakes actions (posting, sending) on its own, without waiting for your approval. This applies to every agent in this workspace. You can switch back to Ask anytime.",
+          ? "This agent will post its replies automatically from your connected Reddit account, spaced out and capped per day so your account stays safe. Only this agent is affected, and posts go out as you. You can switch back to Ask anytime."
+          : "This agent will carry out its high-stakes actions (posting, sending) on its own, without waiting for your approval. Only this agent is affected. You can switch back to Ask anytime.",
         confirmLabel: "Turn on Auto",
       });
       if (!ok) return;
     }
-    setMode.mutate({ teamId: data.teamId, mode });
+    update.mutate({ id: agent.id, mode });
   }
 
   return (
@@ -490,8 +495,8 @@ function AutonomyEditor({ isReddit }: { isReddit: boolean }) {
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground">{isReddit ? "Posting" : "Autonomy"}</span>
         <Select
-          value={data.mode}
-          disabled={setMode.isPending}
+          value={effective}
+          disabled={update.isPending}
           onValueChange={(v) => onChange(v as "ask" | "auto")}
         >
           <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
@@ -504,11 +509,11 @@ function AutonomyEditor({ isReddit }: { isReddit: boolean }) {
         </Select>
       </div>
       <p className="text-muted-foreground mt-1.5 text-xs">
-        {data.mode === "auto"
+        {effective === "auto"
           ? isReddit
-            ? "Replies post automatically, spaced out and capped per day. Applies to your whole workspace."
-            : "Actions run automatically without waiting for approval. Applies to your whole workspace."
-          : "Sentrive drafts and waits for your approval. Applies to your whole workspace."}
+            ? "This agent posts replies automatically, spaced out and capped per day."
+            : "This agent runs its actions automatically, without waiting for approval."
+          : "This agent drafts and waits for your approval. Applies to this agent only."}
       </p>
       {dialog}
     </div>

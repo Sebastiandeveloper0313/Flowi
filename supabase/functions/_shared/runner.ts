@@ -11,9 +11,9 @@ import {
   toolsForUser,
 } from "./composio.ts";
 import {
-  autonomyMode,
   fetchWorkspaceContext,
   runnerSystem,
+  taskAutonomy,
   type WorkspaceContext,
 } from "./marketing.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
@@ -29,6 +29,7 @@ export interface TaskRow {
   status: string;
   kind?: string;
   config?: Record<string, unknown> | null;
+  autonomy_mode?: string | null;
 }
 
 export interface RunResult {
@@ -133,8 +134,9 @@ export async function executeTask(
             });
             continue;
           }
-          // High-stakes actions: run unattended only in auto mode; otherwise queue for approval.
-          if (isWriteTool(b.name) && autonomyMode(ws) === "ask" && ctx?.client) {
+          // High-stakes actions: run unattended only in auto mode (this agent's
+          // own setting, or the workspace default); otherwise queue for approval.
+          if (isWriteTool(b.name) && taskAutonomy(task, ws) === "ask" && ctx?.client) {
             const { message } = await queueApproval(ctx.client, {
               teamId: task.team_id,
               toolSlug: b.name,

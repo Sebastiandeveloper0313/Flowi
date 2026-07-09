@@ -22,6 +22,18 @@ export function autonomyMode(ws: WorkspaceContext | null): "ask" | "auto" {
 }
 
 /**
+ * Effective autonomy for one agent: its own override if set, otherwise the
+ * workspace default. Lets a single agent auto-post while others stay on Ask.
+ */
+export function taskAutonomy(
+  task: { autonomy_mode?: string | null },
+  ws: WorkspaceContext | null,
+): "ask" | "auto" {
+  if (task.autonomy_mode === "auto" || task.autonomy_mode === "ask") return task.autonomy_mode;
+  return autonomyMode(ws);
+}
+
+/**
  * Instruction block describing the current autonomy mode and how to behave.
  * The hard gate is enforced in code; this tells the model how to act and phrase
  * things, and to respect explicit in-conversation instructions on top of the mode.
