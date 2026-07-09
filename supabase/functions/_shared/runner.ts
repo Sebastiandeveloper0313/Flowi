@@ -86,6 +86,10 @@ export async function executeTask(
     ];
     // deno-lint-ignore no-explicit-any
     let content: any[] = [];
+    // web_search runs in a server-side container; once a turn pauses or a tool
+    // use is pending, the API requires the same container id back on every
+    // follow-up request. Capture it from each response and echo it below.
+    let container: string | undefined;
 
     for (let i = 0; i < 12; i++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -102,6 +106,7 @@ export async function executeTask(
           system,
           tools,
           messages,
+          ...(container ? { container } : {}),
         }),
       });
 
@@ -112,6 +117,8 @@ export async function executeTask(
 
       const data = await res.json();
       content = data.content ?? [];
+      const cid = typeof data.container === "string" ? data.container : data.container?.id;
+      if (cid) container = cid;
 
       // Server tool (web_search) in flight: resume the turn.
       if (data.stop_reason === "pause_turn") {
