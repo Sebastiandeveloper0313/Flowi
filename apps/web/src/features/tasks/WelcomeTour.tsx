@@ -3,6 +3,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import {
   ArrowRight,
+  Briefcase,
   CalendarClock,
   Check,
   Inbox,
@@ -340,7 +341,8 @@ function PickCard({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const Icon = s.kind === "reddit_monitor" ? Radar : PenLine;
+  const Icon =
+    s.kind === "reddit_monitor" ? Radar : s.kind === "linkedin_post" ? Briefcase : PenLine;
   return (
     <button
       type="button"

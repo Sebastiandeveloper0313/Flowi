@@ -66,7 +66,16 @@ export async function executeTask(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 150_000); // hard cap
   try {
-    const system = runnerSystem(ws);
+    let system = runnerSystem(ws);
+    // A LinkedIn poster doesn't just draft: it must publish. The autonomy gate
+    // still decides whether the post goes out now (auto) or waits for approval.
+    if (task.kind === "linkedin_post") {
+      system +=
+        "\n\nThis agent is a LinkedIn poster. Write ONE on-brand LinkedIn post grounded in the " +
+        "business and aimed at its audience (a strong hook, real substance, a clear takeaway; no " +
+        "hashtag spam, no em dashes), then PUBLISH it by calling the LinkedIn create-post tool. Do " +
+        "not just draft it, actually call the tool. If LinkedIn is not connected, say so and stop.";
+    }
 
     // Tools available this run:
     //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses

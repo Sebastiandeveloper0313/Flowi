@@ -4,6 +4,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
   ArrowRight,
+  Briefcase,
   CalendarClock,
   Check,
   Loader2,
@@ -158,7 +159,8 @@ function SuggestionCard({
     },
   });
 
-  const Icon = s.kind === "reddit_monitor" ? Radar : PenLine;
+  const Icon =
+    s.kind === "reddit_monitor" ? Radar : s.kind === "linkedin_post" ? Briefcase : PenLine;
 
   return (
     <Card className="flex flex-col">

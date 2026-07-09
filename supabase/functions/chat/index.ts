@@ -57,9 +57,9 @@ const TOOL = {
       },
       kind: {
         type: "string",
-        enum: ["content", "reddit_monitor"],
+        enum: ["content", "reddit_monitor", "linkedin_post"],
         description:
-          "Capability. 'content' (default) produces a written deliverable. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies - use this whenever the user wants to find leads/prospects or monitor Reddit.",
+          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts. It needs LinkedIn connected in Integrations.",
       },
       keywords: {
         type: "array",
@@ -167,7 +167,7 @@ interface AgentProposal {
   channel: string;
   schedule_cron: string | null;
   timezone: string;
-  kind: "content" | "reddit_monitor";
+  kind: "content" | "reddit_monitor" | "linkedin_post";
   keywords: string[];
   subreddits: string[];
 }
@@ -177,7 +177,7 @@ interface AgentUpdate {
   id: string; // tool_use id, used as the card key
   agentId: string;
   title: string; // the agent's name (new if renamed, else current), for the card
-  kind: "content" | "reddit_monitor";
+  kind: "content" | "reddit_monitor" | "linkedin_post";
   changes: {
     title?: string;
     instructions?: string;
@@ -203,7 +203,7 @@ function existingAgentsBlock(agents: ExistingAgent[]): string {
   if (!agents.length) return "";
   const lines = agents.map(
     (a) =>
-      `- id: ${a.id} | "${a.title}" | ${a.kind === "reddit_monitor" ? "Reddit leads" : "content"} | ` +
+      `- id: ${a.id} | "${a.title}" | ${a.kind === "reddit_monitor" ? "Reddit leads" : a.kind === "linkedin_post" ? "LinkedIn posts" : "content"} | ` +
       `schedule: ${a.schedule_cron ?? "one-off"} | delivery: ${a.channel ?? "dashboard"} | ${a.status ?? "active"}`,
   );
   return (
@@ -400,8 +400,12 @@ Deno.serve(async (req: Request) => {
                       cron = null;
                     }
                   }
-                  const kind: "content" | "reddit_monitor" =
-                    inp.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+                  const kind: "content" | "reddit_monitor" | "linkedin_post" =
+                    inp.kind === "reddit_monitor"
+                      ? "reddit_monitor"
+                      : inp.kind === "linkedin_post"
+                        ? "linkedin_post"
+                        : "content";
                   const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),
@@ -485,7 +489,12 @@ Deno.serve(async (req: Request) => {
                         id: block.id,
                         agentId: target.id,
                         title: changes.title ?? target.title,
-                        kind: target.kind === "reddit_monitor" ? "reddit_monitor" : "content",
+                        kind:
+                          target.kind === "reddit_monitor"
+                            ? "reddit_monitor"
+                            : target.kind === "linkedin_post"
+                              ? "linkedin_post"
+                              : "content",
                         changes,
                       });
                       toolResults.push({
