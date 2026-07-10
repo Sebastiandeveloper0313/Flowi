@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { leadKeys } from "@/features/leads/queries";
+import { postKeys } from "@/features/posts/queries";
 import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
@@ -42,13 +43,15 @@ export function useRunTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: runTask,
-    // A run can surface new leads (reddit_monitor), so refresh those too, or the
-    // Leads panel keeps showing its stale cache until a manual reload.
+    // A run can surface new leads (reddit_monitor) or a new post draft
+    // (reddit_post), so refresh those too, or the Leads/Posts panel keeps showing
+    // its stale cache until a manual reload.
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: taskKeys.runs }),
         queryClient.invalidateQueries({ queryKey: taskKeys.all }),
         queryClient.invalidateQueries({ queryKey: leadKeys.all }),
+        queryClient.invalidateQueries({ queryKey: postKeys.all }),
       ]),
   });
 }
