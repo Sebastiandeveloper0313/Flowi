@@ -9,27 +9,50 @@ import { executeComposioTool } from "./composio.ts";
 export interface ParsedPost {
   title: string;
   body: string;
+  subreddits: string[];
 }
 
-/** Pull a title + body out of the model's "**Title:** ...\n\n<body>" output. */
+const SUB_LINE = /^[ \t]*(?:\*\*|#+[ \t]*)?[ \t]*subreddits?[ \t]*:?[ \t]*\*{0,2}[ \t]*(.+)$/im;
+const TITLE_LINE = /^[ \t]*(?:\*\*|#+[ \t]*)?[ \t]*title[ \t]*:?[ \t]*\*{0,2}[ \t]*(.+?)[ \t]*$/im;
+
+/** Pull subreddits + title + body out of the model's structured post output. */
 export function parsePostDraft(output: string): ParsedPost {
-  const text = output.trim();
-  // A leading "Title:" line (optionally wrapped in ** or #); the rest is the body.
-  const m = text.match(
-    /^[ \t]*(?:#+[ \t]*)?(?:\*\*)?[ \t]*title[ \t]*:?[ \t]*(?:\*\*)?[ \t]*(.+?)[ \t]*$/im,
-  );
-  if (m && m.index !== undefined) {
-    const title = m[1].replace(/\*\*/g, "").trim();
-    const body = text
-      .slice(m.index + m[0].length)
-      .replace(/^\s+/, "")
-      .trim();
-    return { title: title.slice(0, 300), body: body || title };
+  let text = output.trim();
+  let subreddits: string[] = [];
+  let title = "";
+
+  // "Subreddits: a, b, c" header line (remove it from the body).
+  const subM = text.match(SUB_LINE);
+  if (subM && subM.index !== undefined) {
+    subreddits = subM[1]
+      .replace(/\*\*/g, "")
+      .split(/[,;]+/)
+      .map((s) =>
+        s
+          .trim()
+          .replace(/^\/?r\//i, "")
+          .trim(),
+      )
+      .filter(Boolean)
+      .slice(0, 8);
+    text = (text.slice(0, subM.index) + text.slice(subM.index + subM[0].length)).trim();
   }
-  // No explicit title line: first line is the title, the rest is the body.
-  const first = (text.split("\n").find((l) => l.trim()) ?? "Untitled").replace(/[*#>]/g, "").trim();
-  const rest = text.slice(text.indexOf(first) + first.length).trim();
-  return { title: first.slice(0, 300), body: rest || first };
+
+  // "Title: ..." header line (remove it too); the rest is the body.
+  const titleM = text.match(TITLE_LINE);
+  if (titleM && titleM.index !== undefined) {
+    title = titleM[1].replace(/\*\*/g, "").trim();
+    text = (text.slice(0, titleM.index) + text.slice(titleM.index + titleM[0].length)).trim();
+  } else {
+    // No explicit title line: first real line is the title.
+    const first = (text.split("\n").find((l) => l.trim()) ?? "Untitled")
+      .replace(/[*#>]/g, "")
+      .trim();
+    title = first;
+    text = text.slice(text.indexOf(first) + first.length).trim();
+  }
+
+  return { title: title.slice(0, 300), body: text || title, subreddits };
 }
 
 export interface SubResult {
@@ -87,10 +110,13 @@ export async function createPostDraft(
   task: { id: string; team_id: string; config?: Record<string, unknown> | null },
   parsed: ParsedPost,
 ): Promise<string | null> {
-  const rawSubs = (task.config as { subreddits?: unknown } | null)?.subreddits;
-  const subreddits = Array.isArray(rawSubs)
-    ? rawSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
+  // Prefer the subreddits the model chose for THIS post; fall back to any the
+  // user pinned on the agent's config.
+  const configSubs = (task.config as { subreddits?: unknown } | null)?.subreddits;
+  const fallback = Array.isArray(configSubs)
+    ? configSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
     : [];
+  const subreddits = parsed.subreddits.length ? parsed.subreddits : fallback;
   const { data, error } = await admin
     .from("post_drafts")
     .insert({

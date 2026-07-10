@@ -145,35 +145,37 @@ export async function executeTask(
       const subs = Array.isArray(rawSubs)
         ? rawSubs.map((s) => String(s).replace(/^r\//i, "")).filter(Boolean)
         : [];
-      const target = subs.length
-        ? `the subreddit(s) ${subs.map((s) => `r/${s}`).join(", ")}`
-        : "a subreddit where this business's audience actually spends time";
-      // Draft only. The model NEVER posts: the user reviews the draft and
-      // publishes it in one click (or auto mode publishes it after the run), so
-      // edits and subreddit choices are honored and each post is tracked.
+      const seed = subs.length
+        ? `The user suggested these subreddits: consider them first, but you may drop or swap any for a better fit: ${subs.map((s) => `r/${s}`).join(", ")}. `
+        : "";
+      // Draft only. The model NEVER posts: it writes the post AND picks the
+      // subreddits that fit, so the user just reviews and posts in one click (or
+      // auto mode publishes to those subs after the run).
       system +=
-        "\n\nThis agent is a Reddit poster. Reddit is strict about self-promotion, so write ONE genuinely " +
-        `valuable post for ${target} that stands on its own (a real insight, a useful resource, or an ` +
-        "honest story), and mention the business only if the subreddit's rules allow it, with a brief " +
-        "honest disclosure. FIRST use web_search to check that subreddit's rules and what posts do well " +
-        "there; if self-promotion is banned, write a purely helpful post with no promotion. Do NOT post " +
-        "it and do not call any posting tool: just write it. The user reviews the draft and posts it to " +
-        "the subreddit(s) in one click. No clickbait, no hashtag spam, no em dashes.";
+        "\n\nThis agent is a Reddit poster. Write ONE genuinely valuable post that stands on its own (a " +
+        "real insight, a useful resource, or an honest story), and mention the business only where a " +
+        "subreddit's rules allow it, with a brief honest disclosure. " +
+        seed +
+        "Then CHOOSE 3 to 5 subreddits where THIS post genuinely fits and would be welcomed. Use " +
+        "web_search to check each candidate's rules and self-promotion norms, and only keep ones where a " +
+        "post like this is allowed and on-topic; drop any that ban it. Prefer active, relevant subreddits " +
+        "over the biggest ones. Do NOT post anything or call any posting tool: just write the post and " +
+        "list the subreddits. The user reviews and posts to them in one click. No clickbait, no hashtag " +
+        "spam, no em dashes.";
       // The post body is Reddit markdown, so let it use formatting where it aids
       // readability, without looking like an ad.
       system +=
         "\n\nThe body is Reddit markdown, so format it where it genuinely helps the reader: **bold** the " +
         "key point, keep paragraphs short, and use bullet or numbered lists for steps or comparisons. Do " +
-        "not over-format or make it look like marketing; match how well-received posts in that subreddit " +
-        "actually read.";
-      // The output IS the deliverable the user reviews, so it must be just the
-      // post (title + body), not the model narrating what it checked and why. We
-      // parse this exact shape into a draft (title + body) after the run.
+        "not over-format or make it look like marketing; match how well-received posts actually read.";
+      // The output IS the deliverable the user reviews: just the post plus the
+      // chosen subreddits. We parse this exact shape into a draft afterward.
       system +=
-        "\n\nYour reply is the deliverable the user reviews, so make it ONLY the post and nothing else. " +
-        "Do not narrate what you checked, why you made choices, or whether you posted it. Format it " +
-        "exactly as:\n\n**Title:** <the post title>\n\n<the post body in Reddit markdown>\n\nNo preamble " +
-        'such as "Done" or "Here is what I wrote", and no commentary before or after the post.';
+        "\n\nYour reply is the deliverable the user reviews, so make it ONLY the post and its subreddits, " +
+        "nothing else. Do not narrate what you checked or why. Format it EXACTLY as:\n\n" +
+        "**Subreddits:** subreddit1, subreddit2, subreddit3\n**Title:** <the post title>\n\n<the post " +
+        "body in Reddit markdown>\n\nList bare subreddit names, comma-separated (no r/ prefix needed). No " +
+        'preamble such as "Done" or "Here is what I wrote", and no commentary before or after the post.';
       const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
       if (recentPosts.length) {
         system +=
@@ -400,9 +402,12 @@ export async function executeTask(
     if (task.kind === "reddit_post" && ctx?.client) {
       const parsed = parsePostDraft(output || "");
       const rawSubs = (task.config as { subreddits?: unknown } | null)?.subreddits;
-      const subs = Array.isArray(rawSubs)
+      const configSubs = Array.isArray(rawSubs)
         ? rawSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
         : [];
+      // Auto mode publishes to the subs the model chose for this post (or the
+      // pinned config subs if it didn't pick any).
+      const subs = parsed.subreddits.length ? parsed.subreddits : configSubs;
       const draftId = await createPostDraft(ctx.client, task, parsed).catch(() => null);
 
       // Draft couldn't be saved: keep the full post in run history so it isn't
