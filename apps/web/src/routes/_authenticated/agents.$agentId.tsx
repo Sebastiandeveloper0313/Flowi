@@ -20,6 +20,7 @@ import {
   Clock,
   Globe,
   Hash,
+  Image as ImageIcon,
   Loader2,
   MessageSquare,
   Pause,
@@ -28,10 +29,11 @@ import {
   Sparkles,
   Target,
   Trash2,
+  Upload,
   Wrench,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
@@ -39,6 +41,7 @@ import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import { PostsPanel } from "@/features/posts/PostsPanel";
+import { SlideshowsPanel } from "@/features/slideshows/SlideshowsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
   CHANNELS,
@@ -56,6 +59,7 @@ import {
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
+import { uploadAgentMedia } from "@/features/tasks/mutations";
 import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
@@ -105,6 +109,10 @@ function AgentDetailPage() {
   const running = run.isPending || (runs ?? []).some((r) => r.status === "running");
   const isReddit = agent.kind === "reddit_monitor";
   const isRedditPost = agent.kind === "reddit_post";
+  const isSlideshow = agent.kind === "tiktok_slideshow";
+  const slideshowImages = ((agent.config as { images?: string[] } | null)?.images ?? []).filter(
+    (u): u is string => typeof u === "string",
+  );
   // The conversation that created this agent (if it was made from chat), so
   // "Open chat" returns to it instead of starting a blank one.
   const agentChatId = (agent.config as { chat_id?: string } | null)?.chat_id;
@@ -226,6 +234,19 @@ function AgentDetailPage() {
             </Card>
           )}
 
+          {isSlideshow && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ImageIcon className="size-4" /> Slideshow
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SlideshowsPanel taskId={agent.id} images={slideshowImages} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Instruction</CardTitle>
@@ -276,6 +297,7 @@ function AgentDetailPage() {
 
           {isReddit && <WatchingCard agent={agent} />}
           {isRedditPost && <SubredditsCard agent={agent} />}
+          {isSlideshow && <SlideshowImagesCard agent={agent} />}
           {!isReddit && (
             <Card>
               <CardHeader>
@@ -548,6 +570,99 @@ function SubredditsCard({ agent }: { agent: Task }) {
             </p>
           </>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Upload/manage the images a slideshow agent renders its text over. */
+function SlideshowImagesCard({ agent }: { agent: Task }) {
+  const update = useUpdateTaskConfig();
+  const cfg = (agent.config ?? {}) as { images?: string[] };
+  const images = (cfg.images ?? []).filter((u): u is string => typeof u === "string");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function onFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) continue;
+        const media = await uploadAgentMedia(agent.team_id, agent.id, file);
+        uploaded.push(media.url);
+      }
+      if (uploaded.length > 0) {
+        await update.mutateAsync({
+          id: agent.id,
+          config: { ...cfg, images: [...images, ...uploaded].slice(0, 20) },
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  function remove(url: string) {
+    update.mutate({ id: agent.id, config: { ...cfg, images: images.filter((u) => u !== url) } });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ImageIcon className="size-4" /> Images
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-muted-foreground text-xs">
+          Your images. Each slideshow renders its text over these, rotating through them.
+        </p>
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {images.map((url) => (
+              <div key={url} className="relative">
+                <img
+                  src={url}
+                  alt=""
+                  className="size-16 rounded-lg border object-cover"
+                  crossOrigin="anonymous"
+                />
+                <button
+                  type="button"
+                  onClick={() => remove(url)}
+                  className="bg-background absolute -top-1.5 -right-1.5 rounded-full border p-0.5 shadow-sm"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => onFiles(e.target.files)}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+        >
+          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {uploading ? "Uploading…" : "Add images"}
+        </Button>
+        {error && <p className="text-destructive text-xs">{error}</p>}
       </CardContent>
     </Card>
   );

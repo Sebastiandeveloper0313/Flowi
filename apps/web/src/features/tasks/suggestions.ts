@@ -16,7 +16,8 @@ export interface AgentSuggestion {
     | "reddit_post"
     | "facebook_post"
     | "facebook_dm"
-    | "email_responder";
+    | "email_responder"
+    | "tiktok_slideshow";
   keywords: string[];
   subreddits: string[];
 }

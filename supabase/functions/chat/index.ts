@@ -66,9 +66,10 @@ const TOOL = {
           "facebook_post",
           "facebook_dm",
           "email_responder",
+          "tiktok_slideshow",
         ],
         description:
-          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first. 'facebook_post' writes an on-brand post and publishes it to the business's Facebook Page each run, use this when the user wants recurring Facebook content or posts (needs Facebook connected; posts wait for approval unless on auto). 'facebook_dm' reads the business's Facebook Page inbox and drafts replies to unanswered customer messages, sending them (approval-gated), use this when the user wants to auto-respond to their Facebook messages (needs Facebook connected). 'email_responder' reads the connected Gmail inbox and drafts replies to genuine emails that need one (customer questions, prospect inquiries), sending them in-thread (approval-gated), use this when the user wants help answering their email or triaging their inbox (needs Gmail connected).",
+          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first. 'facebook_post' writes an on-brand post and publishes it to the business's Facebook Page each run, use this when the user wants recurring Facebook content or posts (needs Facebook connected; posts wait for approval unless on auto). 'facebook_dm' reads the business's Facebook Page inbox and drafts replies to unanswered customer messages, sending them (approval-gated), use this when the user wants to auto-respond to their Facebook messages (needs Facebook connected). 'email_responder' reads the connected Gmail inbox and drafts replies to genuine emails that need one (customer questions, prospect inquiries), sending them in-thread (approval-gated), use this when the user wants help answering their email or triaging their inbox (needs Gmail connected). 'tiktok_slideshow' writes a swipeable TikTok photo slideshow about the business (a hook slide, value slides, and a CTA) plus a caption; the user uploads their own images and downloads the rendered slides to post, use this when the user wants TikTok slideshows or short-form visual content (no connection needed).",
       },
       keywords: {
         type: "array",
@@ -184,7 +185,8 @@ interface AgentProposal {
     | "reddit_post"
     | "facebook_post"
     | "facebook_dm"
-    | "email_responder";
+    | "email_responder"
+    | "tiktok_slideshow";
   keywords: string[];
   subreddits: string[];
 }
@@ -202,7 +204,8 @@ interface AgentUpdate {
     | "reddit_post"
     | "facebook_post"
     | "facebook_dm"
-    | "email_responder";
+    | "email_responder"
+    | "tiktok_slideshow";
   changes: {
     title?: string;
     instructions?: string;
@@ -433,7 +436,8 @@ Deno.serve(async (req: Request) => {
                     | "reddit_post"
                     | "facebook_post"
                     | "facebook_dm"
-                    | "email_responder" =
+                    | "email_responder"
+                    | "tiktok_slideshow" =
                     inp.kind === "reddit_monitor"
                       ? "reddit_monitor"
                       : inp.kind === "linkedin_post"
@@ -448,7 +452,9 @@ Deno.serve(async (req: Request) => {
                                 ? "facebook_dm"
                                 : inp.kind === "email_responder"
                                   ? "email_responder"
-                                  : "content";
+                                  : inp.kind === "tiktok_slideshow"
+                                    ? "tiktok_slideshow"
+                                    : "content";
                   const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),

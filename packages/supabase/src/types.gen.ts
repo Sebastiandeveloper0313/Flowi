@@ -502,6 +502,57 @@ export type Database = {
           },
         ];
       };
+      slideshows: {
+        Row: {
+          caption: string;
+          created_at: string;
+          id: string;
+          slides: Json;
+          status: string;
+          task_id: string | null;
+          team_id: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          caption?: string;
+          created_at?: string;
+          id?: string;
+          slides?: Json;
+          status?: string;
+          task_id?: string | null;
+          team_id: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Update: {
+          caption?: string;
+          created_at?: string;
+          id?: string;
+          slides?: Json;
+          status?: string;
+          task_id?: string | null;
+          team_id?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "slideshows_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "slideshows_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_runs: {
         Row: {
           created_at: string;

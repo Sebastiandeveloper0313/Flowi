@@ -29,7 +29,8 @@ export interface AgentProposal {
     | "reddit_post"
     | "facebook_post"
     | "facebook_dm"
-    | "email_responder";
+    | "email_responder"
+    | "tiktok_slideshow";
   keywords: string[];
   subreddits: string[];
 }
@@ -47,7 +48,8 @@ export interface AgentUpdate {
     | "reddit_post"
     | "facebook_post"
     | "facebook_dm"
-    | "email_responder";
+    | "email_responder"
+    | "tiktok_slideshow";
   changes: {
     title?: string;
     instructions?: string;

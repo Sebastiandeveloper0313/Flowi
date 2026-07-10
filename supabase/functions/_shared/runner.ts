@@ -18,6 +18,7 @@ import {
 } from "./marketing.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
+import { createSlideshow, parseSlideshow } from "./slideshow.ts";
 
 export interface TaskRow {
   id: string;
@@ -282,6 +283,18 @@ export async function executeTask(
         "to check the topic, angles, and what already ranks. Return the full article as the result " +
         "(title, then meta description, then the body). Do not publish it anywhere, just deliver it.";
     }
+    if (task.kind === "tiktok_slideshow") {
+      system +=
+        "\n\nYou create a TikTok photo slideshow for this business. Produce 5 to 7 short slides a viewer " +
+        "swipes through: slide 1 is a scroll-stopping HOOK, each middle slide delivers ONE crisp, " +
+        "valuable, specific point about the business or product (relatable, not salesy), and the LAST " +
+        "slide is a clear call to action. Each slide's on-screen text is SHORT and punchy, readable in " +
+        "1 to 2 seconds (a few words up to one short sentence). Also write a caption for the post that " +
+        "ends with the CTA. Output ONLY a JSON object and nothing else, in exactly this shape:\n" +
+        '{"title": "<short internal name>", "slides": [{"text": "<on-screen line>"}], "caption": ' +
+        '"<post caption ending with a call to action>"}\n' +
+        "No hashtag spam, no em dashes, no markdown, no commentary outside the JSON.";
+    }
 
     // A reddit_post agent only DRAFTS; the app publishes on the user's click, so
     // hide the Reddit posting tool from the model — it must never post directly.
@@ -465,6 +478,21 @@ export async function executeTask(
         summary: `Draft ready: ${parsed.title}`.slice(0, 140),
         output: `Wrote a new post draft: "${parsed.title}".\n\n${notice}`,
       };
+    }
+    // A slideshow run parses the model's JSON into slides and saves it. The app
+    // renders those over the user's images on the Slideshow tab and downloads
+    // them to post to TikTok. Falls through to the raw output if parsing fails.
+    if (task.kind === "tiktok_slideshow" && ctx?.client) {
+      const show = parseSlideshow(output || "");
+      if (show) {
+        const id = await createSlideshow(ctx.client, task, show).catch(() => null);
+        if (id) {
+          return {
+            summary: `Slideshow ready: ${show.title}`.slice(0, 140),
+            output: `Made a ${show.slides.length}-slide TikTok slideshow. Open the Slideshow tab to preview and download it.`,
+          };
+        }
+      }
     }
     if (task.kind === "facebook_post" && !facebookConnected) {
       const notice =
