@@ -289,6 +289,14 @@ function PostCard({
             rows={8}
             className="resize-y text-sm"
           />
+          {body.trim() && (
+            <div className="border-border/60 bg-muted/30 mt-2 rounded-lg border p-3">
+              <span className="text-muted-foreground mb-1 block text-xs font-medium">
+                Preview (how it'll look on Reddit)
+              </span>
+              <ChatMarkdown>{body}</ChatMarkdown>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-muted/40 mt-3 rounded-lg p-3">
