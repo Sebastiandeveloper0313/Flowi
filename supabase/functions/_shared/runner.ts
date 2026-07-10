@@ -166,6 +166,13 @@ export async function executeTask(
         "key point, keep paragraphs short, and use bullet or numbered lists for steps or comparisons. Do " +
         "not over-format or make it look like marketing; match how well-received posts in that subreddit " +
         "actually read.";
+      // The run output IS the deliverable the user reviews, so it must be just the
+      // post (title + body), not the model narrating what it checked and why.
+      system +=
+        "\n\nYour final reply is the deliverable the user reviews, so make it ONLY the post and nothing " +
+        "else. Do not narrate what you checked, why you made choices, or whether you posted it. Format it " +
+        "exactly as:\n\n**Title:** <the post title>\n\n<the post body in Reddit markdown>\n\nNo preamble " +
+        'such as "Done" or "Here is what I wrote", and no commentary after the post.';
       const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
       if (recentPosts.length) {
         system +=
@@ -412,7 +419,12 @@ export async function executeTask(
       };
     }
 
-    const firstLine = output.split("\n").find((l) => l.trim()) ?? "Done";
+    // Summary is the first real line, stripped of markdown markers so the run
+    // list header reads clean (e.g. "Title: ..." not "**Title:** ...").
+    const firstLine = (output.split("\n").find((l) => l.trim()) ?? "Done")
+      .replace(/\*\*/g, "")
+      .replace(/^#+\s*/, "")
+      .replace(/^>\s*/, "");
     return { summary: firstLine.slice(0, 140), output: output || "(empty response)" };
   } finally {
     clearTimeout(timeout);

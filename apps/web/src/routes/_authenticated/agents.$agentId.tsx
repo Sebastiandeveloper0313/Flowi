@@ -34,6 +34,7 @@ import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
+import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
@@ -288,7 +289,6 @@ function AgentDetailPage() {
 
 function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
-  const body = run.output ?? run.error ?? run.summary ?? "No output.";
   return (
     <div className="rounded-xl border">
       <button
@@ -308,8 +308,14 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
         )}
       </button>
       {open && (
-        <div className="text-foreground/80 max-h-96 overflow-auto border-t px-4 py-3.5 text-sm leading-relaxed whitespace-pre-wrap">
-          {body}
+        <div className="text-foreground/80 max-h-96 overflow-auto border-t px-4 py-3.5">
+          {run.output ? (
+            <ChatMarkdown>{run.output}</ChatMarkdown>
+          ) : (
+            <div className="text-sm leading-relaxed whitespace-pre-wrap">
+              {run.error ?? run.summary ?? "No output."}
+            </div>
+          )}
         </div>
       )}
     </div>
