@@ -230,15 +230,15 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     id: "competitor-watch",
     name: "Competitor Watch",
     tagline: "A weekly brief on what your competitors just changed.",
-    outcome: "Emails you a brief",
+    outcome: "A weekly brief",
     description:
-      "Tracks your main competitors and emails you a short brief on what moved this week: messaging, pricing, launches, campaigns, plus any opening it creates for you. Uses live web search.",
+      "Tracks your main competitors and writes a short brief on what moved this week: messaging, pricing, launches, campaigns, plus any opening it creates for you. Lands on your dashboard each week (turn on email to also get it in your inbox). Uses live web search.",
     icon: Eye,
     category: "Leads & research",
     kind: "content",
     schedule_cron: "0 7 * * 1",
     scheduleLabel: "Weekly, Mon 7am",
-    channel: "email",
+    channel: "dashboard",
     instructions:
       "Research our main competitors and summarize what changed this week: new messaging, pricing, product launches, campaigns, or notable posts. Use web search to check their sites and recent activity. Deliver a short brief with the 3 to 5 things most worth knowing and any opportunity each one opens for us.",
   },

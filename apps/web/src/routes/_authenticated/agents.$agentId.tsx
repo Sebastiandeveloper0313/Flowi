@@ -19,7 +19,6 @@ import {
   ChevronUp,
   Clock,
   Globe,
-  Hash,
   Image as ImageIcon,
   Loader2,
   MessageSquare,
@@ -39,13 +38,12 @@ import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
+import { useMissingToolkits } from "@/features/integrations/hooks";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import { PostsPanel } from "@/features/posts/PostsPanel";
 import { SlideshowsPanel } from "@/features/slideshows/SlideshowsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
-  CHANNELS,
-  channelLabel,
   formatWhen,
   SCHEDULES,
   scheduleLabel,
@@ -138,9 +136,6 @@ function AgentDetailPage() {
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="size-4" /> Next: {formatWhen(agent.next_run_at)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Hash className="size-4" /> {channelLabel(agent.channel)}
             </span>
           </div>
         </div>
@@ -773,33 +768,44 @@ function AutonomyEditor({ agent, isReddit }: { agent: Task; isReddit: boolean })
 }
 
 /** Editable delivery: dashboard-only or email the result, saves immediately. */
+/**
+ * Every run is always saved to the dashboard, so delivery is just an optional
+ * "email me too" toggle - not an either/or. Email only actually sends through a
+ * connected Gmail, so we say so when it's on but Gmail isn't connected, instead
+ * of the run silently not emailing.
+ */
 function DeliveryEditor({ agent }: { agent: Task }) {
   const update = useUpdateTaskChannel();
-  const current = agent.channel;
-  // Legacy channel values (discord, slack, ...) stay selectable until changed.
-  const options = CHANNELS.some((c) => c.value === current)
-    ? [...CHANNELS]
-    : [{ value: current, label: channelLabel(current) }, ...CHANNELS];
+  const { missing, loaded } = useMissingToolkits(["gmail"]);
+  const gmailConnected = loaded && missing.length === 0;
+  const emailOn = agent.channel === "email";
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-muted-foreground">Delivers to</span>
-      <Select
-        value={current}
-        disabled={update.isPending}
-        onValueChange={(v) => update.mutate({ id: agent.id, channel: v })}
-      >
-        <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="end">
-          {options.map((c) => (
-            <SelectItem key={c.value} value={c.value}>
-              {c.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Email me the result</p>
+          <p className="text-muted-foreground text-xs">
+            Every run is always saved here. Turn this on to also get it by email.
+          </p>
+        </div>
+        <Switch
+          checked={emailOn}
+          disabled={update.isPending}
+          onCheckedChange={(v) =>
+            update.mutate({ id: agent.id, channel: v ? "email" : "dashboard" })
+          }
+        />
+      </div>
+      {emailOn && loaded && !gmailConnected && (
+        <p className="text-xs text-amber-600">
+          Connect Gmail in{" "}
+          <Link to="/integrations" className="underline">
+            Integrations
+          </Link>{" "}
+          so these emails can actually send.
+        </p>
+      )}
     </div>
   );
 }

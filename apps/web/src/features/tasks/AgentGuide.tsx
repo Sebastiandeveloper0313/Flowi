@@ -95,10 +95,7 @@ export function AgentGuide({
             },
             {
               title: "Results show in Run history",
-              text:
-                agent.channel === "email"
-                  ? "Every run's output appears below and lands in your inbox."
-                  : "Every run's output appears below, ready to use.",
+              text: "Every run's output appears below, ready to use. Turn on email in Settings to also get it in your inbox.",
             },
             {
               title: "Tune it anytime",
