@@ -313,7 +313,7 @@ function PostCard({
               type="button"
               onClick={() => setEditingBody(true)}
               title="Click to edit"
-              className="hover:border-border/80 bg-muted/40 block w-full cursor-text rounded-lg border border-transparent p-3 text-left transition"
+              className="hover:bg-muted/40 -mx-1 block w-[calc(100%+0.5rem)] cursor-text rounded-lg px-1 py-0.5 text-left transition"
             >
               {body.trim() ? (
                 <ChatMarkdown>{body}</ChatMarkdown>
