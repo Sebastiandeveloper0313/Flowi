@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cancelQueuedDraft,
   publishPostDraft,
+  reschedulePost,
+  schedulePostDraft,
   setPostDraftStatus,
   updatePostDraft,
 } from "./mutations";
@@ -50,6 +52,24 @@ export function usePublishPostDraft() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: publishPostDraft,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: postKeys.all }),
+  });
+}
+
+/** Queue the selected subreddits to post spaced out, not all at once. */
+export function useSchedulePostDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: schedulePostDraft,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: postKeys.all }),
+  });
+}
+
+/** Change when one queued sub-post goes out. */
+export function useReschedulePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reschedulePost,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: postKeys.all }),
   });
 }
