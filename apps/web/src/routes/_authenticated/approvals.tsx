@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 
+import { useConfirm } from "@/components/useConfirm";
 import { useApprovals, useDecideApproval } from "@/features/approvals/hooks";
 import type { Approval } from "@/features/approvals/queries";
 import { PageHeader } from "@/features/dashboard/ui";
@@ -26,6 +27,26 @@ function ApprovalsPage() {
   const { data: leadGroups } = usePendingLeadReplies();
   const { data: tasks } = useTasks();
   const decide = useDecideApproval();
+  const { confirm, dialog } = useConfirm();
+
+  // Approve does the outside-world action (send/post) immediately, and reject
+  // discards it for good - both irreversible, so both confirm first.
+  async function onDecide(a: Approval, decision: "approve" | "reject") {
+    const ok =
+      decision === "approve"
+        ? await confirm({
+            title: "Approve and do it now?",
+            description: `This will ${a.title.toLowerCase()} immediately from your connected account. It can't be undone here.`,
+            confirmLabel: "Approve",
+          })
+        : await confirm({
+            title: "Reject this?",
+            description: "The agent won't take this action, and it won't be retried.",
+            confirmLabel: "Reject",
+            destructive: true,
+          });
+    if (ok) decide.mutate({ id: a.id, decision });
+  }
 
   const pending = (approvals ?? []).filter((a) => a.status === "pending");
   const decided = (approvals ?? []).filter((a) => a.status !== "pending").slice(0, 20);
@@ -112,11 +133,7 @@ function ApprovalsPage() {
                   ) : null}
 
                   <div className="mt-4 flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => decide.mutate({ id: a.id, decision: "approve" })}
-                    >
+                    <Button size="sm" disabled={busy} onClick={() => onDecide(a, "approve")}>
                       {busy ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : (
@@ -128,7 +145,7 @@ function ApprovalsPage() {
                       size="sm"
                       variant="outline"
                       disabled={busy}
-                      onClick={() => decide.mutate({ id: a.id, decision: "reject" })}
+                      onClick={() => onDecide(a, "reject")}
                     >
                       <X className="size-4" /> Reject
                     </Button>
@@ -153,23 +170,28 @@ function ApprovalsPage() {
             Recently decided
           </h2>
           <div className="grid gap-2">
-            {decided.map((a) => (
-              <div
-                key={a.id}
-                className="bg-card/60 flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{a.title}</p>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {formatWhen(a.decided_at)}
-                  </p>
+            {decided.map((a) => {
+              const reason =
+                a.status === "failed" && typeof a.result === "string" ? a.result : null;
+              return (
+                <div
+                  key={a.id}
+                  className="bg-card/60 flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{a.title}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {reason ? reason : formatWhen(a.decided_at)}
+                    </p>
+                  </div>
+                  <DecisionBadge status={a.status} />
                 </div>
-                <DecisionBadge status={a.status} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
+      {dialog}
     </div>
   );
 }

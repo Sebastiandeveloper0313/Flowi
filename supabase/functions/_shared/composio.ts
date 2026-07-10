@@ -130,6 +130,30 @@ export function describeToolCall(
     const text = str(args.message || args.text).trim();
     return { title: "Send a Messenger reply from your page", detail: text.slice(0, 400) };
   }
+  if (slug === "GMAIL_REPLY_TO_THREAD") {
+    const to = str(args.recipient_email || args.to).trim();
+    const body = str(args.message_body || args.body || args.message).trim();
+    const preview = body.length > 400 ? `${body.slice(0, 400)}…` : body;
+    return { title: to ? `Reply to ${to}` : "Reply to an email", detail: preview };
+  }
+  if (slug === "REDDIT_CREATE_REDDIT_POST") {
+    const sub = str(args.subreddit).replace(/^r\//i, "").trim();
+    const title = str(args.title).trim();
+    const body = str(args.text || args.body).trim();
+    const preview = body.length > 400 ? `${body.slice(0, 400)}…` : body;
+    return {
+      title: sub ? `Post to r/${sub}` : "Post to Reddit",
+      detail: [title && `Title: ${title}`, preview].filter(Boolean).join("\n\n"),
+    };
+  }
+  if (slug === "FACEBOOK_CREATE_PHOTO_POST") {
+    const text = str(args.message || args.caption).trim();
+    return { title: "Publish a photo post on your Facebook page", detail: text.slice(0, 400) };
+  }
+  if (slug === "FACEBOOK_CREATE_VIDEO_POST") {
+    const text = str(args.description || args.message).trim();
+    return { title: "Publish a video post on your Facebook page", detail: text.slice(0, 400) };
+  }
   const toolkit = slug.split("_")[0] ?? "";
   const nice = toolkit ? toolkit.charAt(0) + toolkit.slice(1).toLowerCase() : "a tool";
   return {
