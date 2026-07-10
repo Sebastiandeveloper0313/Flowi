@@ -12,7 +12,12 @@ import type { Task } from "./queries";
  * explains itself exactly once.
  */
 export function useAgentGuide(agent: Task | undefined) {
-  const kind = agent?.kind === "reddit_monitor" ? "reddit_monitor" : "content";
+  const kind =
+    agent?.kind === "reddit_monitor"
+      ? "reddit_monitor"
+      : agent?.kind === "tiktok_slideshow"
+        ? "tiktok_slideshow"
+        : "content";
   const seenKey = `sentrive.agent-guide.${kind}`;
   const [visible, setVisible] = useState(false);
 
@@ -68,23 +73,38 @@ export function AgentGuide({
             text: "Approve a reply and it goes out from your Reddit account. Nothing posts on its own.",
           },
         ]
-      : [
-          {
-            title: `Runs ${schedule}`,
-            text: "It does the job in the instruction below and writes up the result.",
-          },
-          {
-            title: "Results show in Run history",
-            text:
-              agent.channel === "email"
-                ? "Every run's output appears below and lands in your inbox."
-                : "Every run's output appears below, ready to use.",
-          },
-          {
-            title: "Tune it anytime",
-            text: "Change the schedule or delivery in Settings, or just tell the chat what to adjust.",
-          },
-        ];
+      : agent.kind === "tiktok_slideshow"
+        ? [
+            {
+              title: "Add your images first",
+              text: "Upload a few photos on the right. Each slideshow renders its text over them (without any, it uses plain backgrounds).",
+            },
+            {
+              title: `Writes a slideshow ${schedule}`,
+              text: "A scroll-stopping hook, a few punchy value slides, and a CTA, plus a caption.",
+            },
+            {
+              title: "Download and post",
+              text: "Preview the slides here, download them, and post in TikTok's photo mode.",
+            },
+          ]
+        : [
+            {
+              title: `Runs ${schedule}`,
+              text: "It does the job in the instruction below and writes up the result.",
+            },
+            {
+              title: "Results show in Run history",
+              text:
+                agent.channel === "email"
+                  ? "Every run's output appears below and lands in your inbox."
+                  : "Every run's output appears below, ready to use.",
+            },
+            {
+              title: "Tune it anytime",
+              text: "Change the schedule or delivery in Settings, or just tell the chat what to adjust.",
+            },
+          ];
 
   return (
     <div className="bg-card relative mb-5 overflow-hidden rounded-2xl border p-5 shadow-xs">
