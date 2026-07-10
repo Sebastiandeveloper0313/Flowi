@@ -136,7 +136,7 @@ export function PostsPanel({ taskId }: { taskId: string }) {
       ) : (
         <div className="grid gap-4">
           {shown.map((draft) => (
-            <PostCard key={draft.id} draft={draft} taskId={taskId} />
+            <PostCard key={draft.id} draft={draft} taskId={taskId} onDone={setFilter} />
           ))}
         </div>
       )}
@@ -144,7 +144,15 @@ export function PostsPanel({ taskId }: { taskId: string }) {
   );
 }
 
-function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
+function PostCard({
+  draft,
+  taskId,
+  onDone,
+}: {
+  draft: PostDraft;
+  taskId: string;
+  onDone: (tab: Filter) => void;
+}) {
   const publish = usePublishPostDraft();
   const schedule = useSchedulePostDraft();
   const reschedule = useReschedulePost();
@@ -198,7 +206,11 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
           "This publishes the post to Reddit from your connected account now. You can still delete it on Reddit afterwards.",
         confirmLabel: "Post it",
       });
-      if (ok) publish.mutate({ draftId: draft.id, subreddits: targets, title, body });
+      if (ok)
+        publish.mutate(
+          { draftId: draft.id, subreddits: targets, title, body },
+          { onSuccess: () => onDone("posted") },
+        );
       return;
     }
     const ok = await confirm({
@@ -207,7 +219,11 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
         "They go out one at a time, spaced about 20 minutes apart starting now, so it never looks like a spam blast. You can change any time or post it now on the Scheduled tab.",
       confirmLabel: `Schedule ${targets.length} posts`,
     });
-    if (ok) schedule.mutate({ draftId: draft.id, subreddits: targets, title, body });
+    if (ok)
+      schedule.mutate(
+        { draftId: draft.id, subreddits: targets, title, body },
+        { onSuccess: () => onDone("scheduled") },
+      );
   }
 
   async function rewrite() {
