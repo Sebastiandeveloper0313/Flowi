@@ -377,6 +377,60 @@ export type Database = {
           },
         ];
       };
+      post_drafts: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: string;
+          posts: Json;
+          status: string;
+          subreddits: string[];
+          task_id: string | null;
+          team_id: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          posts?: Json;
+          status?: string;
+          subreddits?: string[];
+          task_id?: string | null;
+          team_id: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          posts?: Json;
+          status?: string;
+          subreddits?: string[];
+          task_id?: string | null;
+          team_id?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "post_drafts_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "post_drafts_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;

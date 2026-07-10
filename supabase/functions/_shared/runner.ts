@@ -16,6 +16,7 @@ import {
   taskAutonomy,
   type WorkspaceContext,
 } from "./marketing.ts";
+import { createPostDraft, parsePostDraft, publishDraft } from "./reddit-post.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 
 export interface TaskRow {
@@ -147,18 +148,17 @@ export async function executeTask(
       const target = subs.length
         ? `the subreddit(s) ${subs.map((s) => `r/${s}`).join(", ")}`
         : "a subreddit where this business's audience actually spends time";
-      system += redditConnected
-        ? "\n\nThis agent is a Reddit poster. Reddit is strict about self-promotion: an overtly " +
-          "promotional post gets removed and can get the account banned. Write ONE genuinely valuable " +
-          `post for ${target} that stands on its own (a real insight, a useful resource, or an honest ` +
-          "story), and mention the business only if the subreddit's rules allow it, with a brief honest " +
-          "disclosure. FIRST use web_search to check that subreddit's rules, whether self-promotion is " +
-          "allowed, and what kind of posts do well there; if promotion is banned, write a purely helpful " +
-          "post with no promotion. Then submit it by calling the Reddit create-post tool with the " +
-          "subreddit, a title, and the body. No clickbait, no hashtag spam, no em dashes."
-        : "\n\nThis agent is a Reddit poster, but Reddit is NOT connected for this workspace, so you " +
-          `cannot post. Write ONE genuinely valuable, non-spammy Reddit post (a title and a body) for ${target} ` +
-          "and deliver it as a draft for the user to review. Do not claim you posted, scheduled, or queued it.";
+      // Draft only. The model NEVER posts: the user reviews the draft and
+      // publishes it in one click (or auto mode publishes it after the run), so
+      // edits and subreddit choices are honored and each post is tracked.
+      system +=
+        "\n\nThis agent is a Reddit poster. Reddit is strict about self-promotion, so write ONE genuinely " +
+        `valuable post for ${target} that stands on its own (a real insight, a useful resource, or an ` +
+        "honest story), and mention the business only if the subreddit's rules allow it, with a brief " +
+        "honest disclosure. FIRST use web_search to check that subreddit's rules and what posts do well " +
+        "there; if self-promotion is banned, write a purely helpful post with no promotion. Do NOT post " +
+        "it and do not call any posting tool: just write it. The user reviews the draft and posts it to " +
+        "the subreddit(s) in one click. No clickbait, no hashtag spam, no em dashes.";
       // The post body is Reddit markdown, so let it use formatting where it aids
       // readability, without looking like an ad.
       system +=
@@ -166,13 +166,14 @@ export async function executeTask(
         "key point, keep paragraphs short, and use bullet or numbered lists for steps or comparisons. Do " +
         "not over-format or make it look like marketing; match how well-received posts in that subreddit " +
         "actually read.";
-      // The run output IS the deliverable the user reviews, so it must be just the
-      // post (title + body), not the model narrating what it checked and why.
+      // The output IS the deliverable the user reviews, so it must be just the
+      // post (title + body), not the model narrating what it checked and why. We
+      // parse this exact shape into a draft (title + body) after the run.
       system +=
-        "\n\nYour final reply is the deliverable the user reviews, so make it ONLY the post and nothing " +
-        "else. Do not narrate what you checked, why you made choices, or whether you posted it. Format it " +
+        "\n\nYour reply is the deliverable the user reviews, so make it ONLY the post and nothing else. " +
+        "Do not narrate what you checked, why you made choices, or whether you posted it. Format it " +
         "exactly as:\n\n**Title:** <the post title>\n\n<the post body in Reddit markdown>\n\nNo preamble " +
-        'such as "Done" or "Here is what I wrote", and no commentary after the post.';
+        'such as "Done" or "Here is what I wrote", and no commentary before or after the post.';
       const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
       if (recentPosts.length) {
         system +=
@@ -258,9 +259,17 @@ export async function executeTask(
         "(title, then meta description, then the body). Do not publish it anywhere, just deliver it.";
     }
 
+    // A reddit_post agent only DRAFTS; the app publishes on the user's click, so
+    // hide the Reddit posting tool from the model — it must never post directly.
+    const usableTools =
+      task.kind === "reddit_post"
+        ? connectedTools.filter(
+            (t) => (t as { name?: string }).name !== "REDDIT_CREATE_REDDIT_POST",
+          )
+        : connectedTools;
     const tools: unknown[] = [
       { type: "web_search_20260209", name: "web_search", max_uses: 5 },
-      ...connectedTools,
+      ...usableTools,
     ];
 
     const messages: { role: string; content: unknown }[] = [
@@ -384,14 +393,39 @@ export async function executeTask(
         output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
       };
     }
-    if (task.kind === "reddit_post" && !redditConnected) {
-      const notice =
-        "Reddit isn't connected, so this post could not be submitted or sent for approval. " +
-        "Connect Reddit on the Integrations page, then run this agent again to review and approve it.";
-      return {
-        summary: "Draft ready, connect Reddit to post",
-        output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
-      };
+    // A reddit_post run produces a draft (title + body) for the user to review
+    // and publish. We save it as a post_draft so it shows on the agent's Posts
+    // tab with per-subreddit posting. In auto mode we also publish it now to the
+    // agent's target subreddits.
+    if (task.kind === "reddit_post" && ctx?.client) {
+      const parsed = parsePostDraft(output || "");
+      const rawSubs = (task.config as { subreddits?: unknown } | null)?.subreddits;
+      const subs = Array.isArray(rawSubs)
+        ? rawSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
+        : [];
+      const draftId = await createPostDraft(ctx.client, task, parsed).catch(() => null);
+
+      if (draftId && taskAutonomy(task, ws) === "auto" && redditConnected && subs.length) {
+        const res = await publishDraft(
+          ctx.client,
+          draftId,
+          task.team_id,
+          subs,
+          parsed.title,
+          parsed.body,
+        ).catch(() => null);
+        if (res && res.posted > 0) {
+          const where = res.results
+            .filter((r) => r.status === "posted")
+            .map((r) => `r/${r.subreddit}`)
+            .join(", ");
+          return { summary: `Posted to ${where}`.slice(0, 140), output: `Posted to ${where}.\n\n${output}` };
+        }
+      }
+      const notice = redditConnected
+        ? "Draft ready. Open the Posts tab to edit it, pick subreddits, and post in one click."
+        : "Draft ready. Connect Reddit on the Integrations page to post it in one click.";
+      return { summary: `Draft ready: ${parsed.title}`.slice(0, 140), output: `${notice}\n\n${output}` };
     }
     if (task.kind === "facebook_post" && !facebookConnected) {
       const notice =

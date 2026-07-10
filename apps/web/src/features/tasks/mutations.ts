@@ -93,6 +93,10 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
       timezone,
       status: "active",
       kind: p.kind,
+      // A Reddit poster starts in Ask mode: a community post is a louder, riskier
+      // action than a lead reply, so it should draft for one-click review by
+      // default. The user can switch it to Auto knowingly. null = inherit default.
+      autonomy_mode: p.kind === "reddit_post" ? "ask" : null,
       config,
     })
     .select("id, title")

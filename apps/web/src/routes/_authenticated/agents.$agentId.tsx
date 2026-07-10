@@ -54,6 +54,7 @@ import {
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
+import { PostsPanel } from "@/features/posts/PostsPanel";
 import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
@@ -102,6 +103,7 @@ function AgentDetailPage() {
   const paused = agent.status === "paused";
   const running = run.isPending || (runs ?? []).some((r) => r.status === "running");
   const isReddit = agent.kind === "reddit_monitor";
+  const isRedditPost = agent.kind === "reddit_post";
   // The conversation that created this agent (if it was made from chat), so
   // "Open chat" returns to it instead of starting a blank one.
   const agentChatId = (agent.config as { chat_id?: string } | null)?.chat_id;
@@ -206,6 +208,19 @@ function AgentDetailPage() {
               </CardHeader>
               <CardContent>
                 <LeadsPanel taskId={agent.id} />
+              </CardContent>
+            </Card>
+          )}
+
+          {isRedditPost && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MessageSquare className="size-4" /> Posts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PostsPanel taskId={agent.id} />
               </CardContent>
             </Card>
           )}
