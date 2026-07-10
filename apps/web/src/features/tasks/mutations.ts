@@ -59,6 +59,17 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
   } = await supabase.auth.getUser();
   if (!user) throw new Error("You must be signed in.");
 
+  // Proposals default their timezone to "UTC" whenever the source (a Library
+  // template, a suggested agent, or the chat model) didn't know the user's zone.
+  // Scheduling an "8 AM" cron in UTC makes it run at the wrong wall-clock time
+  // and, worse, the agent page shows the schedule label ("Every day at 8 AM",
+  // read from the cron) next to a "Next run" that renders in the browser's zone
+  // (e.g. 1:30 PM for a +5:30 user) — they look contradictory. Treat "UTC" as
+  // "unknown" and use the browser's real zone; honor an explicit non-UTC zone
+  // (e.g. the chat model parsed "8am Eastern") as-is.
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timezone = p.timezone && p.timezone !== "UTC" ? p.timezone : browserTz;
+
   const config: Record<string, unknown> = p.proposalId ? { proposal_id: p.proposalId } : {};
   if (p.chatId) config.chat_id = p.chatId;
   if (p.kind === "reddit_monitor") {
@@ -79,7 +90,7 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
       instructions: p.instructions,
       channel: p.channel,
       schedule_cron: p.schedule_cron,
-      timezone: p.timezone,
+      timezone,
       status: "active",
       kind: p.kind,
       config,
