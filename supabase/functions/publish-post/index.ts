@@ -51,14 +51,7 @@ Deno.serve(async (req: Request) => {
     if (error || !draft) return json({ error: "Draft not found or access denied" }, 403);
 
     const admin = createClient(url, service);
-    const result = await publishDraft(
-      admin,
-      draft.id,
-      draft.team_id,
-      subs,
-      finalTitle,
-      finalBody,
-    );
+    const result = await publishDraft(admin, draft.id, draft.team_id, subs, finalTitle, finalBody);
     return json({ result });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

@@ -16,8 +16,8 @@ import {
   taskAutonomy,
   type WorkspaceContext,
 } from "./marketing.ts";
-import { createPostDraft, parsePostDraft, publishDraft } from "./reddit-post.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
+import { createPostDraft, parsePostDraft, publishDraft } from "./reddit-post.ts";
 
 export interface TaskRow {
   id: string;
@@ -419,13 +419,19 @@ export async function executeTask(
             .filter((r) => r.status === "posted")
             .map((r) => `r/${r.subreddit}`)
             .join(", ");
-          return { summary: `Posted to ${where}`.slice(0, 140), output: `Posted to ${where}.\n\n${output}` };
+          return {
+            summary: `Posted to ${where}`.slice(0, 140),
+            output: `Posted to ${where}.\n\n${output}`,
+          };
         }
       }
       const notice = redditConnected
         ? "Draft ready. Open the Posts tab to edit it, pick subreddits, and post in one click."
         : "Draft ready. Connect Reddit on the Integrations page to post it in one click.";
-      return { summary: `Draft ready: ${parsed.title}`.slice(0, 140), output: `${notice}\n\n${output}` };
+      return {
+        summary: `Draft ready: ${parsed.title}`.slice(0, 140),
+        output: `${notice}\n\n${output}`,
+      };
     }
     if (task.kind === "facebook_post" && !facebookConnected) {
       const notice =

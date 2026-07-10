@@ -37,6 +37,7 @@ import { useAutonomy } from "@/features/autonomy/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
+import { PostsPanel } from "@/features/posts/PostsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
   CHANNELS,
@@ -54,7 +55,6 @@ import {
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
-import { PostsPanel } from "@/features/posts/PostsPanel";
 import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";

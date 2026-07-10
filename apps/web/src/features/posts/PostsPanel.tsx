@@ -1,27 +1,14 @@
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Textarea } from "@workspace/ui/components/textarea";
-import {
-  ArrowUpRight,
-  Check,
-  FileText,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Send,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Check, FileText, Loader2, Plus, RefreshCw, Send, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { useRunTask } from "@/features/tasks/hooks";
 
-import {
-  useAgentPostDrafts,
-  usePublishPostDraft,
-  useSetPostDraftStatus,
-} from "./hooks";
+import { useAgentPostDrafts, usePublishPostDraft, useSetPostDraftStatus } from "./hooks";
 import { draftResults, type PostDraft } from "./queries";
 
 type Filter = "draft" | "posted" | "dismissed";
@@ -118,7 +105,9 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
 
   const results = draftResults(draft);
   const postedSubs = new Set(results.filter((r) => r.status === "posted").map((r) => r.subreddit));
-  const failedBySub = new Map(results.filter((r) => r.status === "failed").map((r) => [r.subreddit, r]));
+  const failedBySub = new Map(
+    results.filter((r) => r.status === "failed").map((r) => [r.subreddit, r]),
+  );
   const hasPosted = postedSubs.size > 0;
   const dismissed = draft.status === "dismissed";
   const editable = !dismissed && !hasPosted;
@@ -187,7 +176,9 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
             Dismissed
           </span>
         ) : (
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">Draft</span>
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+            Draft
+          </span>
         )}
         <span className="text-muted-foreground">{timeAgo(draft.created_at)}</span>
       </div>
@@ -259,7 +250,7 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
                   className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
                     on
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted border-transparent bg-muted/60"
+                      : "text-muted-foreground hover:bg-muted bg-muted/60 border-transparent"
                   } ${failed ? "ring-1 ring-red-200" : ""}`}
                 >
                   r/{sub}
@@ -281,7 +272,13 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
                   placeholder="add subreddit"
                   className="h-7 w-32 text-xs"
                 />
-                <Button size="icon" variant="ghost" className="size-7" onClick={addSub} type="button">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={addSub}
+                  type="button"
+                >
                   <Plus className="size-4" />
                 </Button>
               </span>

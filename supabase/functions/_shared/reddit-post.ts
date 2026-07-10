@@ -15,10 +15,15 @@ export interface ParsedPost {
 export function parsePostDraft(output: string): ParsedPost {
   const text = output.trim();
   // A leading "Title:" line (optionally wrapped in ** or #); the rest is the body.
-  const m = text.match(/^[ \t]*(?:#+[ \t]*)?(?:\*\*)?[ \t]*title[ \t]*:?[ \t]*(?:\*\*)?[ \t]*(.+?)[ \t]*$/im);
+  const m = text.match(
+    /^[ \t]*(?:#+[ \t]*)?(?:\*\*)?[ \t]*title[ \t]*:?[ \t]*(?:\*\*)?[ \t]*(.+?)[ \t]*$/im,
+  );
   if (m && m.index !== undefined) {
     const title = m[1].replace(/\*\*/g, "").trim();
-    const body = text.slice(m.index + m[0].length).replace(/^\s+/, "").trim();
+    const body = text
+      .slice(m.index + m[0].length)
+      .replace(/^\s+/, "")
+      .trim();
     return { title: title.slice(0, 300), body: body || title };
   }
   // No explicit title line: first line is the title, the rest is the body.
