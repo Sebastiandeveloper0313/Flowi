@@ -1,6 +1,6 @@
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { Copy, Download, Film, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Download, Film, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useAgentSlideshows, useSetSlideshowStatus, useUpdateSlideshow } from "./hooks";
@@ -14,19 +14,109 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-/** One slide rendered to a small canvas, exactly as it'll export. */
-function SlidePreview({ slide, imageUrl }: { slide: RenderSlide; imageUrl?: string }) {
+/** One slide rendered to a small canvas, exactly as it'll export. Click to open. */
+function SlidePreview({
+  slide,
+  imageUrl,
+  onOpen,
+}: {
+  slide: RenderSlide;
+  imageUrl?: string;
+  onOpen: () => void;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
     if (c) void renderSlide(c, slide, imageUrl, { width: 320 });
   }, [slide, imageUrl]);
   return (
-    <canvas
-      ref={ref}
-      className="w-[116px] shrink-0 rounded-lg border"
-      style={{ aspectRatio: "9 / 16" }}
-    />
+    <button
+      type="button"
+      onClick={onOpen}
+      title="Click to view larger"
+      className="hover:ring-primary shrink-0 rounded-lg transition hover:ring-2"
+    >
+      <canvas
+        ref={ref}
+        className="block w-[116px] rounded-lg border"
+        style={{ aspectRatio: "9 / 16" }}
+      />
+    </button>
+  );
+}
+
+/** Fullscreen slide viewer with left/right navigation. */
+function SlideViewer({
+  slides,
+  imgFor,
+  start,
+  onClose,
+}: {
+  slides: RenderSlide[];
+  imgFor: (i: number) => string | undefined;
+  start: number;
+  onClose: () => void;
+}) {
+  const [i, setI] = useState(start);
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const c = ref.current;
+    if (c) void renderSlide(c, slides[i], imgFor(i), { width: 600 });
+  }, [i, slides, imgFor]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft") setI((n) => (n - 1 + slides.length) % slides.length);
+      else if (e.key === "ArrowRight") setI((n) => (n + 1) % slides.length);
+      else if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [slides.length, onClose]);
+
+  const go = (delta: number) => setI((n) => (n + delta + slides.length) % slides.length);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+      {/* Full-screen backdrop button: click anywhere outside the slide closes it. */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close viewer"
+        className="absolute inset-0 cursor-default"
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 text-white/70 transition hover:text-white"
+        aria-label="Close"
+      >
+        <X className="size-7" />
+      </button>
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        className="absolute left-3 z-10 rounded-full bg-white/10 p-2 text-white/80 transition hover:bg-white/20 hover:text-white sm:left-6"
+        aria-label="Previous slide"
+      >
+        <ChevronLeft className="size-7" />
+      </button>
+      <div className="relative z-10 flex flex-col items-center gap-3">
+        <canvas ref={ref} className="max-h-[82vh] w-auto rounded-xl shadow-2xl" />
+        <span className="text-sm text-white/70">
+          {i + 1} / {slides.length}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        className="absolute right-3 z-10 rounded-full bg-white/10 p-2 text-white/80 transition hover:bg-white/20 hover:text-white sm:right-6"
+        aria-label="Next slide"
+      >
+        <ChevronRight className="size-7" />
+      </button>
+    </div>
   );
 }
 
@@ -63,6 +153,7 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [caption, setCaption] = useState(show.caption);
+  const [viewerAt, setViewerAt] = useState<number | null>(null);
   const slides = slideshowSlides(show);
   const imgFor = (i: number) => (images.length ? images[i % images.length] : undefined);
 
@@ -114,7 +205,7 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
         {slides.map((slide, i) => (
-          <SlidePreview key={i} slide={slide} imageUrl={imgFor(i)} />
+          <SlidePreview key={i} slide={slide} imageUrl={imgFor(i)} onOpen={() => setViewerAt(i)} />
         ))}
       </div>
 
@@ -158,6 +249,15 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
         Downloads the slides as images. Open TikTok, tap +, choose photo mode, and add them in
         order.
       </p>
+
+      {viewerAt !== null && (
+        <SlideViewer
+          slides={slides}
+          imgFor={imgFor}
+          start={viewerAt}
+          onClose={() => setViewerAt(null)}
+        />
+      )}
     </div>
   );
 }
