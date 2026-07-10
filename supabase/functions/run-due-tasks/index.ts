@@ -43,6 +43,17 @@ Deno.serve(async (req: Request) => {
   const now = new Date();
   const nowIso = now.toISOString();
 
+  // Reap orphaned runs: a run stuck in 'running' well past the runner's own
+  // timeout means the function was killed before it could finish. Fail it so it
+  // stops showing "Running..." forever AND stops blocking the agent's next run
+  // (runTaskOnce refuses to start while a run is in progress).
+  const reapCutoff = new Date(now.getTime() - 4 * 60_000).toISOString();
+  await admin
+    .from("task_runs")
+    .update({ status: "failed", error: "Run timed out.", finished_at: nowIso })
+    .eq("status", "running")
+    .lt("started_at", reapCutoff);
+
   // Only active recurring tasks that are due now or not yet scheduled.
   const { data: tasks, error } = await admin
     .from("tasks")
