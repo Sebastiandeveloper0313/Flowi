@@ -90,6 +90,11 @@ export function contextBlock(ws: WorkspaceContext | null): string {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
   const lines: string[] = [];
   if (str(ws.name)) lines.push(`Company: ${ws.name}`);
+  if (str(ws.website_url)) {
+    lines.push(
+      `Website: ${ws.website_url} (use this EXACT url whenever you reference their site or link; never invent, guess, or change the domain or TLD)`,
+    );
+  }
   if (str(bc.summary)) lines.push(`What they do: ${bc.summary}`);
   if (str(bc.product)) lines.push(`Product: ${bc.product}`);
   if (str(bc.audience)) lines.push(`Audience / ICP: ${bc.audience}`);
