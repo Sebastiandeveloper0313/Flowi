@@ -12,7 +12,7 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { ChatMarkdown } from "@/features/chat/Markdown";
@@ -173,6 +173,11 @@ function PostCard({
 
   const [title, setTitle] = useState(draft.title);
   const [body, setBody] = useState(draft.body);
+  const [editingBody, setEditingBody] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (editingBody) bodyRef.current?.focus();
+  }, [editingBody]);
   const candidates = draft.subreddits.length ? draft.subreddits : [];
   const [subs, setSubs] = useState<string[]>(candidates);
   // Which not-yet-posted subs are selected for the next post. Default: all of them.
@@ -279,23 +284,43 @@ function PostCard({
         <h3 className="mt-3 leading-snug font-semibold">{title}</h3>
       )}
 
-      {/* Body */}
+      {/* Body: one area that shows the formatted post and flips to a raw editor.
+          A textarea can't render markdown inline, so this is the clean middle
+          ground - see it as it'll look, click to edit. */}
       {editable ? (
         <div className="mt-3">
-          <span className="text-muted-foreground mb-1 block text-xs font-medium">Post</span>
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={8}
-            className="resize-y text-sm"
-          />
-          {body.trim() && (
-            <div className="border-border/60 bg-muted/30 mt-2 rounded-lg border p-3">
-              <span className="text-muted-foreground mb-1 block text-xs font-medium">
-                Preview (how it'll look on Reddit)
-              </span>
-              <ChatMarkdown>{body}</ChatMarkdown>
-            </div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-muted-foreground text-xs font-medium">Post</span>
+            <button
+              type="button"
+              onClick={() => setEditingBody((v) => !v)}
+              className="text-primary text-xs font-medium hover:underline"
+            >
+              {editingBody ? "Done" : "Edit text"}
+            </button>
+          </div>
+          {editingBody ? (
+            <Textarea
+              ref={bodyRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              onBlur={() => setEditingBody(false)}
+              rows={9}
+              className="resize-y text-sm"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingBody(true)}
+              title="Click to edit"
+              className="hover:border-border/80 bg-muted/40 block w-full cursor-text rounded-lg border border-transparent p-3 text-left transition"
+            >
+              {body.trim() ? (
+                <ChatMarkdown>{body}</ChatMarkdown>
+              ) : (
+                <span className="text-muted-foreground text-sm">Click to write the post…</span>
+              )}
+            </button>
           )}
         </div>
       ) : (
