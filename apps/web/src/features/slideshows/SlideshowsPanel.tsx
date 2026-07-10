@@ -1,8 +1,9 @@
 import { Button } from "@workspace/ui/components/button";
+import { Textarea } from "@workspace/ui/components/textarea";
 import { Copy, Download, Film, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { useAgentSlideshows, useSetSlideshowStatus } from "./hooks";
+import { useAgentSlideshows, useSetSlideshowStatus, useUpdateSlideshow } from "./hooks";
 import { type Slideshow, slideshowSlides } from "./queries";
 import { downloadSlide, type RenderSlide, renderSlide } from "./render";
 
@@ -58,10 +59,16 @@ export function SlideshowsPanel({ taskId, images }: { taskId: string; images: st
 
 function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) {
   const setStatus = useSetSlideshowStatus();
+  const updateShow = useUpdateSlideshow();
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [caption, setCaption] = useState(show.caption);
   const slides = slideshowSlides(show);
   const imgFor = (i: number) => (images.length ? images[i % images.length] : undefined);
+
+  function saveCaption() {
+    if (caption !== show.caption) updateShow.mutate({ id: show.id, patch: { caption } });
+  }
 
   async function downloadAll() {
     setDownloading(true);
@@ -78,7 +85,7 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
 
   async function copyCaption() {
     try {
-      await navigator.clipboard.writeText(show.caption);
+      await navigator.clipboard.writeText(caption);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -111,12 +118,17 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
         ))}
       </div>
 
-      {show.caption && (
-        <div className="bg-muted/40 mt-3 rounded-lg p-3">
-          <span className="text-muted-foreground mb-1 block text-xs font-medium">Caption</span>
-          <p className="text-sm whitespace-pre-wrap">{show.caption}</p>
-        </div>
-      )}
+      <div className="mt-3">
+        <span className="text-muted-foreground mb-1 block text-xs font-medium">Caption</span>
+        <Textarea
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          onBlur={saveCaption}
+          rows={4}
+          placeholder="Write a caption…"
+          className="resize-y text-sm"
+        />
+      </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={downloadAll} disabled={downloading}>
@@ -127,7 +139,7 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
           )}
           {downloading ? "Downloading…" : "Download slides"}
         </Button>
-        {show.caption && (
+        {caption.trim() && (
           <Button size="sm" variant="outline" onClick={copyCaption}>
             <Copy className="size-4" /> {copied ? "Copied" : "Copy caption"}
           </Button>
