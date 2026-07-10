@@ -245,7 +245,7 @@ function AgentDetailPage() {
                   No runs yet. Hit “Run now” to try it.
                 </p>
               ) : (
-                runs.map((r, i) => <RunRow key={r.id} run={r} defaultOpen={i === 0} />)
+                runs.map((r) => <RunRow key={r.id} run={r} defaultOpen={false} />)
               )}
             </CardContent>
           </Card>
