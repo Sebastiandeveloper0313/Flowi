@@ -158,19 +158,46 @@ export const CHANNELS = [
   { value: "email", label: "Email me the result" },
 ] as const;
 
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Expand a cron field like "1,3,5", "1-5", or "9" into a sorted number list; null if it isn't a plain list/range within [lo, hi]. */
+function cronList(field: string, lo: number, hi: number): number[] | null {
+  const out: number[] = [];
+  for (const chunk of field.split(",")) {
+    const range = chunk.match(/^(\d+)-(\d+)$/);
+    if (range) {
+      const a = Number(range[1]);
+      const b = Number(range[2]);
+      if (a > b) return null;
+      for (let i = a; i <= b; i++) out.push(i);
+    } else if (/^\d+$/.test(chunk)) {
+      out.push(Number(chunk));
+    } else {
+      return null;
+    }
+  }
+  const uniq = [...new Set(out)];
+  if (!uniq.length || uniq.some((n) => n < lo || n > hi)) return null;
+  return uniq.sort((a, b) => a - b);
+}
+
+/** "a", "a and b", "a, b and c". */
+function joinWords(words: string[]): string {
+  if (words.length <= 1) return words[0] ?? "";
+  return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+}
+
+function fmtTime(h: number, m: number): string {
+  const ap = h < 12 ? "AM" : "PM";
+  const h12 = ((h + 11) % 12) + 1;
+  return m === 0 ? `${h12} ${ap}` : `${h12}:${m.toString().padStart(2, "0")} ${ap}`;
+}
+
 function humanizeCron(cron: string): string {
   const parts = cron.trim().split(/\s+/);
   if (parts.length !== 5) return cron;
   const [min, hr, dom, mon, dow] = parts;
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const time = () => {
-    const H = Number(hr);
-    const M = Number(min);
-    if (Number.isNaN(H) || Number.isNaN(M)) return null;
-    const ap = H < 12 ? "AM" : "PM";
-    const h12 = ((H + 11) % 12) + 1;
-    return `${h12}:${M.toString().padStart(2, "0")} ${ap}`;
-  };
 
   if (min === "0" && hr === "*" && dom === "*" && mon === "*" && dow === "*") return "Every hour";
   if (/^\d+$/.test(min) && hr === "*" && dom === "*" && mon === "*" && dow === "*")
@@ -189,12 +216,33 @@ function humanizeCron(cron: string): string {
     return n <= 1 ? "Every minute" : `Every ${n} minutes`;
   }
 
-  const t = /^\d+$/.test(min) && /^\d+$/.test(hr) ? time() : null;
-  if (t && dom === "*" && mon === "*") {
-    if (dow === "*") return `Every day at ${t}`;
-    if (dow === "1-5") return `Every weekday at ${t}`;
-    if (/^[0-6]$/.test(dow)) return `Every ${days[Number(dow)]} at ${t}`;
+  // Fixed minute, one or more specific hours, on a set of weekdays (or every day):
+  // "0 15 * * 1,3,5" -> "Mon, Wed and Fri at 3 PM"; "0 10,16 * * *" -> "Every day at 10 AM and 4 PM".
+  if (dom === "*" && mon === "*" && /^\d+$/.test(min)) {
+    const hours = cronList(hr, 0, 23);
+    const m = Number(min);
+    if (hours) {
+      const times = `at ${joinWords(hours.map((h) => fmtTime(h, m)))}`;
+      let dayPhrase: string | null = null;
+      if (dow === "*") {
+        dayPhrase = "Every day";
+      } else {
+        const raw = cronList(dow, 0, 7);
+        if (raw) {
+          const norm = [...new Set(raw.map((d) => (d === 7 ? 0 : d)))].sort((a, b) => a - b);
+          const set = new Set(norm);
+          if (norm.length === 7) dayPhrase = "Every day";
+          else if (norm.length === 5 && [1, 2, 3, 4, 5].every((d) => set.has(d)))
+            dayPhrase = "Weekdays";
+          else if (norm.length === 2 && set.has(0) && set.has(6)) dayPhrase = "Weekends";
+          else if (norm.length === 1) dayPhrase = `Every ${DAY_FULL[norm[0]]}`;
+          else dayPhrase = joinWords(norm.map((d) => DAY_ABBR[d]));
+        }
+      }
+      if (dayPhrase) return `${dayPhrase} ${times}`;
+    }
   }
+
   return cron;
 }
 
