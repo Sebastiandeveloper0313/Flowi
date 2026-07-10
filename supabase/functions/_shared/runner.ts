@@ -293,7 +293,9 @@ export async function executeTask(
         "ends with the CTA. Output ONLY a JSON object and nothing else, in exactly this shape:\n" +
         '{"title": "<short internal name>", "slides": [{"text": "<on-screen line>"}], "caption": ' +
         '"<post caption ending with a call to action>"}\n' +
-        "No hashtag spam, no em dashes, no markdown, no commentary outside the JSON.";
+        'For the CTA, prefer "link in bio" (TikTok links aren\'t clickable in captions). If you name ' +
+        "the website, use the business's EXACT url from the context above, never invent or change the " +
+        "domain or TLD. No hashtag spam, no em dashes, no markdown, no commentary outside the JSON.";
     }
 
     // A reddit_post agent only DRAFTS; the app publishes on the user's click, so
