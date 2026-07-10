@@ -405,7 +405,14 @@ export async function executeTask(
         : [];
       const draftId = await createPostDraft(ctx.client, task, parsed).catch(() => null);
 
-      if (draftId && taskAutonomy(task, ws) === "auto" && redditConnected && subs.length) {
+      // Draft couldn't be saved: keep the full post in run history so it isn't
+      // lost. Otherwise the run is just a short log line - the post itself lives
+      // on the Posts tab, so we don't duplicate it here.
+      if (!draftId) {
+        return { summary: `Draft ready: ${parsed.title}`.slice(0, 140), output };
+      }
+
+      if (taskAutonomy(task, ws) === "auto" && redditConnected && subs.length) {
         const res = await publishDraft(
           ctx.client,
           draftId,
@@ -421,16 +428,16 @@ export async function executeTask(
             .join(", ");
           return {
             summary: `Posted to ${where}`.slice(0, 140),
-            output: `Posted to ${where}.\n\n${output}`,
+            output: `Posted "${parsed.title}" to ${where}. See it on the Posts tab.`,
           };
         }
       }
       const notice = redditConnected
-        ? "Draft ready. Open the Posts tab to edit it, pick subreddits, and post in one click."
-        : "Draft ready. Connect Reddit on the Integrations page to post it in one click.";
+        ? "Review, edit, pick subreddits, and post it from the Posts tab."
+        : "Connect Reddit on the Integrations page, then post it from the Posts tab.";
       return {
         summary: `Draft ready: ${parsed.title}`.slice(0, 140),
-        output: `${notice}\n\n${output}`,
+        output: `Wrote a new post draft: "${parsed.title}".\n\n${notice}`,
       };
     }
     if (task.kind === "facebook_post" && !facebookConnected) {
