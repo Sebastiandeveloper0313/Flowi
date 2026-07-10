@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { publishPostDraft, setPostDraftStatus, updatePostDraft } from "./mutations";
-import { postDraftsByTaskQueryOptions, postKeys } from "./queries";
+import {
+  cancelQueuedDraft,
+  publishPostDraft,
+  setPostDraftStatus,
+  updatePostDraft,
+} from "./mutations";
+import { postDraftsByTaskQueryOptions, postKeys, type SubPostResult } from "./queries";
 
 export function useAgentPostDrafts(taskId: string) {
   return useQuery(postDraftsByTaskQueryOptions(taskId));
@@ -26,6 +31,16 @@ export function useSetPostDraftStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: "draft" | "dismissed" }) =>
       setPostDraftStatus(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: postKeys.all }),
+  });
+}
+
+/** Pull a queued draft out of the auto-post queue before it fires. */
+export function useCancelQueuedDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, results }: { id: string; results: SubPostResult[] }) =>
+      cancelQueuedDraft(id, results),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: postKeys.all }),
   });
 }

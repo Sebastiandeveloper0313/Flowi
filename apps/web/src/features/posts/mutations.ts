@@ -16,6 +16,24 @@ export async function setPostDraftStatus(id: string, status: "draft" | "dismisse
   if (error) throw error;
 }
 
+/**
+ * Pull a queued draft out of the auto-post queue before it fires: drop the still
+ * pending subreddits, keep any already posted, and move it back to a plain draft
+ * (or Posted if some already went out) so nothing else goes out on its own.
+ */
+export async function cancelQueuedDraft(id: string, results: SubPostResult[]) {
+  const kept = results.filter((r) => r.status !== "queued");
+  const { error } = await supabase
+    .from("post_drafts")
+    .update({
+      posts: kept,
+      scheduled_at: null,
+      status: kept.some((r) => r.status === "posted") ? "posted" : "draft",
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export interface PublishResult {
   posted: number;
   failed: number;

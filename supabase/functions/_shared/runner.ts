@@ -17,7 +17,7 @@ import {
   type WorkspaceContext,
 } from "./marketing.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
-import { createPostDraft, parsePostDraft, publishDraft } from "./reddit-post.ts";
+import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 
 export interface TaskRow {
   id: string;
@@ -417,23 +417,16 @@ export async function executeTask(
         return { summary: `Draft ready: ${parsed.title}`.slice(0, 140), output };
       }
 
+      // Auto mode QUEUES the chosen subs to post over the next hours (a cancel
+      // window), rather than bursting them out now, which is a ban risk. The user
+      // can cancel or edit any queued post on the Posts tab before it fires.
       if (taskAutonomy(task, ws) === "auto" && redditConnected && subs.length) {
-        const res = await publishDraft(
-          ctx.client,
-          draftId,
-          task.team_id,
-          subs,
-          parsed.title,
-          parsed.body,
-        ).catch(() => null);
-        if (res && res.posted > 0) {
-          const where = res.results
-            .filter((r) => r.status === "posted")
-            .map((r) => `r/${r.subreddit}`)
-            .join(", ");
+        const n = await queueDraft(ctx.client, draftId, subs).catch(() => 0);
+        if (n > 0) {
+          const where = subs.map((s) => `r/${s}`).join(", ");
           return {
-            summary: `Posted to ${where}`.slice(0, 140),
-            output: `Posted "${parsed.title}" to ${where}. See it on the Posts tab.`,
+            summary: `Queued to post to ${n} subreddit${n === 1 ? "" : "s"}`.slice(0, 140),
+            output: `Queued "${parsed.title}" to post to ${where} over the next few hours. Cancel or edit any on the Posts tab before it goes out.`,
           };
         }
       }
