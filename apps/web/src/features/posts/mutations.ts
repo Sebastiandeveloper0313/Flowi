@@ -34,6 +34,103 @@ export async function cancelQueuedDraft(id: string, results: SubPostResult[]) {
   if (error) throw error;
 }
 
+const MANUAL_GAP_MIN = 20; // default spacing between manually scheduled posts
+
+/**
+ * Stagger a set of subreddits into queued entries so they never post at the same
+ * time. Keeps any already posted/failed results; the first goes out after
+ * firstDelayMin, the rest are spaced by gapMin (+/-20% jitter).
+ */
+function staggerQueue(
+  subs: string[],
+  prior: SubPostResult[],
+  firstDelayMin: number,
+  gapMin: number,
+): SubPostResult[] {
+  const kept = prior.filter((r) => r.status !== "queued");
+  const keptSubs = new Set(kept.map((r) => r.subreddit));
+  const targets = [
+    ...new Set(subs.map((s) => s.replace(/^r\//i, "").trim()).filter(Boolean)),
+  ].filter((s) => !keptSubs.has(s));
+  let t = Date.now() + firstDelayMin * 60_000;
+  const gapMs = gapMin * 60_000;
+  const queued: SubPostResult[] = targets.map((subreddit, i) => {
+    if (i > 0) t += Math.round(gapMs * (0.8 + Math.random() * 0.4));
+    return { subreddit, status: "queued", at: new Date(t).toISOString() };
+  });
+  return [...kept, ...queued];
+}
+
+/**
+ * Queue the selected subreddits to post spaced out (not all at once). Writes the
+ * staggered schedule straight to the draft; the scheduler's drip posts them.
+ */
+export async function schedulePostDraft(input: {
+  draftId: string;
+  subreddits: string[];
+  title: string;
+  body: string;
+  firstDelayMin?: number;
+  gapMin?: number;
+}) {
+  const { data: cur } = await supabase
+    .from("post_drafts")
+    .select("posts")
+    .eq("id", input.draftId)
+    .maybeSingle();
+  const prior = Array.isArray(cur?.posts) ? (cur.posts as unknown as SubPostResult[]) : [];
+  const merged = staggerQueue(
+    input.subreddits,
+    prior,
+    input.firstDelayMin ?? 0,
+    input.gapMin ?? MANUAL_GAP_MIN,
+  );
+  const queued = merged.filter((r) => r.status === "queued");
+  const nextAt =
+    queued
+      .map((r) => r.at)
+      .filter(Boolean)
+      .sort((a, b) => (a ?? "").localeCompare(b ?? ""))[0] ?? null;
+  const { error } = await supabase
+    .from("post_drafts")
+    .update({
+      posts: merged,
+      title: input.title,
+      body: input.body,
+      status: queued.length
+        ? "queued"
+        : merged.some((r) => r.status === "posted")
+          ? "posted"
+          : "draft",
+      scheduled_at: nextAt,
+    })
+    .eq("id", input.draftId);
+  if (error) throw error;
+}
+
+/** Change when one queued sub-post goes out. */
+export async function reschedulePost(input: {
+  draftId: string;
+  subreddit: string;
+  at: string;
+  results: SubPostResult[];
+}) {
+  const next = input.results.map((r) =>
+    r.subreddit === input.subreddit && r.status === "queued" ? { ...r, at: input.at } : r,
+  );
+  const nextAt =
+    next
+      .filter((r) => r.status === "queued")
+      .map((r) => r.at)
+      .filter(Boolean)
+      .sort((a, b) => (a ?? "").localeCompare(b ?? ""))[0] ?? null;
+  const { error } = await supabase
+    .from("post_drafts")
+    .update({ posts: next, scheduled_at: nextAt })
+    .eq("id", input.draftId);
+  if (error) throw error;
+}
+
 export interface PublishResult {
   posted: number;
   failed: number;

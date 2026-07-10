@@ -22,6 +22,8 @@ import {
   useAgentPostDrafts,
   useCancelQueuedDraft,
   usePublishPostDraft,
+  useReschedulePost,
+  useSchedulePostDraft,
   useSetPostDraftStatus,
 } from "./hooks";
 import { draftResults, type PostDraft } from "./queries";
@@ -50,6 +52,17 @@ function whenLabel(iso?: string): string {
 
 function cleanSub(s: string): string {
   return s.replace(/^r\//i, "").trim();
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+/** ISO -> value for a <input type="datetime-local"> in the viewer's local time. */
+function toLocalInput(iso?: string): string {
+  const d = iso ? new Date(iso) : new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+/** datetime-local value -> ISO. */
+function fromLocalInput(v: string): string {
+  return new Date(v).toISOString();
 }
 
 /** The review queue for an agent's Reddit post drafts. */
@@ -133,6 +146,8 @@ export function PostsPanel({ taskId }: { taskId: string }) {
 
 function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
   const publish = usePublishPostDraft();
+  const schedule = useSchedulePostDraft();
+  const reschedule = useReschedulePost();
   const setStatus = useSetPostDraftStatus();
   const cancelQueued = useCancelQueuedDraft();
   const runTask = useRunTask();
@@ -143,7 +158,6 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
   const failedBySub = new Map(
     results.filter((r) => r.status === "failed").map((r) => [r.subreddit, r]),
   );
-  const queuedResults = results.filter((r) => r.status === "queued");
   const hasPosted = postedSubs.size > 0;
   const dismissed = draft.status === "dismissed";
   const queued = draft.status === "queued";
@@ -156,8 +170,6 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
   // Which not-yet-posted subs are selected for the next post. Default: all of them.
   const [selected, setSelected] = useState<string[]>(candidates.filter((s) => !postedSubs.has(s)));
   const [newSub, setNewSub] = useState("");
-
-  const pendingSubs = subs.filter((s) => !postedSubs.has(s));
 
   function toggle(sub: string) {
     setSelected((cur) => (cur.includes(sub) ? cur.filter((s) => s !== sub) : [...cur, sub]));
@@ -177,14 +189,25 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
   async function post() {
     const targets = selected.filter((s) => !postedSubs.has(s));
     if (!targets.length) return;
+    // One sub: post it now. Multiple: stagger them so they don't all hit Reddit
+    // at once (a spam signal) - they land in Scheduled where you can retime any.
+    if (targets.length === 1) {
+      const ok = await confirm({
+        title: `Post to r/${targets[0]} now?`,
+        description:
+          "This publishes the post to Reddit from your connected account now. You can still delete it on Reddit afterwards.",
+        confirmLabel: "Post it",
+      });
+      if (ok) publish.mutate({ draftId: draft.id, subreddits: targets, title, body });
+      return;
+    }
     const ok = await confirm({
-      title: `Post to ${targets.map((s) => `r/${s}`).join(", ")}?`,
+      title: `Schedule ${targets.length} posts?`,
       description:
-        "This publishes the post to Reddit from your connected account now. You can still delete it on Reddit afterwards.",
-      confirmLabel: targets.length > 1 ? `Post to ${targets.length} subreddits` : "Post it",
+        "They go out one at a time, spaced about 20 minutes apart starting now, so it never looks like a spam blast. You can change any time or post it now on the Scheduled tab.",
+      confirmLabel: `Schedule ${targets.length} posts`,
     });
-    if (!ok) return;
-    publish.mutate({ draftId: draft.id, subreddits: targets, title, body });
+    if (ok) schedule.mutate({ draftId: draft.id, subreddits: targets, title, body });
   }
 
   async function rewrite() {
@@ -199,7 +222,8 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
     runTask.mutate(taskId);
   }
 
-  const canPost = selected.some((s) => !postedSubs.has(s)) && title.trim() && body.trim();
+  const nTargets = selected.filter((s) => !postedSubs.has(s)).length;
+  const canPost = nTargets > 0 && title.trim().length > 0 && body.trim().length > 0;
 
   return (
     <div className={`rounded-2xl border p-5 ${dismissed ? "opacity-60" : ""}`}>
@@ -262,40 +286,74 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
           <span className="text-muted-foreground mb-1.5 block text-xs font-medium">
             Scheduled to post
           </span>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="space-y-1.5">
             {results.map((r) => {
               if (r.status === "posted") {
-                const chip = (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                    <Check className="size-3" /> r/{r.subreddit}
-                    {r.url && <ArrowUpRight className="size-3 opacity-70" />}
-                  </span>
-                );
-                return r.url ? (
-                  <a key={r.subreddit} href={r.url} target="_blank" rel="noreferrer">
-                    {chip}
-                  </a>
-                ) : (
-                  <span key={r.subreddit}>{chip}</span>
+                return (
+                  <div key={r.subreddit} className="flex items-center gap-2 text-sm">
+                    <Check className="size-4 shrink-0 text-emerald-600" />
+                    <span className="font-medium">r/{r.subreddit}</span>
+                    <span className="text-muted-foreground text-xs">posted</span>
+                    {r.url && (
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary inline-flex items-center gap-0.5 text-xs"
+                      >
+                        view <ArrowUpRight className="size-3" />
+                      </a>
+                    )}
+                  </div>
                 );
               }
               if (r.status === "failed") {
                 return (
-                  <span
-                    key={r.subreddit}
-                    className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"
-                  >
-                    r/{r.subreddit} · failed
-                  </span>
+                  <div key={r.subreddit} className="flex items-center gap-2 text-sm">
+                    <X className="size-4 shrink-0 text-red-500" />
+                    <span className="font-medium">r/{r.subreddit}</span>
+                    <span className="text-destructive text-xs">failed</span>
+                  </div>
                 );
               }
               return (
-                <span
-                  key={r.subreddit}
-                  className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700"
-                >
-                  <Clock className="size-3" /> r/{r.subreddit} · {whenLabel(r.at)}
-                </span>
+                <div key={r.subreddit} className="flex flex-wrap items-center gap-2 text-sm">
+                  <Clock className="size-4 shrink-0 text-amber-500" />
+                  <span className="w-28 truncate font-medium">r/{r.subreddit}</span>
+                  <Input
+                    type="datetime-local"
+                    value={toLocalInput(r.at)}
+                    min={toLocalInput()}
+                    disabled={reschedule.isPending}
+                    onChange={(e) =>
+                      e.target.value &&
+                      reschedule.mutate({
+                        draftId: draft.id,
+                        subreddit: r.subreddit,
+                        at: fromLocalInput(e.target.value),
+                        results,
+                      })
+                    }
+                    className="h-7 w-auto text-xs"
+                  />
+                  <span className="text-muted-foreground text-xs">{whenLabel(r.at)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto h-7"
+                    disabled={publish.isPending}
+                    onClick={() =>
+                      publish.mutate({
+                        draftId: draft.id,
+                        subreddits: [r.subreddit],
+                        title: draft.title,
+                        body: draft.body,
+                      })
+                    }
+                  >
+                    <Send className="size-3.5" /> Post now
+                  </Button>
+                </div>
               );
             })}
           </div>
@@ -386,25 +444,9 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
           </Button>
         ) : queued ? (
           <>
-            <Button
-              size="sm"
-              disabled={publish.isPending || !queuedResults.length}
-              onClick={() =>
-                publish.mutate({
-                  draftId: draft.id,
-                  subreddits: queuedResults.map((r) => r.subreddit),
-                  title: draft.title,
-                  body: draft.body,
-                })
-              }
-            >
-              {publish.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
-              Post now
-            </Button>
+            <span className="text-muted-foreground text-xs">
+              Posting automatically, spaced out. Retime or post any above.
+            </span>
             <div className="grow" />
             <Button
               size="sm"
@@ -418,17 +460,25 @@ function PostCard({ draft, taskId }: { draft: PostDraft; taskId: string }) {
           </>
         ) : (
           <>
-            <Button size="sm" disabled={publish.isPending || !canPost} onClick={post}>
-              {publish.isPending ? (
+            <Button
+              size="sm"
+              disabled={publish.isPending || schedule.isPending || !canPost}
+              onClick={post}
+            >
+              {publish.isPending || schedule.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Send className="size-4" />
               )}
               {publish.isPending
                 ? "Posting…"
-                : hasPosted
-                  ? `Post to ${selected.filter((s) => !postedSubs.has(s)).length} more`
-                  : `Post to ${selected.length || pendingSubs.length}`}
+                : schedule.isPending
+                  ? "Scheduling…"
+                  : nTargets > 1
+                    ? `Schedule ${nTargets} posts`
+                    : hasPosted
+                      ? "Post 1 more"
+                      : "Post"}
             </Button>
             {!hasPosted && (
               <Button

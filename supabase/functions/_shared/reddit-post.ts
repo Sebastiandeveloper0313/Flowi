@@ -168,13 +168,26 @@ export async function publishDraft(
   for (const r of results) bySub.set(r.subreddit, r);
   const merged = [...bySub.values()];
 
+  // If some subs are still queued (e.g. posting one now while others wait), keep
+  // the draft 'queued' with the next due time, so the drip still fires the rest.
+  const stillQueued = merged.filter((r) => r.status === "queued");
+  const nextAt =
+    stillQueued
+      .map((r) => r.at)
+      .filter(Boolean)
+      .sort()[0] ?? null;
   await admin
     .from("post_drafts")
     .update({
       posts: merged,
       title,
       body,
-      status: merged.some((r) => r.status === "posted") ? "posted" : "draft",
+      scheduled_at: nextAt,
+      status: stillQueued.length
+        ? "queued"
+        : merged.some((r) => r.status === "posted")
+          ? "posted"
+          : "draft",
     })
     .eq("id", draftId);
 
