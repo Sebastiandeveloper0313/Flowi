@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { Separator } from "@workspace/ui/components/separator";
+import { Switch } from "@workspace/ui/components/switch";
 import {
   ArrowLeft,
   CalendarClock,
@@ -273,9 +274,9 @@ function AgentDetailPage() {
             </CardContent>
           </Card>
 
-          {isReddit ? (
-            <WatchingCard agent={agent} />
-          ) : (
+          {isReddit && <WatchingCard agent={agent} />}
+          {isRedditPost && <SubredditsCard agent={agent} />}
+          {!isReddit && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -439,6 +440,111 @@ function WatchingCard({ agent }: { agent: Task }) {
             )}
             <p className="text-muted-foreground text-xs">
               {custom ? "Custom (you set these)." : "Auto from your business context."}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Subreddit targets + "let the AI pick" toggle for a Reddit poster. */
+function SubredditsCard({ agent }: { agent: Task }) {
+  const update = useUpdateTaskConfig();
+  const cfg = (agent.config ?? {}) as { subreddits?: string[]; pick_subreddits?: boolean };
+  const subreddits = cfg.subreddits ?? [];
+  const pick = cfg.pick_subreddits !== false;
+
+  const [editing, setEditing] = useState(false);
+  const [subs, setSubs] = useState(subreddits.join(", "));
+
+  function togglePick(next: boolean) {
+    update.mutate({ id: agent.id, config: { ...cfg, pick_subreddits: next } });
+  }
+  function startEdit() {
+    setSubs(subreddits.join(", "));
+    setEditing(true);
+  }
+  function save() {
+    const next = subs
+      .split(",")
+      .map((s) => s.trim().replace(/^r\//i, ""))
+      .filter(Boolean);
+    update.mutate(
+      { id: agent.id, config: { ...cfg, subreddits: next } },
+      { onSuccess: () => setEditing(false) },
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Target className="size-4" /> Subreddits
+          </CardTitle>
+          {!editing && (
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={startEdit}>
+              <Pencil className="size-3.5" /> Edit
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Let Sentrive pick</p>
+            <p className="text-muted-foreground text-xs">
+              It chooses the best-fitting subreddits for each post.
+            </p>
+          </div>
+          <Switch checked={pick} onCheckedChange={togglePick} disabled={update.isPending} />
+        </div>
+
+        {editing ? (
+          <>
+            <div>
+              <span className="text-muted-foreground mb-1 block text-xs font-medium">
+                {pick ? "Preferred subreddits (optional)" : "Subreddits (comma separated)"}
+              </span>
+              <Input
+                value={subs}
+                onChange={(e) => setSubs(e.target.value)}
+                placeholder="smallbusiness, SaaS, Entrepreneur"
+                className="text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={save} disabled={update.isPending}>
+                <Check className="size-4" /> Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                <X className="size-4" /> Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {subreddits.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {subreddits.map((s) => (
+                  <span
+                    key={s}
+                    className="bg-muted inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium"
+                  >
+                    r/{s}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                {pick
+                  ? "No preferred subreddits set. It picks per post. Add your own to steer it."
+                  : "No subreddits set yet. Add the ones it should post to."}
+              </p>
+            )}
+            <p className="text-muted-foreground text-xs">
+              {pick ? "It picks per post, considering yours first." : "It posts only to these."}
             </p>
           </>
         )}

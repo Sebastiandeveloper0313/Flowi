@@ -145,23 +145,41 @@ export async function executeTask(
       const subs = Array.isArray(rawSubs)
         ? rawSubs.map((s) => String(s).replace(/^r\//i, "")).filter(Boolean)
         : [];
-      const seed = subs.length
-        ? `The user suggested these subreddits: consider them first, but you may drop or swap any for a better fit: ${subs.map((s) => `r/${s}`).join(", ")}. `
-        : "";
-      // Draft only. The model NEVER posts: it writes the post AND picks the
-      // subreddits that fit, so the user just reviews and posts in one click (or
-      // auto mode publishes to those subs after the run).
-      system +=
+      // Whether the agent chooses its own subreddits (default) or posts only to
+      // the user's fixed list (pick_subreddits === false).
+      const pickSubs =
+        (task.config as { pick_subreddits?: boolean } | null)?.pick_subreddits !== false;
+      const list = subs.map((s) => `r/${s}`).join(", ");
+      // Draft only. The model NEVER posts: it writes the post (and, when allowed,
+      // picks the subreddits that fit), so the user reviews and posts in one click
+      // (or auto mode queues them after the run).
+      const intro =
         "\n\nThis agent is a Reddit poster. Write ONE genuinely valuable post that stands on its own (a " +
         "real insight, a useful resource, or an honest story), and mention the business only where a " +
-        "subreddit's rules allow it, with a brief honest disclosure. " +
-        seed +
-        "Then CHOOSE 3 to 5 subreddits where THIS post genuinely fits and would be welcomed. Use " +
-        "web_search to check each candidate's rules and self-promotion norms, and only keep ones where a " +
-        "post like this is allowed and on-topic; drop any that ban it. Prefer active, relevant subreddits " +
-        "over the biggest ones. Do NOT post anything or call any posting tool: just write the post and " +
-        "list the subreddits. The user reviews and posts to them in one click. No clickbait, no hashtag " +
-        "spam, no em dashes.";
+        "subreddit's rules allow it, with a brief honest disclosure. ";
+      if (pickSubs) {
+        const seed = subs.length
+          ? `The user suggested these subreddits: consider them first, but you may drop or swap any for a better fit: ${list}. `
+          : "";
+        system +=
+          intro +
+          seed +
+          "Then CHOOSE 3 to 5 subreddits where THIS post genuinely fits and would be welcomed. Use " +
+          "web_search to check each candidate's rules and self-promotion norms, and only keep ones where " +
+          "a post like this is allowed and on-topic; drop any that ban it. Prefer active, relevant " +
+          "subreddits over the biggest ones. Do NOT post anything or call any posting tool: just write " +
+          "the post and list the subreddits. The user reviews and posts to them in one click. No " +
+          "clickbait, no hashtag spam, no em dashes.";
+      } else {
+        const targetList = subs.length ? list : "the subreddits the user set on this agent";
+        system +=
+          intro +
+          `Post ONLY to these subreddits the user chose: ${targetList}. Use web_search to check each ` +
+          "one's rules and self-promotion norms and tailor the post so it fits and is welcome there; if " +
+          "one bans this kind of post, keep it purely helpful with no promotion. Do NOT choose any other " +
+          "subreddits, and do not post anything or call any posting tool: just write the post. The user " +
+          "reviews and posts it in one click. No clickbait, no hashtag spam, no em dashes.";
+      }
       // The post body is Reddit markdown, so let it use formatting where it aids
       // readability, without looking like an ad.
       system +=
@@ -405,10 +423,16 @@ export async function executeTask(
       const configSubs = Array.isArray(rawSubs)
         ? rawSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
         : [];
-      // Auto mode publishes to the subs the model chose for this post (or the
-      // pinned config subs if it didn't pick any).
-      const subs = parsed.subreddits.length ? parsed.subreddits : configSubs;
-      const draftId = await createPostDraft(ctx.client, task, parsed).catch(() => null);
+      const pickSubs =
+        (task.config as { pick_subreddits?: boolean } | null)?.pick_subreddits !== false;
+      // When the agent picks, use its choices (falling back to any pinned subs);
+      // when the user turned picking off, post only to their fixed list.
+      const subs = pickSubs
+        ? parsed.subreddits.length
+          ? parsed.subreddits
+          : configSubs
+        : configSubs;
+      const draftId = await createPostDraft(ctx.client, task, parsed, subs).catch(() => null);
 
       // Draft couldn't be saved: keep the full post in run history so it isn't
       // lost. Otherwise the run is just a short log line - the post itself lives

@@ -110,19 +110,17 @@ export async function publishRedditPost(
   }
 }
 
-/** Create a draft row from a run's parsed output. Returns the row id, or null. */
+/**
+ * Create a draft row from a run's parsed output for the given target subreddits
+ * (the caller resolves whether those are the model's picks or the user's fixed
+ * list). Returns the row id, or null.
+ */
 export async function createPostDraft(
   admin: SupabaseClient,
-  task: { id: string; team_id: string; config?: Record<string, unknown> | null },
+  task: { id: string; team_id: string },
   parsed: ParsedPost,
+  subreddits: string[],
 ): Promise<string | null> {
-  // Prefer the subreddits the model chose for THIS post; fall back to any the
-  // user pinned on the agent's config.
-  const configSubs = (task.config as { subreddits?: unknown } | null)?.subreddits;
-  const fallback = Array.isArray(configSubs)
-    ? configSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
-    : [];
-  const subreddits = parsed.subreddits.length ? parsed.subreddits : fallback;
   const { data, error } = await admin
     .from("post_drafts")
     .insert({
@@ -130,7 +128,9 @@ export async function createPostDraft(
       task_id: task.id,
       title: parsed.title,
       body: parsed.body,
-      subreddits,
+      subreddits: [
+        ...new Set(subreddits.map((s) => s.replace(/^r\//i, "").trim()).filter(Boolean)),
+      ],
     })
     .select("id")
     .single();
