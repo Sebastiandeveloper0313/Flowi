@@ -2,6 +2,7 @@ import {
   Briefcase,
   Eye,
   FileText,
+  Film,
   Inbox,
   Lightbulb,
   type LucideIcon,
@@ -112,6 +113,22 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     channel: "dashboard",
     instructions:
       "Write one genuinely valuable Reddit post for a subreddit where our audience spends time. Lead with real substance (an insight, a useful resource, or an honest story) that stands on its own. Check the subreddit's rules with web search first, respect its self-promotion norms, and mention us only where it fits, with an honest disclosure. Then submit it. Never post something that reads as an ad.",
+  },
+  {
+    id: "tiktok-slideshow",
+    name: "TikTok Slideshow",
+    tagline: "Turns your product into a swipeable TikTok slideshow every week.",
+    outcome: "Slides you download and post",
+    description:
+      "Writes a scroll-stopping TikTok photo slideshow about your product, a hook, a few punchy value slides, and a CTA, rendered over your own images. Download the slides and post them in TikTok's photo mode.",
+    icon: Film,
+    category: "Social media",
+    kind: "tiktok_slideshow",
+    schedule_cron: "0 9 * * 4",
+    scheduleLabel: "Weekly, Thu 9am",
+    channel: "dashboard",
+    instructions:
+      "Create a TikTok photo slideshow for our business: a scroll-stopping hook slide, a few short slides each making one valuable, specific point about what we do, and a final call-to-action slide. Keep every on-screen line short and punchy. Also write a caption for the post.",
   },
   {
     id: "facebook-poster",

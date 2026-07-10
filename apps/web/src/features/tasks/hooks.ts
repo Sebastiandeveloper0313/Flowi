@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { leadKeys } from "@/features/leads/queries";
 import { postKeys } from "@/features/posts/queries";
+import { slideshowKeys } from "@/features/slideshows/queries";
 import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
@@ -52,6 +53,7 @@ export function useRunTask() {
         queryClient.invalidateQueries({ queryKey: taskKeys.all }),
         queryClient.invalidateQueries({ queryKey: leadKeys.all }),
         queryClient.invalidateQueries({ queryKey: postKeys.all }),
+        queryClient.invalidateQueries({ queryKey: slideshowKeys.all }),
       ]),
   });
 }
