@@ -84,7 +84,10 @@ export async function executeTask(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 150_000); // hard cap
+  // Hard cap comfortably under the platform's function wall-clock limit, so WE
+  // abort and mark the run failed rather than getting killed mid-run (which
+  // orphans it as "running").
+  const timeout = setTimeout(() => controller.abort(), 110_000);
   try {
     let system = runnerSystem(ws);
 
@@ -164,19 +167,20 @@ export async function executeTask(
         system +=
           intro +
           seed +
-          "Then CHOOSE 3 to 5 subreddits where THIS post genuinely fits and would be welcomed. Use " +
-          "web_search to check each candidate's rules and self-promotion norms, and only keep ones where " +
-          "a post like this is allowed and on-topic; drop any that ban it. Prefer active, relevant " +
-          "subreddits over the biggest ones. Do NOT post anything or call any posting tool: just write " +
-          "the post and list the subreddits. The user reviews and posts to them in one click. No " +
-          "clickbait, no hashtag spam, no em dashes.";
+          "Then CHOOSE 3 to 5 subreddits where THIS post genuinely fits and would be welcomed. You already " +
+          "know Reddit's communities and their self-promotion norms, so choose from what you know and " +
+          "avoid ones that ban this kind of post. Only if you are genuinely unsure about a specific " +
+          "subreddit's rules, do ONE quick web_search to check it, do not research every subreddit. Prefer " +
+          "active, relevant subreddits over the biggest ones. Do NOT post anything or call any posting " +
+          "tool: just write the post and list the subreddits. The user reviews and posts to them in one " +
+          "click. No clickbait, no hashtag spam, no em dashes.";
       } else {
         const targetList = subs.length ? list : "the subreddits the user set on this agent";
         system +=
           intro +
-          `Post ONLY to these subreddits the user chose: ${targetList}. Use web_search to check each ` +
-          "one's rules and self-promotion norms and tailor the post so it fits and is welcome there; if " +
-          "one bans this kind of post, keep it purely helpful with no promotion. Do NOT choose any other " +
+          `Post ONLY to these subreddits the user chose: ${targetList}. Tailor the post so it fits and is ` +
+          "welcome there; keep it purely helpful with no promotion if a subreddit bans that. You may do " +
+          "ONE quick web_search only if unsure of a subreddit's rules. Do NOT choose any other " +
           "subreddits, and do not post anything or call any posting tool: just write the post. The user " +
           "reviews and posts it in one click. No clickbait, no hashtag spam, no em dashes.";
       }
@@ -528,12 +532,17 @@ async function deliverResult(task: TaskRow, summary: string, output: string): Pr
  * the caller's responsibility - this function trusts that the task is allowed.
  */
 export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise<RunResult> {
-  // Avoid piling up duplicate concurrent runs for the same task.
+  // Avoid piling up duplicate concurrent runs for the same task. Only a RECENT
+  // running run blocks a new one; an older one is orphaned (the function died
+  // before finishing) and must not wedge the agent forever - the reaper in
+  // run-due-tasks fails it separately.
+  const freshCutoff = new Date(Date.now() - 4 * 60_000).toISOString();
   const { count } = await admin
     .from("task_runs")
     .select("id", { count: "exact", head: true })
     .eq("task_id", task.id)
-    .eq("status", "running");
+    .eq("status", "running")
+    .gt("started_at", freshCutoff);
   if ((count ?? 0) > 0) {
     return { status: "skipped", summary: "A run is already in progress" };
   }
