@@ -57,11 +57,17 @@ export function parsePostDraft(output: string): ParsedPost {
 
 export interface SubResult {
   subreddit: string;
-  status: "posted" | "failed";
+  status: "queued" | "posted" | "failed";
   url?: string;
   error?: string;
-  at: string;
+  at: string; // when it's scheduled (queued) or when it posted (posted/failed)
 }
+
+// Auto mode staggers the chosen subreddits instead of bursting them: the first
+// goes out after a delay (a cancel window), the rest are spaced apart, so it
+// never looks like a spam blast and the user can pull any before it fires.
+const QUEUE_FIRST_DELAY_MIN = 60;
+const QUEUE_GAP_MIN = 45;
 
 /** Best-effort permalink out of a Composio create-post response. */
 function extractUrl(result: unknown): string | undefined {
@@ -104,19 +110,17 @@ export async function publishRedditPost(
   }
 }
 
-/** Create a draft row from a run's parsed output. Returns the row id, or null. */
+/**
+ * Create a draft row from a run's parsed output for the given target subreddits
+ * (the caller resolves whether those are the model's picks or the user's fixed
+ * list). Returns the row id, or null.
+ */
 export async function createPostDraft(
   admin: SupabaseClient,
-  task: { id: string; team_id: string; config?: Record<string, unknown> | null },
+  task: { id: string; team_id: string },
   parsed: ParsedPost,
+  subreddits: string[],
 ): Promise<string | null> {
-  // Prefer the subreddits the model chose for THIS post; fall back to any the
-  // user pinned on the agent's config.
-  const configSubs = (task.config as { subreddits?: unknown } | null)?.subreddits;
-  const fallback = Array.isArray(configSubs)
-    ? configSubs.map((s) => String(s).replace(/^r\//i, "").trim()).filter(Boolean)
-    : [];
-  const subreddits = parsed.subreddits.length ? parsed.subreddits : fallback;
   const { data, error } = await admin
     .from("post_drafts")
     .insert({
@@ -124,7 +128,9 @@ export async function createPostDraft(
       task_id: task.id,
       title: parsed.title,
       body: parsed.body,
-      subreddits,
+      subreddits: [
+        ...new Set(subreddits.map((s) => s.replace(/^r\//i, "").trim()).filter(Boolean)),
+      ],
     })
     .select("id")
     .single();
@@ -173,4 +179,92 @@ export async function publishDraft(
     .eq("id", draftId);
 
   return { posted, failed: results.length - posted, results };
+}
+
+/**
+ * Queue a draft's chosen subs to auto-post, staggered over the next hours, so
+ * the user has a window to cancel or edit before any go out. Sets status
+ * 'queued' and scheduled_at to the first due time. Returns how many were queued.
+ */
+export async function queueDraft(
+  admin: SupabaseClient,
+  draftId: string,
+  subs: string[],
+): Promise<number> {
+  const clean = [...new Set(subs.map((s) => s.replace(/^r\//i, "").trim()).filter(Boolean))];
+  if (!clean.length) return 0;
+  let t = Date.now() + QUEUE_FIRST_DELAY_MIN * 60_000;
+  const entries: SubResult[] = clean.map((subreddit, i) => {
+    // Stagger each subsequent post by the base gap +0-80% jitter.
+    if (i > 0) t += Math.round(QUEUE_GAP_MIN * 60_000 * (1 + Math.random() * 0.8));
+    return { subreddit, status: "queued", at: new Date(t).toISOString() };
+  });
+  await admin
+    .from("post_drafts")
+    .update({ posts: entries, status: "queued", scheduled_at: entries[0].at })
+    .eq("id", draftId);
+  return entries.length;
+}
+
+/**
+ * Publish any queued sub-posts whose time has come, one per team per tick (so a
+ * team never bursts even after downtime). Drains one due sub-post per draft and
+ * reschedules the draft to its next pending sub, or marks it posted when done.
+ */
+export async function dripQueuedPosts(
+  admin: SupabaseClient,
+): Promise<{ posted: number; failed: number; due: number }> {
+  const nowMs = Date.now();
+  const { data: due } = await admin
+    .from("post_drafts")
+    .select("id, team_id, title, body, posts")
+    .eq("status", "queued")
+    .lte("scheduled_at", new Date(nowMs).toISOString())
+    .order("scheduled_at", { ascending: true })
+    .limit(25);
+
+  const rows = (due ?? []) as {
+    id: string;
+    team_id: string;
+    title: string;
+    body: string;
+    posts: unknown;
+  }[];
+  let posted = 0;
+  let failed = 0;
+  const usedTeams = new Set<string>();
+
+  for (const d of rows) {
+    if (usedTeams.has(d.team_id)) continue; // one per team per tick
+    const entries = Array.isArray(d.posts) ? (d.posts as SubResult[]) : [];
+    const idx = entries.findIndex(
+      (e) => e.status === "queued" && e.at && new Date(e.at).getTime() <= nowMs,
+    );
+    if (idx < 0) continue;
+    usedTeams.add(d.team_id);
+
+    entries[idx] = await publishRedditPost(d.team_id, entries[idx].subreddit, d.title, d.body);
+    if (entries[idx].status === "posted") posted++;
+    else failed++;
+
+    const remaining = entries.filter((e) => e.status === "queued");
+    const next = remaining
+      .map((e) => e.at)
+      .filter(Boolean)
+      .sort()[0];
+    await admin
+      .from("post_drafts")
+      .update({
+        posts: entries,
+        scheduled_at: remaining.length ? next : null,
+        status: remaining.length
+          ? "queued"
+          : entries.some((e) => e.status === "posted")
+            ? "posted"
+            : "draft",
+      })
+      .eq("id", d.id);
+  }
+
+  return { posted, failed, due: rows.length };
 }

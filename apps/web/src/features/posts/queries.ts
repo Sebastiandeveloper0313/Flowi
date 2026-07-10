@@ -8,10 +8,10 @@ export type PostDraft = Tables<"post_drafts">;
 /** One subreddit's posting result, stored in post_drafts.posts (jsonb). */
 export interface SubPostResult {
   subreddit: string;
-  status: "posted" | "failed";
+  status: "queued" | "posted" | "failed";
   url?: string;
   error?: string;
-  at?: string;
+  at?: string; // scheduled time (queued) or when it posted
 }
 
 /** Read a draft's per-subreddit results out of the jsonb column, safely. */

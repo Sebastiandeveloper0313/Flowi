@@ -383,6 +383,7 @@ export type Database = {
           created_at: string;
           id: string;
           posts: Json;
+          scheduled_at: string | null;
           status: string;
           subreddits: string[];
           task_id: string | null;
@@ -395,6 +396,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           posts?: Json;
+          scheduled_at?: string | null;
           status?: string;
           subreddits?: string[];
           task_id?: string | null;
@@ -407,6 +409,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           posts?: Json;
+          scheduled_at?: string | null;
           status?: string;
           subreddits?: string[];
           task_id?: string | null;
