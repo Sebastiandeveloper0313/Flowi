@@ -463,6 +463,14 @@ export async function runRedditMonitor(
   const auto = taskAutonomy(task, ws) === "auto";
   const perDay = Math.max(0, ws?.auto_post_per_day ?? AUTO_POST_PER_DAY);
   const gapMin = Math.max(1, ws?.auto_post_gap_minutes ?? AUTO_POST_GAP_MIN);
+  // Spread the day's auto-posts across ~24h instead of firing the whole daily
+  // budget in a tight burst right after the run. Bursting (a flat few-minute gap)
+  // emptied the Scheduled queue within an hour, so the tab looked empty all day
+  // even though the agent was working, and clockwork bursts read as spammy to
+  // Reddit. Base the gap on the daily cap (a 10/day cap -> ~2.4h apart), but
+  // never tighter than the configured minimum gap.
+  const dayMs = 24 * 3600_000;
+  const baseGapMs = Math.max(gapMin * 60_000, perDay > 0 ? dayMs / perDay : gapMin * 60_000);
   let queuedCount = 0;
   if (leads.length) {
     let budget = 0;
@@ -480,10 +488,10 @@ export async function runRedditMonitor(
       let status = "new";
       let autoPostAt: string | null = null;
       if (auto && queuedCount < budget && l.draft_reply.trim()) {
-        // space this post a jittered gap past the previous one (1.0x-1.6x the
-        // base gap), so posts are minutes apart and never simultaneous.
-        const jitter = 1 + Math.random() * 0.6;
-        scheduleFrom += Math.round(gapMin * 60_000 * jitter);
+        // stagger by the base gap +/-20% so posts spread through the day and
+        // never look clockwork or land simultaneously.
+        const jitter = 0.8 + Math.random() * 0.4;
+        scheduleFrom += Math.round(baseGapMs * jitter);
         autoPostAt = new Date(scheduleFrom).toISOString();
         status = "queued";
         queuedCount++;
