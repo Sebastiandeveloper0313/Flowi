@@ -101,6 +101,9 @@ function AgentDetailPage() {
   const paused = agent.status === "paused";
   const running = run.isPending || (runs ?? []).some((r) => r.status === "running");
   const isReddit = agent.kind === "reddit_monitor";
+  // The conversation that created this agent (if it was made from chat), so
+  // "Open chat" returns to it instead of starting a blank one.
+  const agentChatId = (agent.config as { chat_id?: string } | null)?.chat_id;
 
   return (
     <div className="flowy-page">
@@ -272,8 +275,8 @@ function AgentDetailPage() {
           )}
 
           <Button variant="outline" className="w-full" asChild>
-            <Link to="/dashboard" search={{ c: undefined }}>
-              <MessageSquare className="size-4" /> Open chat
+            <Link to="/dashboard" search={{ c: agentChatId ?? undefined }}>
+              <MessageSquare className="size-4" /> {agentChatId ? "Open chat" : "New chat"}
             </Link>
           </Button>
         </div>

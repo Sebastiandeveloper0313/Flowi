@@ -49,6 +49,7 @@ export interface AgentProposalInput {
   keywords: string[];
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent
+  chatId?: string; // the conversation that created this agent, so "Open chat" returns to it
 }
 
 /** Create a real agent from a chat proposal (the "Create agent" button). */
@@ -59,6 +60,7 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
   if (!user) throw new Error("You must be signed in.");
 
   const config: Record<string, unknown> = p.proposalId ? { proposal_id: p.proposalId } : {};
+  if (p.chatId) config.chat_id = p.chatId;
   if (p.kind === "reddit_monitor") {
     config.keywords = p.keywords;
     config.subreddits = p.subreddits;

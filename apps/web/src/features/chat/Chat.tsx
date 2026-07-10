@@ -157,7 +157,7 @@ function toList(s: string): string[] {
 }
 
 /** A proposed agent shown in chat: fine-tune every field, then create it. */
-function ProposalCard({ proposal }: { proposal: AgentProposal }) {
+function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: string }) {
   const teamId = useActiveTeamId();
   const { data: tasks } = useTasks();
   const create = useCreateAgentFromProposal();
@@ -202,6 +202,7 @@ function ProposalCard({ proposal }: { proposal: AgentProposal }) {
           keywords: isReddit ? toList(keywords) : [],
           subreddits: isReddit ? toList(subreddits) : [],
           proposalId: proposal.id,
+          chatId,
         },
       },
       { onSuccess: (data) => setCreated(data) },
@@ -872,7 +873,11 @@ export function Chat({ chatId }: { chatId?: string }) {
                         </div>
                       ))}
                       {m.proposals?.map((p) => (
-                        <ProposalCard key={p.id} proposal={p} />
+                        <ProposalCard
+                          key={p.id}
+                          proposal={p}
+                          chatId={chatId ?? ownedRef.current ?? undefined}
+                        />
                       ))}
                       {m.updates?.map((u) => (
                         <UpdateCard key={u.id} update={u} />
