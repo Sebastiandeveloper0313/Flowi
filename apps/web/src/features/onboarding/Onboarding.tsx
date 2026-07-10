@@ -418,7 +418,8 @@ export function Onboarding() {
           </div>
         </div>
         <p className="onb-note subtle">
-          Have multiple businesses? You can add more workspaces later in Settings → Workspaces.
+          Have multiple businesses? You can add more workspaces anytime from the workspace menu
+          under the Sentrive logo.
         </p>
       </>
     );
