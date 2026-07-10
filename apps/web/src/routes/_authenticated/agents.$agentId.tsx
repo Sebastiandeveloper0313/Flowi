@@ -11,6 +11,7 @@ import {
 } from "@workspace/ui/components/select";
 import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
+import { Textarea } from "@workspace/ui/components/textarea";
 import {
   ArrowLeft,
   CalendarClock,
@@ -18,8 +19,6 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Globe,
-  Hash,
   Image as ImageIcon,
   Loader2,
   MessageSquare,
@@ -30,7 +29,6 @@ import {
   Target,
   Trash2,
   Upload,
-  Wrench,
   X,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -39,13 +37,12 @@ import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
+import { useMissingToolkits } from "@/features/integrations/hooks";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
 import { PostsPanel } from "@/features/posts/PostsPanel";
 import { SlideshowsPanel } from "@/features/slideshows/SlideshowsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
-  CHANNELS,
-  channelLabel,
   formatWhen,
   SCHEDULES,
   scheduleLabel,
@@ -54,6 +51,7 @@ import {
   useSetTaskStatus,
   useTaskRuns,
   useTasks,
+  useUpdateAgent,
   useUpdateTaskAutonomy,
   useUpdateTaskChannel,
   useUpdateTaskConfig,
@@ -110,6 +108,19 @@ function AgentDetailPage() {
   const isReddit = agent.kind === "reddit_monitor";
   const isRedditPost = agent.kind === "reddit_post";
   const isSlideshow = agent.kind === "tiktok_slideshow";
+  // Kinds whose real output is a dedicated panel (Leads/Posts/Slideshow), so the
+  // run log is secondary and starts collapsed.
+  const hasPanel = isReddit || isRedditPost || isSlideshow;
+  // Only agents that actually post/send have a meaningful Ask/Auto choice; for a
+  // pure content/SEO/slideshow agent it's a no-op, so we hide it.
+  const canAct = [
+    "reddit_monitor",
+    "linkedin_post",
+    "reddit_post",
+    "facebook_post",
+    "facebook_dm",
+    "email_responder",
+  ].includes(agent.kind ?? "");
   const slideshowImages = ((agent.config as { images?: string[] } | null)?.images ?? []).filter(
     (u): u is string => typeof u === "string",
   );
@@ -138,9 +149,6 @@ function AgentDetailPage() {
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="size-4" /> Next: {formatWhen(agent.next_run_at)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Hash className="size-4" /> {channelLabel(agent.channel)}
             </span>
           </div>
         </div>
@@ -247,29 +255,9 @@ function AgentDetailPage() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Instruction</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{agent.instructions}</p>
-            </CardContent>
-          </Card>
+          <InstructionCard agent={agent} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Run history</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2.5">
-              {!runs || runs.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  No runs yet. Hit “Run now” to try it.
-                </p>
-              ) : (
-                runs.map((r) => <RunRow key={r.id} run={r} defaultOpen={false} />)
-              )}
-            </CardContent>
-          </Card>
+          <RunHistoryCard runs={runs} defaultCollapsed={hasPanel} />
         </div>
 
         {/* right: config */}
@@ -280,12 +268,15 @@ function AgentDetailPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <ScheduleEditor agent={agent} />
-              <Row label="Next run" value={formatWhen(agent.next_run_at)} />
               <Row label="Last run" value={formatWhen(agent.last_run_at)} />
               <Separator />
               <DeliveryEditor agent={agent} />
-              <Separator />
-              <AutonomyEditor agent={agent} isReddit={isReddit} />
+              {canAct && (
+                <>
+                  <Separator />
+                  <AutonomyEditor agent={agent} isReddit={isReddit} />
+                </>
+              )}
               {agent.kind === "facebook_post" && (
                 <>
                   <Separator />
@@ -298,20 +289,6 @@ function AgentDetailPage() {
           {isReddit && <WatchingCard agent={agent} />}
           {isRedditPost && <SubredditsCard agent={agent} />}
           {isSlideshow && <SlideshowImagesCard agent={agent} />}
-          {!isReddit && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Wrench className="size-4" /> Tools
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <span className="bg-muted inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium">
-                  <Globe className="size-3.5" /> Web search
-                </span>
-              </CardContent>
-            </Card>
-          )}
 
           <Button variant="outline" className="w-full" asChild>
             <Link to="/dashboard" search={{ c: agentChatId ?? undefined }}>
@@ -322,6 +299,107 @@ function AgentDetailPage() {
       </div>
       {dialog}
     </div>
+  );
+}
+
+/** The agent's instruction, editable in place (it drives what the agent does). */
+function InstructionCard({ agent }: { agent: Task }) {
+  const update = useUpdateAgent();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(agent.instructions);
+  function save() {
+    update.mutate(
+      { agentId: agent.id, changes: { instructions: text } },
+      { onSuccess: () => setEditing(false) },
+    );
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Instruction</CardTitle>
+          {!editing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                setText(agent.instructions);
+                setEditing(true);
+              }}
+            >
+              <Pencil className="size-3.5" /> Edit
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {editing ? (
+          <div className="space-y-2">
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={8}
+              className="resize-y text-sm"
+            />
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={save} disabled={update.isPending || !text.trim()}>
+                <Check className="size-4" /> Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                <X className="size-4" /> Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{agent.instructions}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Run log. Collapsed by default for agents whose real output is a panel. */
+function RunHistoryCard({
+  runs,
+  defaultCollapsed,
+}: {
+  runs: TaskRun[] | undefined;
+  defaultCollapsed: boolean;
+}) {
+  const [open, setOpen] = useState(!defaultCollapsed);
+  const count = runs?.length ?? 0;
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="hover:bg-muted/40 w-full rounded-t-xl text-left transition"
+      >
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              Run history{" "}
+              {count > 0 && <span className="text-muted-foreground font-normal">({count})</span>}
+            </CardTitle>
+            {open ? (
+              <ChevronUp className="text-muted-foreground size-4" />
+            ) : (
+              <ChevronDown className="text-muted-foreground size-4" />
+            )}
+          </div>
+        </CardHeader>
+      </button>
+      {open && (
+        <CardContent className="space-y-2.5">
+          {!runs || runs.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No runs yet. Hit “Run now” to try it.</p>
+          ) : (
+            runs.map((r) => <RunRow key={r.id} run={r} defaultOpen={false} />)
+          )}
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
@@ -773,33 +851,44 @@ function AutonomyEditor({ agent, isReddit }: { agent: Task; isReddit: boolean })
 }
 
 /** Editable delivery: dashboard-only or email the result, saves immediately. */
+/**
+ * Every run is always saved to the dashboard, so delivery is just an optional
+ * "email me too" toggle - not an either/or. Email only actually sends through a
+ * connected Gmail, so we say so when it's on but Gmail isn't connected, instead
+ * of the run silently not emailing.
+ */
 function DeliveryEditor({ agent }: { agent: Task }) {
   const update = useUpdateTaskChannel();
-  const current = agent.channel;
-  // Legacy channel values (discord, slack, ...) stay selectable until changed.
-  const options = CHANNELS.some((c) => c.value === current)
-    ? [...CHANNELS]
-    : [{ value: current, label: channelLabel(current) }, ...CHANNELS];
+  const { missing, loaded } = useMissingToolkits(["gmail"]);
+  const gmailConnected = loaded && missing.length === 0;
+  const emailOn = agent.channel === "email";
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-muted-foreground">Delivers to</span>
-      <Select
-        value={current}
-        disabled={update.isPending}
-        onValueChange={(v) => update.mutate({ id: agent.id, channel: v })}
-      >
-        <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="end">
-          {options.map((c) => (
-            <SelectItem key={c.value} value={c.value}>
-              {c.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Email me the result</p>
+          <p className="text-muted-foreground text-xs">
+            Every run is always saved here. Turn this on to also get it by email.
+          </p>
+        </div>
+        <Switch
+          checked={emailOn}
+          disabled={update.isPending}
+          onCheckedChange={(v) =>
+            update.mutate({ id: agent.id, channel: v ? "email" : "dashboard" })
+          }
+        />
+      </div>
+      {emailOn && loaded && !gmailConnected && (
+        <p className="text-xs text-amber-600">
+          Connect Gmail in{" "}
+          <Link to="/integrations" className="underline">
+            Integrations
+          </Link>{" "}
+          so these emails can actually send.
+        </p>
+      )}
     </div>
   );
 }
