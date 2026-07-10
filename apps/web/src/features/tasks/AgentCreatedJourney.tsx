@@ -23,10 +23,15 @@ export function AgentCreatedJourney({ agentId, kind }: { agentId: string; kind: 
   const run = useRunTask();
   const started = useRef(false);
 
+  // Some agents need setup before a first run is useful. A slideshow renders its
+  // text over the user's images, so running before any are uploaded just makes
+  // plain-background slides. Skip the auto-run and point them to upload first.
+  const needsSetup = kind === "tiktok_slideshow";
+
   // The first run starts itself the moment the agent can actually succeed:
   // right away when nothing needs connecting, or as soon as the connection
   // lands. Creating the agent was the deliberate act; no second ask.
-  const readyToRun = loaded && missing.length === 0;
+  const readyToRun = loaded && missing.length === 0 && !needsSetup;
   useEffect(() => {
     if (!readyToRun || started.current) return;
     started.current = true;
@@ -65,6 +70,24 @@ export function AgentCreatedJourney({ agentId, kind }: { agentId: string; kind: 
           ))}
           {viewAgentLink}
         </div>
+      </div>
+    );
+  }
+
+  if (needsSetup) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+          <Check className="size-3.5" /> Agent created
+        </p>
+        <p className="text-muted-foreground text-xs">
+          Add a few of your images on the agent, then run it to make your first slideshow.
+        </p>
+        <Button size="sm" asChild>
+          <Link to="/agents/$agentId" params={{ agentId }}>
+            Add images <ArrowRight className="size-3.5" />
+          </Link>
+        </Button>
       </div>
     );
   }
