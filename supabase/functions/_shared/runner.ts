@@ -478,16 +478,18 @@ export async function executeTask(
     // disabled upstream) must not look like a normal success: lead with a plain
     // notice so the empty Approvals tab makes sense, while keeping the draft.
     if (task.kind === "linkedin_post" && !linkedinCanPublish) {
-      const notice = LINKEDIN_PUBLISH_DISABLED
-        ? "Automatic LinkedIn posting is paused right now, so here is your finished post to copy " +
-          "into LinkedIn yourself."
-        : "LinkedIn isn't connected, so this post could not be published or sent for approval. " +
-          "Connect LinkedIn on the Integrations page, then run this agent again to review and approve it.";
+      const post = output || "(empty response)";
+      // Publishing paused upstream: deliver the CLEAN post so the agent page's
+      // draft card shows and copies it verbatim; the paused context is the summary.
+      if (LINKEDIN_PUBLISH_DISABLED) {
+        return { summary: "Post ready to copy into LinkedIn", output: post };
+      }
+      const notice =
+        "LinkedIn isn't connected, so this post could not be published or sent for approval. " +
+        "Connect LinkedIn on the Integrations page, then run this agent again to review and approve it.";
       return {
-        summary: LINKEDIN_PUBLISH_DISABLED
-          ? "Post ready to copy into LinkedIn"
-          : "Draft ready, connect LinkedIn to publish",
-        output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
+        summary: "Draft ready, connect LinkedIn to publish",
+        output: `${notice}\n\nDraft:\n\n${post}`,
       };
     }
     // A reddit_post run produces a draft (title + body) for the user to review
