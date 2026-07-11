@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
+import { Textarea } from "@workspace/ui/components/textarea";
 import {
   AlertTriangle,
   Check,
@@ -10,6 +11,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { useApprovals, useDecideApproval } from "@/features/approvals/hooks";
@@ -30,8 +32,9 @@ function ApprovalsPage() {
   const { confirm, dialog } = useConfirm();
 
   // Approve does the outside-world action (send/post) immediately, and reject
-  // discards it for good - both irreversible, so both confirm first.
-  async function onDecide(a: Approval, decision: "approve" | "reject") {
+  // discards it for good - both irreversible, so both confirm first. `editedText`
+  // carries any changes the user made to the post/reply before approving.
+  async function onDecide(a: Approval, decision: "approve" | "reject", editedText?: string) {
     const ok =
       decision === "approve"
         ? await confirm({
@@ -45,7 +48,7 @@ function ApprovalsPage() {
             confirmLabel: "Reject",
             destructive: true,
           });
-    if (ok) decide.mutate({ id: a.id, decision });
+    if (ok) decide.mutate({ id: a.id, decision, editedText });
   }
 
   const pending = (approvals ?? []).filter((a) => a.status === "pending");
@@ -117,48 +120,17 @@ function ApprovalsPage() {
             const failed =
               decide.isError && (decide.variables as { id?: string } | undefined)?.id === a.id;
             return (
-              <Card key={a.id}>
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <SourceLabel approval={a} />
-                    <span className="text-muted-foreground text-xs">
-                      {formatWhen(a.created_at)}
-                    </span>
-                  </div>
-                  <h3 className="mt-1.5 font-semibold">{a.title}</h3>
-                  {a.detail ? (
-                    <p className="text-muted-foreground mt-2 text-sm leading-relaxed whitespace-pre-wrap">
-                      {a.detail}
-                    </p>
-                  ) : null}
-
-                  <div className="mt-4 flex items-center gap-2">
-                    <Button size="sm" disabled={busy} onClick={() => onDecide(a, "approve")}>
-                      {busy ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Check className="size-4" />
-                      )}
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => onDecide(a, "reject")}
-                    >
-                      <X className="size-4" /> Reject
-                    </Button>
-                  </div>
-
-                  {failed && (
-                    <p className="text-destructive mt-3 flex items-center gap-1.5 text-xs">
-                      <AlertTriangle className="size-3.5" />
-                      {(decide.error as Error)?.message || "Could not complete that. Try again."}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              <ApprovalCard
+                key={a.id}
+                approval={a}
+                busy={busy}
+                errorMsg={
+                  failed
+                    ? (decide.error as Error)?.message || "Could not complete that. Try again."
+                    : null
+                }
+                onDecide={onDecide}
+              />
             );
           })}
         </div>
@@ -193,6 +165,106 @@ function ApprovalsPage() {
       )}
       {dialog}
     </div>
+  );
+}
+
+// Ordered candidate fields holding the editable body of each write action,
+// mirroring the backend's content-field map. A slug that isn't here isn't
+// inline-editable, so we show its read-only preview instead.
+const CONTENT_FIELDS: Record<string, string[]> = {
+  LINKEDIN_CREATE_LINKED_IN_POST: ["commentary", "text"],
+  FACEBOOK_CREATE_POST: ["message"],
+  FACEBOOK_CREATE_COMMENT: ["message", "comment"],
+  FACEBOOK_SEND_MESSAGE: ["message", "text"],
+  GMAIL_SEND_EMAIL: ["body", "message_body", "message"],
+  GMAIL_REPLY_TO_THREAD: ["message_body", "body", "message"],
+  REDDIT_POST_REDDIT_COMMENT: ["text", "body"],
+};
+
+function editableContent(a: Approval): string | null {
+  const args = (a.tool_args ?? {}) as Record<string, unknown>;
+  for (const f of CONTENT_FIELDS[a.tool_slug] ?? []) {
+    if (typeof args[f] === "string") return args[f] as string;
+  }
+  return null;
+}
+
+/** One pending approval, with the post/reply editable inline before you approve it. */
+function ApprovalCard({
+  approval: a,
+  busy,
+  errorMsg,
+  onDecide,
+}: {
+  approval: Approval;
+  busy: boolean;
+  errorMsg: string | null;
+  onDecide: (a: Approval, decision: "approve" | "reject", editedText?: string) => void;
+}) {
+  const original = editableContent(a);
+  const [text, setText] = useState(original ?? "");
+  const subject = a.tool_slug.startsWith("GMAIL_")
+    ? (((a.tool_args ?? {}) as { subject?: unknown }).subject as string | undefined)
+    : undefined;
+  const edited = original !== null && text.trim() !== original.trim();
+
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-2">
+          <SourceLabel approval={a} />
+          <span className="text-muted-foreground text-xs">{formatWhen(a.created_at)}</span>
+        </div>
+        <h3 className="mt-1.5 font-semibold">{a.title}</h3>
+
+        {original !== null ? (
+          <div className="mt-2">
+            {subject ? (
+              <p className="text-muted-foreground mb-1.5 text-xs">
+                Subject: <span className="text-foreground">{subject}</span>
+              </p>
+            ) : null}
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={Math.min(14, Math.max(4, text.split("\n").length + 1))}
+              className="resize-y text-sm leading-relaxed"
+              placeholder="Write the message…"
+            />
+            <p className="text-muted-foreground mt-1.5 text-xs">
+              {edited
+                ? "Edited. Your version is what goes out."
+                : "Edit this before you approve it."}
+            </p>
+          </div>
+        ) : a.detail ? (
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed whitespace-pre-wrap">
+            {a.detail}
+          </p>
+        ) : null}
+
+        <div className="mt-4 flex items-center gap-2">
+          <Button
+            size="sm"
+            disabled={busy || (original !== null && !text.trim())}
+            onClick={() => onDecide(a, "approve", edited ? text : undefined)}
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            Approve
+          </Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide(a, "reject")}>
+            <X className="size-4" /> Reject
+          </Button>
+        </div>
+
+        {errorMsg && (
+          <p className="text-destructive mt-3 flex items-center gap-1.5 text-xs">
+            <AlertTriangle className="size-3.5" />
+            {errorMsg}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

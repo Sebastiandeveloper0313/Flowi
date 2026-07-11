@@ -4,7 +4,12 @@
 // approvals endpoint and the Slack approve/reject buttons).
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { composioActionError, describeToolCall, executeComposioTool } from "./composio.ts";
+import {
+  composioActionError,
+  describeToolCall,
+  executeComposioTool,
+  withEditedContent,
+} from "./composio.ts";
 
 export interface QueueApprovalInput {
   teamId: string;
@@ -73,6 +78,7 @@ export async function decideApproval(
   approvalId: string,
   decision: "approve" | "reject",
   decidedBy: string | null,
+  editedText?: string,
 ): Promise<{ status: "rejected" | "executed" | "failed" | "conflict"; error?: string }> {
   const { data: approval } = await admin
     .from("approvals")
@@ -93,12 +99,23 @@ export async function decideApproval(
     return { status: "rejected" };
   }
 
+  // The user may have edited the post/reply on the approvals page before
+  // approving. Apply their text to the right field, and persist it so the record
+  // reflects what actually went out (and so learning can read the final version).
+  let toolArgs = (approval.tool_args as Record<string, unknown>) ?? {};
+  if (typeof editedText === "string" && editedText.trim()) {
+    toolArgs = withEditedContent(approval.tool_slug, toolArgs, editedText);
+    await admin
+      .from("approvals")
+      .update({
+        tool_args: toolArgs,
+        detail: describeToolCall(approval.tool_slug, toolArgs).detail,
+      })
+      .eq("id", approval.id);
+  }
+
   try {
-    const result = await executeComposioTool(
-      approval.team_id,
-      approval.tool_slug,
-      (approval.tool_args as Record<string, unknown>) ?? {},
-    );
+    const result = await executeComposioTool(approval.team_id, approval.tool_slug, toolArgs);
     // Composio returns 200 even when the provider rejected the action, so a
     // "successful" call can still mean nothing went out. Treat that as failed so
     // the user isn't told an approved post published when it didn't.

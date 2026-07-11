@@ -104,6 +104,39 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
+// Ordered candidate fields that hold the user-editable body of each write
+// action, matching what describeToolCall previews. Used to seed the approval
+// editor and to write an edited version back before executing.
+const CONTENT_FIELDS: Record<string, string[]> = {
+  LINKEDIN_CREATE_LINKED_IN_POST: ["commentary", "text"],
+  FACEBOOK_CREATE_POST: ["message"],
+  FACEBOOK_CREATE_COMMENT: ["message", "comment"],
+  FACEBOOK_SEND_MESSAGE: ["message", "text"],
+  GMAIL_SEND_EMAIL: ["body", "message_body", "message"],
+  GMAIL_REPLY_TO_THREAD: ["message_body", "body", "message"],
+  REDDIT_POST_REDDIT_COMMENT: ["text", "body"],
+};
+
+/** The current editable body of a queued action, or null if it has no editable text. */
+export function editableContent(slug: string, args: Record<string, unknown>): string | null {
+  for (const f of CONTENT_FIELDS[slug] ?? []) {
+    if (typeof args[f] === "string") return args[f] as string;
+  }
+  return null;
+}
+
+/** A copy of args with `text` written into the action's primary body field. */
+export function withEditedContent(
+  slug: string,
+  args: Record<string, unknown>,
+  text: string,
+): Record<string, unknown> {
+  const fields = CONTENT_FIELDS[slug] ?? [];
+  const target = fields.find((f) => typeof args[f] === "string") ?? fields[0];
+  if (!target) return args;
+  return { ...args, [target]: text };
+}
+
 /**
  * A human title + detail for a proposed write action, shown on the approval card.
  * Falls back to a generic description for tools we don't specifically format.
@@ -195,7 +228,7 @@ async function composio(path: string, init?: RequestInit): Promise<any> {
     headers: {
       "x-api-key": Deno.env.get("COMPOSIO_API_KEY") ?? "",
       "content-type": "application/json",
-      ...(init?.headers ?? {}),
+      ...init?.headers,
     },
   });
   const text = await res.text();
