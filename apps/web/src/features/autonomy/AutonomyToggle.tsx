@@ -90,21 +90,22 @@ export function AutonomyToggle() {
             <li className="flex items-start gap-2.5">
               <Send className="mt-0.5 size-4 shrink-0 text-[#ea580c]" />
               <span>
-                <span className="font-medium">Reddit replies post automatically</span> from your
-                connected account, spaced out and capped per day so your account stays safe. Tune
-                the pace in Settings.
+                <span className="font-medium">Posts and replies go out on their own</span> — Reddit
+                replies, LinkedIn and Facebook posts, and email replies are published or sent from
+                your connected accounts without stopping for approval.
               </span>
             </li>
             <li className="flex items-start gap-2.5">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#ea580c]" />
               <span>
-                <span className="font-medium">Other high-stakes actions run immediately</span> too,
-                so nothing waits for your approval.
+                <span className="font-medium">Reddit stays paced and capped</span> so your account
+                stays safe: replies drip out one at a time, spaced apart, under a daily limit. Tune
+                it in Settings.
               </span>
             </li>
           </ul>
           <p className="text-muted-foreground text-xs">
-            These posts are public and go out as you. You can switch back to Ask anytime.
+            Anything public goes out as you. You can switch back to Ask anytime.
           </p>
           <div className="mt-3 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setConfirmAuto(false)}>

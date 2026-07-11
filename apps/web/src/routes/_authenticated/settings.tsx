@@ -29,6 +29,7 @@ import {
 import { PageHeader } from "@/features/dashboard/ui";
 import { useProfile } from "@/features/onboarding/hooks";
 import type { BusinessContext } from "@/features/onboarding/mutations";
+import { useTasks } from "@/features/tasks/hooks";
 import {
   useAnalyzeWebsite,
   useSaveBusinessContext,
@@ -90,8 +91,15 @@ const FIELDS: { key: keyof BusinessContext; label: string; hint: string; rows: n
 
 function BusinessTab() {
   const { data: ws, isLoading } = useWorkspace();
+  const { data: tasks } = useTasks();
   const analyze = useAnalyzeWebsite();
   const save = useSaveBusinessContext();
+
+  // The reply-style and pacing cards only make sense to someone running a Reddit
+  // agent; hide them from everyone else so Settings isn't full of dead knobs.
+  const hasReddit = (tasks ?? []).some(
+    (t) => t.kind === "reddit_monitor" || t.kind === "reddit_post",
+  );
   const [url, setUrl] = useState("");
   const [ctx, setCtx] = useState<BusinessContext>({});
   const [dirty, setDirty] = useState(false);
@@ -285,8 +293,12 @@ function BusinessTab() {
         </CardContent>
       </Card>
 
-      <ReplyStyleCard />
-      <AutoPostPacingCard />
+      {hasReddit && (
+        <>
+          <ReplyStyleCard />
+          <AutoPostPacingCard />
+        </>
+      )}
     </div>
   );
 }
@@ -318,7 +330,7 @@ function AutoPostPacingCard() {
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck className="size-4" /> Auto-post pacing
+          <ShieldCheck className="size-4" /> Reddit auto-post pacing
         </CardTitle>
         <Button
           size="sm"
@@ -415,7 +427,7 @@ function ReplyStyleCard() {
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
-          <MessageSquare className="size-4" /> Reply style
+          <MessageSquare className="size-4" /> Reddit reply style
         </CardTitle>
         <Button
           size="sm"
