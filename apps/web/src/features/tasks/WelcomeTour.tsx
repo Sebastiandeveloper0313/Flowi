@@ -412,11 +412,15 @@ function LiveStep({ created, onDone }: { created: CreatedAgent[]; onDone: () => 
   const started = useRef<Set<string>>(new Set());
 
   // Each agent's first run starts itself the moment it can succeed: content
-  // agents right away, the lead watch once its connection lands.
+  // agents right away, the lead watch once its connection lands. A slideshow is
+  // the exception: it renders text over the user's images, so running before any
+  // are uploaded just makes blank slides. It waits for the user to add images and
+  // run it themselves (same guard AgentCreatedJourney uses on the other path).
   useEffect(() => {
     if (!loaded) return;
     for (const a of created) {
-      const ready = requiredToolkits(a).every((slug) => !missing.includes(slug));
+      const needsSetup = a.kind === "tiktok_slideshow";
+      const ready = !needsSetup && requiredToolkits(a).every((slug) => !missing.includes(slug));
       if (ready && !started.current.has(a.id)) {
         started.current.add(a.id);
         run.mutate(a.id);
