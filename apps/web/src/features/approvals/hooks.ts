@@ -17,9 +17,17 @@ export function usePendingApprovalCount() {
 export function useDecideApproval() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, decision }: { id: string; decision: "approve" | "reject" }) => {
+    mutationFn: async ({
+      id,
+      decision,
+      editedText,
+    }: {
+      id: string;
+      decision: "approve" | "reject";
+      editedText?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke("approvals", {
-        body: { approval_id: id, decision },
+        body: { approval_id: id, decision, edited_text: editedText },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

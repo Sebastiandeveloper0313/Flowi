@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   try {
-    const { approval_id, decision } = await req.json().catch(() => ({}));
+    const { approval_id, decision, edited_text } = await req.json().catch(() => ({}));
     if (!approval_id || (decision !== "approve" && decision !== "reject")) {
       return json({ error: "approval_id and decision ('approve'|'reject') are required" }, 400);
     }
@@ -54,7 +54,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const admin = createClient(url, service);
-    const result = await decideApproval(admin, approval_id, decision, user.id);
+    const result = await decideApproval(
+      admin,
+      approval_id,
+      decision,
+      user.id,
+      typeof edited_text === "string" ? edited_text : undefined,
+    );
     if (result.status === "conflict") return json({ error: result.error }, 409);
     if (result.status === "failed") return json({ status: "failed", error: result.error }, 502);
     return json({ status: result.status });
