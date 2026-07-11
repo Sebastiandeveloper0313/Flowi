@@ -123,26 +123,60 @@ function SlideViewer({
 /** The generated TikTok slideshows for one agent. `images` are the user's uploads. */
 export function SlideshowsPanel({ taskId, images }: { taskId: string; images: string[] }) {
   const { data: shows, isLoading } = useAgentSlideshows(taskId);
-  const visible = (shows ?? []).filter((s) => s.status !== "dismissed");
+  const [tab, setTab] = useState<"active" | "dismissed">("active");
+
+  const all = shows ?? [];
+  const active = all.filter((s) => s.status !== "dismissed");
+  const dismissed = all.filter((s) => s.status === "dismissed");
+  const shown = tab === "dismissed" ? dismissed : active;
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading slideshows...</p>;
-  if (visible.length === 0) {
-    return (
-      <div className="text-muted-foreground rounded-2xl border border-dashed px-6 py-12 text-center">
-        <Film className="mx-auto mb-2 size-6 opacity-60" />
-        <p className="text-sm">
-          No slideshows yet. Each run writes a fresh TikTok slideshow here, rendered over your
-          images. Upload a few images on the right, then hit Run now.
-        </p>
-      </div>
-    );
-  }
 
   return (
-    <div className="grid gap-4">
-      {visible.map((show) => (
-        <SlideshowCard key={show.id} show={show} images={images} />
-      ))}
+    <div>
+      {/* A Dismissed tab only appears once something's been dismissed, so a fresh
+          panel stays clean. Matches the Leads/Posts panels' New/Dismissed split. */}
+      {dismissed.length > 0 && (
+        <div className="mb-4 flex gap-1.5">
+          {(
+            [
+              { key: "active", label: "Slideshows", n: active.length },
+              { key: "dismissed", label: "Dismissed", n: dismissed.length },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                tab === t.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {t.label}
+              {t.n > 0 && <span className="ml-1.5 opacity-70">{t.n}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {shown.length === 0 ? (
+        <div className="text-muted-foreground rounded-2xl border border-dashed px-6 py-12 text-center">
+          <Film className="mx-auto mb-2 size-6 opacity-60" />
+          <p className="text-sm">
+            {tab === "dismissed"
+              ? "Nothing dismissed."
+              : "No slideshows yet. Each run writes a fresh TikTok slideshow here, rendered over your images. Upload a few images on the right, then hit Run now."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {shown.map((show) => (
+            <SlideshowCard key={show.id} show={show} images={images} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -187,7 +221,11 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
   return (
     <div className="rounded-2xl border p-5">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        {show.status === "exported" ? (
+        {show.status === "dismissed" ? (
+          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 font-medium">
+            Dismissed
+          </span>
+        ) : show.status === "exported" ? (
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
             Downloaded
           </span>
@@ -236,14 +274,25 @@ function SlideshowCard({ show, images }: { show: Slideshow; images: string[] }) 
           </Button>
         )}
         <div className="grow" />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setStatus.mutate({ id: show.id, status: "dismissed" })}
-        >
-          <X className="size-4" /> Dismiss
-        </Button>
+        {show.status === "dismissed" ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => setStatus.mutate({ id: show.id, status: "draft" })}
+          >
+            Restore
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => setStatus.mutate({ id: show.id, status: "dismissed" })}
+          >
+            <X className="size-4" /> Dismiss
+          </Button>
+        )}
       </div>
       <p className="text-muted-foreground mt-2 text-xs">
         Downloads the slides as images. Open TikTok, tap +, choose photo mode, and add them in
