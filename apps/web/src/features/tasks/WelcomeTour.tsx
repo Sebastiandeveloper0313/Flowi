@@ -35,12 +35,31 @@ interface CreatedAgent {
   kind: string;
 }
 
+// The intro explains how Sentrive works, so it only needs to be seen ONCE per
+// person, not once per workspace. Keying the flag globally (and treating any
+// legacy per-workspace flag as seen) stops it reappearing every time someone
+// spins up another workspace. Per-workspace suggested agents still show inline.
+const WELCOME_SEEN_KEY = "sentrive.welcome.seen";
+
+function hasSeenWelcome(): boolean {
+  try {
+    if (localStorage.getItem(WELCOME_SEEN_KEY)) return true;
+    // Legacy: earlier builds stored `sentrive.welcome.<teamId>` per workspace.
+    for (let i = 0; i < localStorage.length; i++) {
+      if (localStorage.key(i)?.startsWith("sentrive.welcome.")) return true;
+    }
+  } catch {
+    // localStorage unavailable (private mode / blocked): treat as unseen.
+  }
+  return false;
+}
+
 /**
  * First-run welcome: a guided dialog that opens once on a fresh dashboard,
  * explains how Sentrive works, presents the personalized starter agents, and
  * walks through deploying them and connecting the channel they need. Shown a
- * single time per team; closing it in any way counts as seen, and the inline
- * suggestions section stays available below as the fallback path.
+ * single time per user (across all their workspaces); closing it in any way
+ * counts as seen, and the inline suggestions section stays available below.
  */
 export function WelcomeTour() {
   const { data: ws } = useWorkspace();
@@ -48,7 +67,6 @@ export function WelcomeTour() {
   const queryClient = useQueryClient();
 
   const teamId = ws?.id;
-  const seenKey = teamId ? `sentrive.welcome.${teamId}` : null;
   const eligible = Boolean(teamId && ws?.business_context) && !tasksLoading && tasks?.length === 0;
 
   const [open, setOpen] = useState(false);
@@ -59,8 +77,8 @@ export function WelcomeTour() {
   const [created, setCreated] = useState<CreatedAgent[]>([]);
 
   useEffect(() => {
-    if (!eligible || !seenKey || open) return;
-    if (localStorage.getItem(seenKey)) return;
+    if (!eligible || open) return;
+    if (hasSeenWelcome()) return;
     // Let the dashboard paint first so the dialog arrives as its own moment.
     // No one-shot guard here: the timer must survive StrictMode's
     // mount-cleanup-mount cycle, so it re-arms until it actually opens.
@@ -69,7 +87,7 @@ export function WelcomeTour() {
       track("welcome_tour_shown");
     }, 700);
     return () => clearTimeout(timer);
-  }, [eligible, seenKey, open]);
+  }, [eligible, open]);
 
   const {
     data: suggestions,
@@ -90,7 +108,11 @@ export function WelcomeTour() {
   }, [suggestions, selected]);
 
   function markSeen() {
-    if (seenKey) localStorage.setItem(seenKey, "1");
+    try {
+      localStorage.setItem(WELCOME_SEEN_KEY, "1");
+    } catch {
+      // localStorage blocked: nothing to persist, tour just won't be suppressed.
+    }
   }
 
   function finish(reason: "completed" | "skipped") {
