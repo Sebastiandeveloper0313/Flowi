@@ -144,6 +144,14 @@ function IntegrationsPage() {
     if (connecting && toolkits?.find((t) => t.slug === connecting)?.connected) setConnecting(null);
   }, [toolkits, connecting]);
 
+  // Don't wait forever: if the user closes the OAuth tab, nothing reports back,
+  // so give up after a while and restore the Connect button.
+  useEffect(() => {
+    if (!connecting) return;
+    const t = setTimeout(() => setConnecting(null), 120_000);
+    return () => clearTimeout(t);
+  }, [connecting]);
+
   async function onConnect(slug: string) {
     // Slack is not a Composio toolkit: "Add to Slack" runs our own OAuth install.
     // The team id rides along as OAuth state so the install is credited to this
@@ -216,9 +224,19 @@ function IntegrationsPage() {
                       Reconnect
                     </Button>
                   ) : isConnecting ? (
-                    <Button size="sm" variant="outline" disabled>
-                      <Loader2 className="size-4 animate-spin" /> Waiting for authorization…
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" disabled>
+                        <Loader2 className="size-4 animate-spin" /> Waiting for authorization…
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-muted-foreground"
+                        onClick={() => setConnecting(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </>
                   ) : (
                     <Button
                       size="sm"

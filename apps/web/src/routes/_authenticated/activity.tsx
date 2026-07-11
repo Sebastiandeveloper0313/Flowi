@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useState } from "react";
 
+import { ChatMarkdown } from "@/features/chat/Markdown";
 import { PageHeader } from "@/features/dashboard/ui";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
+import type { TaskRun } from "@/features/tasks/queries";
 import { RunDot, runStatusLabel } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/activity")({
@@ -31,41 +34,66 @@ function ActivityPage() {
         </div>
       ) : (
         <div className="bg-card/95 overflow-hidden rounded-2xl border shadow-[0_24px_50px_-44px_rgba(16,48,120,0.4)]">
-          {runs.map((run, i) => {
-            const title = titleById.get(run.task_id) ?? "Agent";
-            return (
-              <div
-                key={run.id}
-                className={`hover:bg-muted/40 flex items-center gap-3.5 px-4 py-3.5 transition ${
-                  i > 0 ? "border-t" : ""
-                }`}
-              >
-                <RunDot status={run.status} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      to="/agents/$agentId"
-                      params={{ agentId: run.task_id }}
-                      className="hover:text-primary truncate text-sm font-medium"
-                    >
-                      {title}
-                    </Link>
-                    {run.status === "failed" && (
-                      <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-[0.65rem] font-semibold text-rose-600">
-                        failed
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-muted-foreground truncate text-sm">
-                    {run.summary ?? run.error ?? runStatusLabel(run.status)}
-                  </p>
-                </div>
-                <span className="text-muted-foreground shrink-0 text-xs">
-                  {formatWhen(run.created_at)}
-                </span>
-              </div>
-            );
-          })}
+          {runs.map((run, i) => (
+            <ActivityRow
+              key={run.id}
+              run={run}
+              title={titleById.get(run.task_id) ?? "Agent"}
+              bordered={i > 0}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One run, expandable to read the full output (or error) it produced. */
+function ActivityRow({ run, title, bordered }: { run: TaskRun; title: string; bordered: boolean }) {
+  const [open, setOpen] = useState(false);
+  const body = run.output ?? run.error ?? null;
+  return (
+    <div className={bordered ? "border-t" : ""}>
+      <div className="hover:bg-muted/40 flex items-center gap-3.5 px-4 py-3.5 transition">
+        <RunDot status={run.status} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/agents/$agentId"
+              params={{ agentId: run.task_id }}
+              className="hover:text-primary truncate text-sm font-medium"
+            >
+              {title}
+            </Link>
+            {run.status === "failed" && (
+              <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-[0.65rem] font-semibold text-rose-600">
+                failed
+              </span>
+            )}
+          </div>
+          <p className="text-muted-foreground truncate text-sm">
+            {run.summary ?? run.error ?? runStatusLabel(run.status)}
+          </p>
+        </div>
+        <span className="text-muted-foreground shrink-0 text-xs">{formatWhen(run.created_at)}</span>
+        {body && (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            aria-label={open ? "Collapse" : "Expand"}
+          >
+            {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+        )}
+      </div>
+      {open && body && (
+        <div className="text-foreground/80 max-h-96 overflow-auto border-t px-4 py-3.5">
+          {run.output ? (
+            <ChatMarkdown>{run.output}</ChatMarkdown>
+          ) : (
+            <p className="text-destructive text-sm whitespace-pre-wrap">{run.error}</p>
+          )}
         </div>
       )}
     </div>
