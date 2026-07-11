@@ -6,7 +6,6 @@ import {
   CalendarClock,
   ChevronRight,
   Clock,
-  Hash,
   Loader2,
   MessageSquarePlus,
   Trash2,
@@ -16,15 +15,9 @@ import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { PageHeader } from "@/features/dashboard/ui";
-import {
-  channelLabel,
-  formatWhen,
-  scheduleLabel,
-  useBulkDeleteTasks,
-  useTasks,
-} from "@/features/tasks/hooks";
+import { formatWhen, scheduleLabel, useBulkDeleteTasks, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
-import { TaskStatusBadge } from "@/features/tasks/ui";
+import { DeliveryChip, TaskStatusBadge } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/agents/")({
   component: AgentsPage,
@@ -64,9 +57,7 @@ function AgentRow({
           <span className="flex items-center gap-1.5">
             <Clock className="size-3.5" /> Next: {formatWhen(agent.next_run_at)}
           </span>
-          <span className="flex items-center gap-1.5">
-            <Hash className="size-3.5" /> {channelLabel(agent.channel)}
-          </span>
+          <DeliveryChip channel={agent.channel} />
         </div>
       </Link>
       <ChevronRight className="text-muted-foreground/50 group-hover:text-primary mt-1 size-5 shrink-0 transition" />

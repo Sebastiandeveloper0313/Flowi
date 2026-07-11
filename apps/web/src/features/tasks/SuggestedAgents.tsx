@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
+  ArrowRight,
+  Brain,
   Briefcase,
   CalendarClock,
   FileText,
@@ -57,7 +60,16 @@ export function SuggestedAgents() {
     retry: 1,
   });
 
-  if (!enabled || isError) return null;
+  // First run, but we never got any business context (e.g. the website analysis
+  // failed during onboarding). Suggestions can't be tailored, so instead of a
+  // blank dashboard, point the user at Settings to add their details.
+  const firstRunNoContext =
+    Boolean(teamId) && !tasksLoading && tasks?.length === 0 && !ws?.business_context;
+
+  if (!enabled || isError) {
+    if (firstRunNoContext) return <BusinessContextPrompt />;
+    return null;
+  }
 
   const company = ws?.name && ws.name !== "My team" ? ws.name : "your business";
 
@@ -120,6 +132,29 @@ export function SuggestedAgents() {
           chat
         </button>
       )}
+    </section>
+  );
+}
+
+/** Shown on a first-run dashboard when we have no business context to tailor from. */
+function BusinessContextPrompt() {
+  return (
+    <section className="mb-10">
+      <div className="bg-card/60 rounded-2xl border border-dashed px-6 py-10 text-center">
+        <div className="mx-auto mb-3 grid size-11 place-items-center rounded-2xl bg-[#eef4fd] text-[#1566e6]">
+          <Brain className="size-5" />
+        </div>
+        <h2 className="text-lg font-semibold">Tell Sentrive about your business first</h2>
+        <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
+          We couldn't read your website during setup, so there's nothing to build agents from yet.
+          Add your details and Sentrive will suggest agents made for you.
+        </p>
+        <Button asChild className="mt-4">
+          <Link to="/settings">
+            Add your business details <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+      </div>
     </section>
   );
 }

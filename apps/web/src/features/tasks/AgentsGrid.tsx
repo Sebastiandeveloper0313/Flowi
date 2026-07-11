@@ -8,7 +8,6 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronUp,
-  Hash,
   Loader2,
   Pause,
   Play,
@@ -21,7 +20,6 @@ import { useConfirm } from "@/components/useConfirm";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 
 import {
-  channelLabel,
   scheduleLabel,
   useDeleteTask,
   useRuns,
@@ -31,6 +29,7 @@ import {
 } from "./hooks";
 import type { Task, TaskRun } from "./queries";
 import { requiredToolkits } from "./requirements";
+import { DeliveryChip } from "./ui";
 
 export function AgentsGrid() {
   const { data: tasks, isLoading } = useTasks();
@@ -111,9 +110,7 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
             <span className="flex items-center gap-1.5">
               <CalendarClock className="size-3.5" /> {scheduleLabel(task.schedule_cron)}
             </span>
-            <span className="flex items-center gap-1.5">
-              <Hash className="size-3.5" /> {channelLabel(task.channel)}
-            </span>
+            <DeliveryChip channel={task.channel} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">

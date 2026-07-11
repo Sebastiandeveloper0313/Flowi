@@ -29,8 +29,21 @@ function ActivityPage() {
           <Loader2 className="size-4 animate-spin" /> Loading activity…
         </div>
       ) : !runs || runs.length === 0 ? (
-        <div className="text-muted-foreground bg-card/60 rounded-2xl border border-dashed px-6 py-16 text-center text-sm">
-          No runs yet. Once your agents run, every result shows up here.
+        <div className="text-muted-foreground bg-card/60 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-16 text-center text-sm">
+          <p>
+            {tasks && tasks.length > 0
+              ? "No runs yet. Once your agents run, every result shows up here."
+              : "No runs yet. Create an agent and its results will show up here."}
+          </p>
+          {(!tasks || tasks.length === 0) && (
+            <Link
+              to="/dashboard"
+              search={{ c: undefined }}
+              className="text-primary font-medium hover:underline"
+            >
+              Create your first agent →
+            </Link>
+          )}
         </div>
       ) : (
         <div className="bg-card/95 overflow-hidden rounded-2xl border shadow-[0_24px_50px_-44px_rgba(16,48,120,0.4)]">

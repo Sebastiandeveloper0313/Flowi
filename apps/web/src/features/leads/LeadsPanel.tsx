@@ -167,11 +167,14 @@ function LeadCard({ lead }: { lead: Lead }) {
         {lead.subreddit && <span className="font-semibold">r/{lead.subreddit}</span>}
         <span
           className={`rounded-full border px-2 py-0.5 font-medium ${relevanceClass(lead.relevance)}`}
+          title="How closely this post matches your business, judged by Sentrive"
         >
           {lead.relevance}% match
         </span>
         {typeof lead.score === "number" && (
-          <span className="text-muted-foreground">▲ {lead.score}</span>
+          <span className="text-muted-foreground" title="Upvotes on the Reddit post">
+            ▲ {lead.score}
+          </span>
         )}
         <span className="text-muted-foreground">{timeAgo(lead.created_at)}</span>
         {queued && (
