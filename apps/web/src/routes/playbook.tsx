@@ -19,6 +19,8 @@ export const Route = createFileRoute("/playbook")({
       { property: "og:description", content: DESC },
       { property: "og:url", content: "https://www.sentrive.ai/playbook" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:image", content: "https://www.sentrive.ai/og.png" },
+      { name: "twitter:image", content: "https://www.sentrive.ai/og.png" },
     ],
     links: [{ rel: "canonical", href: "https://www.sentrive.ai/playbook" }],
   }),
