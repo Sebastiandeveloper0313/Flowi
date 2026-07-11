@@ -36,7 +36,7 @@ export function WorkspaceSwitcher() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="flowy-ws-switch" title="Switch product">
+          <button type="button" className="flowy-ws-switch" title="Switch workspace">
             <span className="truncate">{active?.name || "Workspace"}</span>
             <ChevronsUpDown className="size-3.5 shrink-0 opacity-60" />
           </button>
@@ -50,7 +50,7 @@ export function WorkspaceSwitcher() {
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New product
+            <Plus className="size-4" /> New workspace
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -76,7 +76,7 @@ function CreateProductDialog({
   const create = useMutation({
     mutationFn: async () => {
       const { data: teamId, error } = await supabase.rpc("create_workspace", {
-        p_name: name.trim() || "New product",
+        p_name: name.trim() || "New workspace",
         p_website_url: url.trim() || undefined,
       });
       if (error) throw error;
@@ -103,14 +103,14 @@ function CreateProductDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !create.isPending && onOpenChange(next)}>
       <DialogContent className="sm:max-w-md">
-        <DialogTitle className="text-lg font-bold tracking-tight">Add a product</DialogTitle>
+        <DialogTitle className="text-lg font-bold tracking-tight">Add a workspace</DialogTitle>
         <p className="text-muted-foreground -mt-2 text-sm">
-          Each product gets its own website, agents, and leads, kept separate from your others.
+          Each workspace gets its own website, agents, and leads, kept separate from your others.
         </p>
         <div className="space-y-3">
           <div className="grid gap-1.5">
             <label htmlFor="ws-name" className="text-sm font-medium">
-              Product name
+              Workspace name
             </label>
             <Input
               id="ws-name"
@@ -134,12 +134,12 @@ function CreateProductDialog({
               placeholder="https://acme.com"
             />
             <p className="text-muted-foreground text-xs">
-              Sentrive reads it to learn this product, so its agents sound right from day one.
+              Sentrive reads it to learn this business, so its agents sound right from day one.
             </p>
           </div>
           {create.isError && (
             <p className="text-destructive text-sm">
-              {(create.error as Error)?.message || "Couldn't create the product. Try again."}
+              {(create.error as Error)?.message || "Couldn't create the workspace. Try again."}
             </p>
           )}
         </div>
@@ -149,7 +149,7 @@ function CreateProductDialog({
           </Button>
           <Button disabled={create.isPending || !name.trim()} onClick={() => create.mutate()}>
             {create.isPending && <Loader2 className="size-4 animate-spin" />}
-            Create product
+            Create workspace
           </Button>
         </div>
       </DialogContent>
