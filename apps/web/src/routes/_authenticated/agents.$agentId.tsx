@@ -39,6 +39,7 @@ import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
+import { LinkedInDraftCard } from "@/features/posts/LinkedInDraftCard";
 import { PostsPanel } from "@/features/posts/PostsPanel";
 import { SlideshowsPanel } from "@/features/slideshows/SlideshowsPanel";
 import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
@@ -108,9 +109,10 @@ function AgentDetailPage() {
   const isReddit = agent.kind === "reddit_monitor";
   const isRedditPost = agent.kind === "reddit_post";
   const isSlideshow = agent.kind === "tiktok_slideshow";
-  // Kinds whose real output is a dedicated panel (Leads/Posts/Slideshow), so the
-  // run log is secondary and starts collapsed.
-  const hasPanel = isReddit || isRedditPost || isSlideshow;
+  const isLinkedin = agent.kind === "linkedin_post";
+  // Kinds whose real output is a dedicated panel (Leads/Posts/Slideshow/post), so
+  // the run log is secondary and starts collapsed.
+  const hasPanel = isReddit || isRedditPost || isSlideshow || isLinkedin;
   // Only agents that actually post/send have a meaningful Ask/Auto choice; for a
   // pure content/SEO/slideshow agent it's a no-op, so we hide it.
   const canAct = [
@@ -251,6 +253,19 @@ function AgentDetailPage() {
               </CardHeader>
               <CardContent>
                 <SlideshowsPanel taskId={agent.id} images={slideshowImages} />
+              </CardContent>
+            </Card>
+          )}
+
+          {isLinkedin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MessageSquare className="size-4" /> Latest post
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LinkedInDraftCard taskId={agent.id} teamId={agent.team_id} />
               </CardContent>
             </Card>
           )}
