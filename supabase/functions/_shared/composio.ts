@@ -80,6 +80,26 @@ export function isWriteTool(slug: string): boolean {
   return WRITE_TOOLS.has(slug);
 }
 
+/**
+ * Detect a Composio action that failed at the provider even though the HTTP call
+ * succeeded. Composio wraps results as { data, error, successful }, and on a
+ * provider error (e.g. a LinkedIn API-version rejection) it still returns 200
+ * with successful:false — so a "green" tool result can actually be a failure.
+ * Returns the error message when the action didn't go through, else null.
+ */
+export function composioActionError(result: string): string | null {
+  try {
+    const d = JSON.parse(result) as { successful?: boolean; error?: unknown };
+    if (d && d.successful === false) {
+      const err = typeof d.error === "string" && d.error.trim() ? d.error.trim() : null;
+      return err ?? "The action did not go through.";
+    }
+  } catch {
+    // Non-JSON or truncated payload: we can't tell, so don't flag it as failed.
+  }
+  return null;
+}
+
 function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }

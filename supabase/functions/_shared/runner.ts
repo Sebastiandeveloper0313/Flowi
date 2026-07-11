@@ -4,6 +4,7 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { queueApproval } from "./approvals.ts";
 import {
+  composioActionError,
   composioEnabled,
   executeComposioTool,
   isComposioTool,
@@ -71,7 +72,7 @@ export async function executeTask(
   task: TaskRow,
   ws: WorkspaceContext | null = null,
   ctx: ExecuteContext | null = null,
-): Promise<{ summary: string; output: string }> {
+): Promise<{ summary: string; output: string; error?: string }> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
 
   if (!key) {
@@ -316,6 +317,12 @@ export async function executeTask(
     ];
     // deno-lint-ignore no-explicit-any
     let content: any[] = [];
+    // Track whether a real outward action (publish/send) actually landed. A
+    // failed publish comes back as a normal tool result the agent narrates away,
+    // so without this the run would look green when nothing went out. A later
+    // successful call of a write tool clears an earlier failure (the agent retried).
+    let publishFailed: string | undefined;
+    let publishOk = false;
     // web_search runs in a server-side container; once a turn pauses or a tool
     // use is pending, the API requires the same container id back on every
     // follow-up request. Capture it from each response and echo it below.
@@ -388,8 +395,19 @@ export async function executeTask(
           }
           try {
             const out = await executeComposioTool(task.team_id, b.name, b.input ?? {});
+            // Composio returns 200 even when the provider rejected the action, so
+            // inspect the payload rather than trusting the lack of a throw.
+            if (isWriteTool(b.name)) {
+              const actionErr = composioActionError(out);
+              if (actionErr) publishFailed = actionErr;
+              else {
+                publishOk = true;
+                publishFailed = undefined;
+              }
+            }
             results.push({ type: "tool_result", tool_use_id: b.id, content: out });
           } catch (e) {
+            if (isWriteTool(b.name)) publishFailed = e instanceof Error ? e.message : String(e);
             results.push({
               type: "tool_result",
               tool_use_id: b.id,
@@ -419,6 +437,11 @@ export async function executeTask(
       .trim();
     // Deterministically honor the no-em-dash rule regardless of the model.
     const output = raw.replace(/\s*—\s*/g, ", ");
+
+    // If the agent tried to publish/send and the action never went through, this
+    // run failed no matter how gracefully it wrapped up: surface that so it shows
+    // red with the real reason instead of a misleading green success.
+    const publishError = publishFailed && !publishOk ? publishFailed : undefined;
 
     // A LinkedIn agent that couldn't publish (no live connection) must not look
     // like a normal success: lead with a plain notice so the empty Approvals tab
@@ -528,7 +551,10 @@ export async function executeTask(
       .replace(/\*\*/g, "")
       .replace(/^#+\s*/, "")
       .replace(/^>\s*/, "");
-    return { summary: firstLine.slice(0, 140), output: output || "(empty response)" };
+    const summary = publishError
+      ? `Couldn't publish: ${publishError}`.slice(0, 140)
+      : firstLine.slice(0, 140);
+    return { summary, output: output || "(empty response)", error: publishError };
   } finally {
     clearTimeout(timeout);
   }
@@ -593,17 +619,28 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
 
   try {
     const ws = await fetchWorkspaceContext(admin, task.team_id);
-    const { summary, output } =
+    const { summary, output, error } =
       task.kind === "reddit_monitor"
         ? await runRedditMonitor(admin, task, ws)
         : await executeTask(task, ws, { client: admin, runId: run.id });
+    // A returned `error` means a real action (publish/send) failed even though the
+    // agent finished: record it as failed, but keep the summary/output so the draft
+    // it produced isn't lost. Don't email a failure as if it were a result.
     await admin
       .from("task_runs")
-      .update({ status: "succeeded", summary, output, finished_at: new Date().toISOString() })
+      .update({
+        status: error ? "failed" : "succeeded",
+        summary,
+        output,
+        error: error ?? null,
+        finished_at: new Date().toISOString(),
+      })
       .eq("id", run.id);
     await admin.from("tasks").update({ last_run_at: new Date().toISOString() }).eq("id", task.id);
-    await deliverResult(task, summary, output);
-    return { status: "succeeded", run_id: run.id, summary };
+    if (!error) await deliverResult(task, summary, output);
+    return error
+      ? { status: "failed", run_id: run.id, error }
+      : { status: "succeeded", run_id: run.id, summary };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await admin

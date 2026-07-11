@@ -4,7 +4,7 @@
 // approvals endpoint and the Slack approve/reject buttons).
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { describeToolCall, executeComposioTool } from "./composio.ts";
+import { composioActionError, describeToolCall, executeComposioTool } from "./composio.ts";
 
 export interface QueueApprovalInput {
   teamId: string;
@@ -99,6 +99,22 @@ export async function decideApproval(
       approval.tool_slug,
       (approval.tool_args as Record<string, unknown>) ?? {},
     );
+    // Composio returns 200 even when the provider rejected the action, so a
+    // "successful" call can still mean nothing went out. Treat that as failed so
+    // the user isn't told an approved post published when it didn't.
+    const actionErr = composioActionError(result);
+    if (actionErr) {
+      await admin
+        .from("approvals")
+        .update({
+          status: "failed",
+          result: actionErr.slice(0, 8000),
+          decided_by: decidedBy,
+          decided_at: decidedAt,
+        })
+        .eq("id", approval.id);
+      return { status: "failed", error: actionErr };
+    }
     await admin
       .from("approvals")
       .update({

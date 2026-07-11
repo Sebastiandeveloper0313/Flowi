@@ -364,7 +364,7 @@ export async function runRedditMonitor(
   admin: SupabaseClient,
   task: TaskRow,
   ws: WorkspaceContext | null,
-): Promise<{ summary: string; output: string }> {
+): Promise<{ summary: string; output: string; error?: string }> {
   const connected = await connectedToolkits(task.team_id).catch(() => [] as string[]);
   if (!connected.includes("reddit")) {
     return {
