@@ -1,19 +1,23 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
+
+import { initGuide } from "@/features/landing/initGuide";
 
 import "@/features/landing/landing.css";
+import "@/features/landing/guides.css";
 
-/** Public marketing/content page shell in the landing design language. */
-export function ContentPage({
-  badge,
-  title,
-  lede,
-  children,
-}: {
-  badge: string;
-  title: string;
-  lede?: string;
-  children: ReactNode;
-}) {
+/**
+ * Shell for the long-form Playbook guides, in the landing design language.
+ * Renders the shared Sentrive nav and footer, and drops the guide body in as a
+ * trusted, build-time HTML string (same pattern the landing route uses), so the
+ * hand-authored editorial markup renders verbatim.
+ */
+export function GuidePage({ bodyHtml }: { bodyHtml: string }) {
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (ref.current) return initGuide(ref.current);
+  }, []);
+
   return (
     <div className="flowy">
       <header className="nav-wrap">
@@ -57,38 +61,20 @@ export function ContentPage({
         </nav>
       </header>
 
-      <main className="legal">
-        <div className="legal-head">
-          <span className="badge-pill">{badge}</span>
-          <h1 className="legal-title">{title}</h1>
-          {lede && <p className="legal-updated">{lede}</p>}
-        </div>
+      <main
+        className="pb"
+        ref={ref}
+        // Trusted, build-time asset (our own file), imported as a raw string.
+        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+      />
 
-        <div className="legal-card">{children}</div>
-
-        <div className="content-cta">
-          <a href="/auth/signup" className="btn btn-blue btn-lg">
-            Start 3-day Free Trial
-          </a>
-          <p>$49/month after the trial. Cancel anytime, one click.</p>
-        </div>
-
-        <div className="legal-foot">
-          <span>© 2026 Sentrive</span>
-          <a href="/use-cases">Use cases</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-        </div>
-      </main>
+      <footer className="pb-foot">
+        <span>© 2026 Sentrive</span>
+        <a href="/playbook">Playbook</a>
+        <a href="/use-cases">Use cases</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </footer>
     </div>
-  );
-}
-
-export function ContentSection({ heading, children }: { heading: string; children: ReactNode }) {
-  return (
-    <section className="legal-section">
-      <h2>{heading}</h2>
-      {children}
-    </section>
   );
 }
