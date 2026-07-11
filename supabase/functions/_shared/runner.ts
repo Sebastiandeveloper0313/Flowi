@@ -21,6 +21,14 @@ import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 import { createSlideshow, parseSlideshow } from "./slideshow.ts";
 
+// Composio's LinkedIn connector hardcodes a deprecated LinkedIn-Version header,
+// so every publish gets "426 Upgrade Required" from LinkedIn and nothing goes
+// out (ComposioHQ/composio#3113; a version override does not fix it). Until they
+// ship a supported version, LinkedIn posters draft the post for the user to copy
+// in by hand instead of attempting a doomed publish. Flip back to false the
+// moment Composio updates their connector.
+const LINKEDIN_PUBLISH_DISABLED = true;
+
 export interface TaskRow {
   id: string;
   team_id: string;
@@ -107,6 +115,9 @@ export async function executeTask(
     const linkedinConnected = connectedTools.some(
       (t) => t.name === "LINKEDIN_CREATE_LINKED_IN_POST",
     );
+    // Publishing needs a live connection AND a working upstream connector; while
+    // LinkedIn publishing is disabled (see LINKEDIN_PUBLISH_DISABLED) we only draft.
+    const linkedinCanPublish = linkedinConnected && !LINKEDIN_PUBLISH_DISABLED;
     const redditConnected = connectedTools.some((t) => t.name === "REDDIT_CREATE_REDDIT_POST");
     const facebookConnected = connectedTools.some((t) => t.name === "FACEBOOK_CREATE_POST");
     const gmailConnected = connectedTools.some((t) => t.name === "GMAIL_REPLY_TO_THREAD");
@@ -115,15 +126,16 @@ export async function executeTask(
     // the post goes out now or waits for approval); with no connection it falls
     // back to an honest draft, flagged in the run output below.
     if (task.kind === "linkedin_post") {
-      system += linkedinConnected
+      system += linkedinCanPublish
         ? "\n\nThis agent is a LinkedIn poster. Write ONE on-brand LinkedIn post grounded in the " +
           "business and aimed at its audience (a strong hook, real substance, a clear takeaway; no " +
           "hashtag spam, no em dashes), then PUBLISH it by calling the LinkedIn create-post tool. Do " +
           "not just draft it, actually call the tool."
-        : "\n\nThis agent is a LinkedIn poster, but LinkedIn is NOT connected for this workspace, so " +
-          "you cannot publish. Write ONE polished, on-brand LinkedIn post (a strong hook, real " +
-          "substance, a clear takeaway; no hashtag spam, no em dashes) and deliver it as the result " +
-          "for the user to review. Do not claim you posted, scheduled, or queued it.";
+        : "\n\nThis agent is a LinkedIn poster, but publishing is not available right now, so you " +
+          "cannot post. Write ONE polished, on-brand LinkedIn post (a strong hook, real substance, a " +
+          "clear takeaway; no hashtag spam, no em dashes) and deliver it as the result for the user " +
+          "to post themselves. Do not call any publish tool; do not claim you posted, scheduled, or " +
+          "queued it.";
       // Real recency memory: hand the agent its own recent posts so it varies
       // topic and hook instead of repeating itself week to week, and so it never
       // has to invent an ongoing thread it can't actually remember.
@@ -301,14 +313,15 @@ export async function executeTask(
         "domain or TLD. No hashtag spam, no em dashes, no markdown, no commentary outside the JSON.";
     }
 
-    // A reddit_post agent only DRAFTS; the app publishes on the user's click, so
-    // hide the Reddit posting tool from the model — it must never post directly.
-    const usableTools =
-      task.kind === "reddit_post"
-        ? connectedTools.filter(
-            (t) => (t as { name?: string }).name !== "REDDIT_CREATE_REDDIT_POST",
-          )
-        : connectedTools;
+    // Hide tools the model must never call: a reddit_post agent only DRAFTS (the
+    // app publishes on the user's click), and LinkedIn publishing is disabled
+    // upstream, so drop its posting tool too rather than let a run 426.
+    const usableTools = connectedTools.filter((t) => {
+      const name = (t as { name?: string }).name;
+      if (task.kind === "reddit_post" && name === "REDDIT_CREATE_REDDIT_POST") return false;
+      if (LINKEDIN_PUBLISH_DISABLED && name === "LINKEDIN_CREATE_LINKED_IN_POST") return false;
+      return true;
+    });
     const tools: unknown[] = [
       { type: "web_search_20260209", name: "web_search", max_uses: 5 },
       ...usableTools,
@@ -445,15 +458,19 @@ export async function executeTask(
     // red with the real reason instead of a misleading green success.
     const publishError = publishFailed && !publishOk ? publishFailed : undefined;
 
-    // A LinkedIn agent that couldn't publish (no live connection) must not look
-    // like a normal success: lead with a plain notice so the empty Approvals tab
-    // makes sense, while still keeping the draft it produced.
-    if (task.kind === "linkedin_post" && !linkedinConnected) {
-      const notice =
-        "LinkedIn isn't connected, so this post could not be published or sent for approval. " +
-        "Connect LinkedIn on the Integrations page, then run this agent again to review and approve it.";
+    // A LinkedIn agent that couldn't publish (no live connection, or publishing
+    // disabled upstream) must not look like a normal success: lead with a plain
+    // notice so the empty Approvals tab makes sense, while keeping the draft.
+    if (task.kind === "linkedin_post" && !linkedinCanPublish) {
+      const notice = LINKEDIN_PUBLISH_DISABLED
+        ? "Automatic LinkedIn posting is paused right now, so here is your finished post to copy " +
+          "into LinkedIn yourself."
+        : "LinkedIn isn't connected, so this post could not be published or sent for approval. " +
+          "Connect LinkedIn on the Integrations page, then run this agent again to review and approve it.";
       return {
-        summary: "Draft ready, connect LinkedIn to publish",
+        summary: LINKEDIN_PUBLISH_DISABLED
+          ? "Post ready to copy into LinkedIn"
+          : "Draft ready, connect LinkedIn to publish",
         output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
       };
     }
