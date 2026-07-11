@@ -11,7 +11,7 @@ export interface WorkspaceContext {
   business_categories?: string[] | null;
   autonomy_mode?: "ask" | "auto" | null;
   reply_instructions?: string | null;
-  reply_samples?: Array<{ before?: string; after?: string; at?: string }> | null;
+  reply_samples?: Array<{ before?: string; after?: string; kind?: string; at?: string }> | null;
   auto_post_per_day?: number | null;
   auto_post_gap_minutes?: number | null;
 }
@@ -147,7 +147,7 @@ export function redditReplyStandards(ws: WorkspaceContext | null): string {
     `- Whenever you name or link ${product}, add a brief honest disclosure ("full disclosure, I built ${product}", "disclaimer, I make ${product}"). It fits Reddit norms, avoids bans, and converts better than hiding it.\n` +
     "- Short and human: one to a few sentences, like a sharp founder typing a quick reply. No filler openers or closers, no cliches or AI tells, no em dashes.\n" +
     "- Never recommend, link, or steer toward a competitor." +
-    replyPersonalization(ws)
+    replyPersonalization(ws, "reddit")
   );
 }
 
@@ -156,23 +156,27 @@ export function redditReplyStandards(ws: WorkspaceContext | null): string {
  * few of the drafts they've rewritten (learned voice). Appended last so it wins
  * over the defaults where they differ, which is how the agent "learns" a person.
  */
-function replyPersonalization(ws: WorkspaceContext | null): string {
+function replyPersonalization(ws: WorkspaceContext | null, kind?: string): string {
   let out = "";
   const instructions = (ws?.reply_instructions ?? "").trim();
   if (instructions) {
     out +=
-      "\n\nThe user gave explicit instructions for how their replies should sound. Follow these over the " +
+      "\n\nThe user gave explicit instructions for how their content should sound. Follow these over the " +
       `defaults above wherever they differ:\n${instructions}`;
   }
-  const samples = (ws?.reply_samples ?? [])
-    .map((s) => (s?.after ?? "").trim())
-    .filter(Boolean)
-    .slice(-4);
-  if (samples.length) {
+  // Learn from what the user actually rewrote. Prefer edits from this same kind
+  // of content (a LinkedIn edit teaches LinkedIn), since length and format differ
+  // by channel; fall back to their recent edits of any kind so the overall voice
+  // still transfers before they've hand-edited this particular kind.
+  const all = (ws?.reply_samples ?? []).filter((s) => (s?.after ?? "").trim());
+  const sameKind = kind ? all.filter((s) => s.kind === kind) : [];
+  const chosen = (sameKind.length ? sameKind : all).slice(-4).map((s) => (s.after ?? "").trim());
+  if (chosen.length) {
     out +=
-      "\n\nThe user has rewritten past drafts to their taste. These are their preferred replies, match this " +
-      "voice, length, phrasing, and how they handle the product mention and link:\n" +
-      samples.map((s, i) => `Example ${i + 1}:\n${s}`).join("\n\n");
+      "\n\nThe user has rewritten past drafts to their taste. These are their preferred versions, match this " +
+      "voice, phrasing, and how they handle the product mention and link; adapt the length to the current " +
+      "format rather than copying theirs:\n" +
+      chosen.map((s, i) => `Example ${i + 1}:\n${s}`).join("\n\n");
   }
   return out;
 }
@@ -190,7 +194,7 @@ export function operatorPersona(ws: WorkspaceContext | null): string {
 }
 
 /** System prompt for the content runner: produce a finished, shippable deliverable. */
-export function runnerSystem(ws: WorkspaceContext | null): string {
+export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string {
   return (
     operatorPersona(ws) +
     "\n\nYou are handed a recurring task and you produce the finished marketing work, ready to ship. " +
@@ -201,7 +205,9 @@ export function runnerSystem(ws: WorkspaceContext | null): string {
     "channel, so never post it yourself or ask for webhooks or credentials.\n" +
     "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
     autonomyBlock(ws) +
-    contextBlock(ws)
+    contextBlock(ws) +
+    // Learn the user's voice from drafts they've hand-edited (this kind first).
+    replyPersonalization(ws, kind)
   );
 }
 

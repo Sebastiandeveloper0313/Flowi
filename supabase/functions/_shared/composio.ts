@@ -117,6 +117,19 @@ const CONTENT_FIELDS: Record<string, string[]> = {
   REDDIT_POST_REDDIT_COMMENT: ["text", "body"],
 };
 
+/**
+ * The content kind an approval's edit should teach, aligned with agent `kind`s,
+ * so a hand-edit learned here is applied to the same kind of future content.
+ */
+export function contentKindFor(slug: string): string | null {
+  if (slug === "LINKEDIN_CREATE_LINKED_IN_POST") return "linkedin_post";
+  if (slug === "FACEBOOK_CREATE_COMMENT" || slug === "FACEBOOK_SEND_MESSAGE") return "facebook_dm";
+  if (slug.startsWith("FACEBOOK_CREATE")) return "facebook_post";
+  if (slug.startsWith("GMAIL_")) return "email_responder";
+  if (slug === "REDDIT_POST_REDDIT_COMMENT") return "reddit";
+  return null;
+}
+
 /** The current editable body of a queued action, or null if it has no editable text. */
 export function editableContent(slug: string, args: Record<string, unknown>): string | null {
   for (const f of CONTENT_FIELDS[slug] ?? []) {

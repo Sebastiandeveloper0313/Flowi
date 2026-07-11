@@ -852,7 +852,7 @@ export type Database = {
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean };
       is_team_member: { Args: { p_team_id: string }; Returns: boolean };
       record_reply_edit: {
-        Args: { p_after: string; p_before: string; p_team_id: string };
+        Args: { p_after: string; p_before: string; p_kind?: string; p_team_id: string };
         Returns: undefined;
       };
       slack_store_workspace: {
