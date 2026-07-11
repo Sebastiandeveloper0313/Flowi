@@ -280,9 +280,11 @@ export async function executeTask(
         "\n\nThis agent is an SEO blog writer for the business's own website. Write ONE complete, " +
         "publish-ready article grounded in the business, its product, and its audience, targeting " +
         "real search intent: a compelling title, a one-line meta description, clear H2/H3 structure, " +
-        "and 800 to 1500 words of genuinely useful content (no fluff, no em dashes). Use web_search " +
-        "to check the topic, angles, and what already ranks. Return the full article as the result " +
-        "(title, then meta description, then the body). Do not publish it anywhere, just deliver it.";
+        "and 800 to 1500 words of genuinely useful content (no fluff, no em dashes). You may use " +
+        "web_search AT MOST TWICE to sanity-check the angle and what already ranks, then STOP " +
+        "researching and write, you already know the business from the context above. Do not keep " +
+        "searching; a finished article matters more than exhaustive research. Return the full article " +
+        "as the result (title, then meta description, then the body). Do not publish it, just deliver it.";
     }
     if (task.kind === "tiktok_slideshow") {
       system +=
@@ -588,34 +590,24 @@ async function deliverResult(task: TaskRow, summary: string, output: string): Pr
  * the caller's responsibility - this function trusts that the task is allowed.
  */
 export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise<RunResult> {
-  // Avoid piling up duplicate concurrent runs for the same task. Only a RECENT
-  // running run blocks a new one; an older one is orphaned (the function died
-  // before finishing) and must not wedge the agent forever - the reaper in
-  // run-due-tasks fails it separately.
-  const freshCutoff = new Date(Date.now() - 4 * 60_000).toISOString();
-  const { count } = await admin
-    .from("task_runs")
-    .select("id", { count: "exact", head: true })
-    .eq("task_id", task.id)
-    .eq("status", "running")
-    .gt("started_at", freshCutoff);
-  if ((count ?? 0) > 0) {
+  // Atomically claim a run slot. Two triggers firing within milliseconds (e.g.
+  // an auto-run on agent creation firing twice) could otherwise both pass a
+  // check-then-insert and each create a run, producing duplicate work and
+  // duplicate approvals. claim_task_run serializes the check-and-insert per task
+  // with an advisory lock, so only one caller gets a run id; the rest skip. It
+  // uses the same 4-minute freshness window as the reaper, so an orphaned run
+  // (function died) never wedges the agent.
+  const { data: claimedId, error: claimErr } = await admin.rpc("claim_task_run", {
+    p_task_id: task.id,
+    p_team_id: task.team_id,
+  });
+  if (claimErr) {
+    return { status: "failed", error: claimErr.message ?? "Could not create run" };
+  }
+  if (!claimedId) {
     return { status: "skipped", summary: "A run is already in progress" };
   }
-
-  const { data: run, error: runErr } = await admin
-    .from("task_runs")
-    .insert({
-      task_id: task.id,
-      team_id: task.team_id,
-      status: "running",
-      started_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-  if (runErr || !run) {
-    return { status: "failed", error: runErr?.message ?? "Could not create run" };
-  }
+  const run = { id: claimedId as string };
 
   try {
     const ws = await fetchWorkspaceContext(admin, task.team_id);
