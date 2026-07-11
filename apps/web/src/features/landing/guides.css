@@ -31,14 +31,19 @@
   padding: 0 1.4rem;
 }
 
-/* ---- hero ---- */
+/* ---- hero: the homepage "sky" panel, clearing the fixed nav ---- */
 .pb-hero {
-  border-bottom: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 2.5rem 2.5rem;
   background:
-    radial-gradient(120% 80% at 12% -10%, rgba(61, 130, 245, 0.09), transparent 60%), var(--cream);
+    radial-gradient(120% 90% at 15% -12%, rgba(66, 134, 245, 0.16), transparent 55%),
+    linear-gradient(180deg, #d7e3f3 0%, #e6edf7 46%, var(--cream) 100%);
 }
 .pb-hero-inner {
-  padding: clamp(2.6rem, 6vw, 4rem) 0 clamp(2.4rem, 5vw, 3.4rem);
+  position: relative;
+  z-index: 1;
+  padding: clamp(122px, 15vw, 158px) 0 clamp(2.8rem, 5vw, 4rem);
 }
 .pb .eyebrow {
   font-family: var(--mono);
