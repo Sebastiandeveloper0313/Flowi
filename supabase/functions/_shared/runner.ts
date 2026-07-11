@@ -115,7 +115,7 @@ export async function executeTask(
   // orphans it as "running").
   const timeout = setTimeout(() => controller.abort(), 110_000);
   try {
-    let system = runnerSystem(ws);
+    let system = runnerSystem(ws, task.kind);
 
     // Tools available this run:
     //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses

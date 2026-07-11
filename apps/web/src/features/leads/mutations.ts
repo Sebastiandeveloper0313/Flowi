@@ -80,7 +80,12 @@ export async function postLeadReplyNow(lead: Lead, text: string): Promise<{ edit
 
   if (edited) {
     await supabase
-      .rpc("record_reply_edit", { p_team_id: lead.team_id, p_before: original, p_after: text })
+      .rpc("record_reply_edit", {
+        p_team_id: lead.team_id,
+        p_before: original,
+        p_after: text,
+        p_kind: "reddit",
+      })
       .then(
         () => {},
         () => {}, // best effort

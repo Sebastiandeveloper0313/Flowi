@@ -6,7 +6,9 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import {
   composioActionError,
+  contentKindFor,
   describeToolCall,
+  editableContent,
   executeComposioTool,
   withEditedContent,
 } from "./composio.ts";
@@ -102,9 +104,10 @@ export async function decideApproval(
   // The user may have edited the post/reply on the approvals page before
   // approving. Apply their text to the right field, and persist it so the record
   // reflects what actually went out (and so learning can read the final version).
-  let toolArgs = (approval.tool_args as Record<string, unknown>) ?? {};
+  const originalArgs = (approval.tool_args as Record<string, unknown>) ?? {};
+  let toolArgs = originalArgs;
   if (typeof editedText === "string" && editedText.trim()) {
-    toolArgs = withEditedContent(approval.tool_slug, toolArgs, editedText);
+    toolArgs = withEditedContent(approval.tool_slug, originalArgs, editedText);
     await admin
       .from("approvals")
       .update({
@@ -112,6 +115,22 @@ export async function decideApproval(
         detail: describeToolCall(approval.tool_slug, toolArgs).detail,
       })
       .eq("id", approval.id);
+
+    // Learn the user's voice from the edit (before -> after), tagged by content
+    // kind so it teaches the same kind of future content. Best effort.
+    const before = editableContent(approval.tool_slug, originalArgs);
+    if (before && before.trim() && before.trim() !== editedText.trim()) {
+      try {
+        await admin.rpc("record_reply_edit", {
+          p_team_id: approval.team_id,
+          p_before: before,
+          p_after: editedText,
+          p_kind: contentKindFor(approval.tool_slug),
+        });
+      } catch {
+        // learning is best-effort; never let it block the action
+      }
+    }
   }
 
   try {
