@@ -81,6 +81,22 @@ export async function executeTask(
   ws: WorkspaceContext | null = null,
   ctx: ExecuteContext | null = null,
 ): Promise<{ summary: string; output: string; error?: string }> {
+  // A slideshow renders text over the user's own images, so there's nothing to
+  // make until they've added some. Skip the run (scheduled or manual) with a
+  // clear nudge instead of generating blank slides, so it only ever produces a
+  // real slideshow once images exist.
+  if (task.kind === "tiktok_slideshow") {
+    const imgs = (task.config as { images?: unknown } | null)?.images;
+    if (!Array.isArray(imgs) || imgs.length === 0) {
+      return {
+        summary: "Add images first, then run this agent",
+        output:
+          "This agent turns your images into a swipeable TikTok slideshow. Add a few images to it " +
+          "in the Images panel on the agent page, then run it and it will write the slides over them.",
+      };
+    }
+  }
+
   const key = Deno.env.get("ANTHROPIC_API_KEY");
 
   if (!key) {
