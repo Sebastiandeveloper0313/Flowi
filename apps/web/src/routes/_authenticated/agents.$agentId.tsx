@@ -62,6 +62,7 @@ import { uploadAgentMedia } from "@/features/tasks/mutations";
 import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
+import { RunResultActions } from "@/features/tasks/RunResultActions";
 import { humanizeRunError, RunDot, runSummaryLine, TaskStatusBadge } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/agents/$agentId")({
@@ -272,7 +273,7 @@ function AgentDetailPage() {
 
           <InstructionCard agent={agent} />
 
-          <RunHistoryCard runs={runs} defaultCollapsed={hasPanel} />
+          <RunHistoryCard runs={runs} defaultCollapsed={hasPanel} title={agent.title} />
         </div>
 
         {/* right: config */}
@@ -378,9 +379,11 @@ function InstructionCard({ agent }: { agent: Task }) {
 function RunHistoryCard({
   runs,
   defaultCollapsed,
+  title,
 }: {
   runs: TaskRun[] | undefined;
   defaultCollapsed: boolean;
+  title: string;
 }) {
   const [open, setOpen] = useState(!defaultCollapsed);
   const count = runs?.length ?? 0;
@@ -410,7 +413,7 @@ function RunHistoryCard({
           {!runs || runs.length === 0 ? (
             <p className="text-muted-foreground text-sm">No runs yet. Hit “Run now” to try it.</p>
           ) : (
-            runs.map((r) => <RunRow key={r.id} run={r} defaultOpen={false} />)
+            runs.map((r) => <RunRow key={r.id} run={r} defaultOpen={false} title={title} />)
           )}
         </CardContent>
       )}
@@ -418,7 +421,15 @@ function RunHistoryCard({
   );
 }
 
-function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
+function RunRow({
+  run,
+  defaultOpen,
+  title,
+}: {
+  run: TaskRun;
+  defaultOpen: boolean;
+  title: string;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-xl border">
@@ -439,14 +450,17 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
         )}
       </button>
       {open && (
-        <div className="text-foreground/80 max-h-96 overflow-auto border-t px-4 py-3.5">
-          {run.output ? (
-            <ChatMarkdown>{run.output}</ChatMarkdown>
-          ) : (
-            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-              {humanizeRunError(run.error ?? run.summary)}
-            </div>
-          )}
+        <div className="border-t px-4 py-3.5">
+          <div className="text-foreground/80 max-h-96 overflow-auto">
+            {run.output ? (
+              <ChatMarkdown>{run.output}</ChatMarkdown>
+            ) : (
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                {humanizeRunError(run.error ?? run.summary)}
+              </div>
+            )}
+          </div>
+          {run.output && <RunResultActions output={run.output} title={title} />}
         </div>
       )}
     </div>
