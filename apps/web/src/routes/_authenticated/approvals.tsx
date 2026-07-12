@@ -193,6 +193,7 @@ const CONTENT_FIELDS: Record<string, string[]> = {
   GMAIL_SEND_EMAIL: ["body", "message_body", "message"],
   GMAIL_REPLY_TO_THREAD: ["message_body", "body", "message"],
   REDDIT_POST_REDDIT_COMMENT: ["text", "body"],
+  REDDIT_CREATE_REDDIT_POST: ["text", "body"],
 };
 
 function editableContent(a: Approval): string | null {
@@ -201,6 +202,18 @@ function editableContent(a: Approval): string | null {
     if (typeof args[f] === "string") return args[f] as string;
   }
   return null;
+}
+
+/**
+ * Subreddit + title for a Reddit self-post approval, read straight from its
+ * stored args. Lets the card show what's actually being posted (and gives a
+ * clear heading) even for approvals queued before we described this action.
+ */
+function redditPostMeta(a: Approval): { subreddit: string; title: string } | null {
+  if (a.tool_slug !== "REDDIT_CREATE_REDDIT_POST") return null;
+  const args = (a.tool_args ?? {}) as Record<string, unknown>;
+  const s = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  return { subreddit: s(args.subreddit).replace(/^r\//i, ""), title: s(args.title) };
 }
 
 /** One pending approval, with the post/reply editable inline before you approve it. */
@@ -220,6 +233,12 @@ function ApprovalCard({
   const subject = a.tool_slug.startsWith("GMAIL_")
     ? (((a.tool_args ?? {}) as { subject?: unknown }).subject as string | undefined)
     : undefined;
+  const reddit = redditPostMeta(a);
+  const heading = reddit
+    ? reddit.subreddit
+      ? `Post to r/${reddit.subreddit}`
+      : "Post to Reddit"
+    : a.title;
   const edited = original !== null && text.trim() !== original.trim();
 
   return (
@@ -229,11 +248,27 @@ function ApprovalCard({
           <SourceLabel approval={a} />
           <span className="text-muted-foreground text-xs">{formatWhen(a.created_at)}</span>
         </div>
-        <h3 className="mt-1.5 font-semibold">{a.title}</h3>
+        <h3 className="mt-1.5 font-semibold">{heading}</h3>
 
         {original !== null ? (
           <div className="mt-2">
-            {subject ? (
+            {reddit ? (
+              <p className="text-muted-foreground mb-1.5 text-xs">
+                {reddit.subreddit ? (
+                  <>
+                    To <span className="text-foreground">r/{reddit.subreddit}</span>
+                  </>
+                ) : (
+                  "To Reddit"
+                )}
+                {reddit.title ? (
+                  <>
+                    {" · "}
+                    <span className="text-foreground">{reddit.title}</span>
+                  </>
+                ) : null}
+              </p>
+            ) : subject ? (
               <p className="text-muted-foreground mb-1.5 text-xs">
                 Subject: <span className="text-foreground">{subject}</span>
               </p>

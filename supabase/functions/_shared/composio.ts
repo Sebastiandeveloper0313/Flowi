@@ -115,6 +115,7 @@ const CONTENT_FIELDS: Record<string, string[]> = {
   GMAIL_SEND_EMAIL: ["body", "message_body", "message"],
   GMAIL_REPLY_TO_THREAD: ["message_body", "body", "message"],
   REDDIT_POST_REDDIT_COMMENT: ["text", "body"],
+  REDDIT_CREATE_REDDIT_POST: ["text", "body"],
 };
 
 /**
@@ -127,6 +128,7 @@ export function contentKindFor(slug: string): string | null {
   if (slug.startsWith("FACEBOOK_CREATE")) return "facebook_post";
   if (slug.startsWith("GMAIL_")) return "email_responder";
   if (slug === "REDDIT_POST_REDDIT_COMMENT") return "reddit";
+  if (slug === "REDDIT_CREATE_REDDIT_POST") return "reddit_post";
   return null;
 }
 
