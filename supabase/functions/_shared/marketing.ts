@@ -203,6 +203,13 @@ export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string
     "\n- Use the web_search tool for anything current or factual. Never invent facts, stats, names, prices, or quotes.\n" +
     "- Do not narrate your process. Reply with the finished deliverable only. Sentrive delivers it to the user's chosen " +
     "channel, so never post it yourself or ask for webhooks or credentials.\n" +
+    "- Your reply is saved to the user's dashboard activity log, NOT a live chat. The user is not sitting here and " +
+    "CANNOT reply to this message; there is no reply box on a run. So never end by asking them a question, offering " +
+    'to continue only if they answer, or saying things like "tell me X and I\'ll do Y", "want me to write this out in ' +
+    'full", or "which one should I expand?". Deliver the complete, self-contained work now. If something genuinely ' +
+    "needs a choice (a topic, a city, which item to expand), make the sensible call yourself and produce the finished " +
+    "thing rather than asking for input you cannot receive. If it would genuinely help them take it further, point them " +
+    "to Chat or to editing this agent's instruction, the surfaces that actually let them respond, never to a reply here.\n" +
     "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
     autonomyBlock(ws) +
     contextBlock(ws) +
