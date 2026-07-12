@@ -6,7 +6,7 @@ import { ChatMarkdown } from "@/features/chat/Markdown";
 import { PageHeader } from "@/features/dashboard/ui";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
 import type { TaskRun } from "@/features/tasks/queries";
-import { RunDot, runStatusLabel } from "@/features/tasks/ui";
+import { humanizeRunError, RunDot, runSummaryLine } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/activity")({
   component: ActivityPage,
@@ -84,9 +84,7 @@ function ActivityRow({ run, title, bordered }: { run: TaskRun; title: string; bo
               </span>
             )}
           </div>
-          <p className="text-muted-foreground truncate text-sm">
-            {run.summary ?? run.error ?? runStatusLabel(run.status)}
-          </p>
+          <p className="text-muted-foreground truncate text-sm">{runSummaryLine(run)}</p>
         </div>
         <span className="text-muted-foreground shrink-0 text-xs">{formatWhen(run.created_at)}</span>
         {body && (
@@ -105,7 +103,9 @@ function ActivityRow({ run, title, bordered }: { run: TaskRun; title: string; bo
           {run.output ? (
             <ChatMarkdown>{run.output}</ChatMarkdown>
           ) : (
-            <p className="text-destructive text-sm whitespace-pre-wrap">{run.error}</p>
+            <p className="text-destructive text-sm whitespace-pre-wrap">
+              {humanizeRunError(run.error)}
+            </p>
           )}
         </div>
       )}
