@@ -88,6 +88,13 @@ export function isWriteTool(slug: string): boolean {
 // Flip to false the moment Composio updates their connector.
 export const LINKEDIN_PUBLISH_DISABLED = true;
 
+// Facebook Page posting needs pages_manage_posts + pages_read_engagement, which
+// Meta only grants to real users once the Facebook app has passed App Review.
+// Until that review is approved, non-admin users get "(#200) OAuthException" and
+// nothing publishes. So we draft Facebook posts for the user instead of hitting a
+// doomed publish. Flip to false once the Facebook app is approved for those perms.
+export const FACEBOOK_PUBLISH_DISABLED = true;
+
 /**
  * Detect a Composio action that failed at the provider even though the HTTP call
  * succeeded. Composio wraps results as { data, error, successful }, and on a

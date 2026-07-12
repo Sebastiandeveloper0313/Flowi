@@ -8,6 +8,7 @@ import { queueApproval } from "../_shared/approvals.ts";
 import {
   composioEnabled,
   executeComposioTool,
+  FACEBOOK_PUBLISH_DISABLED,
   isComposioTool,
   isWriteTool,
   LINKEDIN_PUBLISH_DISABLED,
@@ -333,17 +334,22 @@ Deno.serve(async (req: Request) => {
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
     // not just talk. Executed against this team's own accounts via Composio. Drop
-    // the LinkedIn publish tool while it's disabled upstream so chat drafts the
-    // post instead of attempting a doomed publish (the runner does the same).
+    // the publish tools that are disabled upstream (LinkedIn, Facebook Page posts)
+    // so chat drafts the post instead of attempting a doomed publish, matching the
+    // runner.
+    const FB_POST_TOOLS = new Set([
+      "FACEBOOK_CREATE_POST",
+      "FACEBOOK_CREATE_PHOTO_POST",
+      "FACEBOOK_CREATE_VIDEO_POST",
+    ]);
     const connectedTools = (
       composioEnabled() ? await toolsForUser(teamId).catch(() => []) : []
-    ).filter(
-      (t) =>
-        !(
-          LINKEDIN_PUBLISH_DISABLED &&
-          (t as { name?: string }).name === "LINKEDIN_CREATE_LINKED_IN_POST"
-        ),
-    );
+    ).filter((t) => {
+      const name = (t as { name?: string }).name ?? "";
+      if (LINKEDIN_PUBLISH_DISABLED && name === "LINKEDIN_CREATE_LINKED_IN_POST") return false;
+      if (FACEBOOK_PUBLISH_DISABLED && FB_POST_TOOLS.has(name)) return false;
+      return true;
+    });
 
     // Only trust plain {role, content:string} turns from the client.
     const convo: Msg[] = messages
