@@ -9,6 +9,7 @@ import {
   CheckCheck,
   Loader2,
   MessageSquare,
+  Pencil,
   Sparkles,
   X,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { useApprovals, useDecideApproval } from "@/features/approvals/hooks";
 import type { Approval } from "@/features/approvals/queries";
+import { ChatMarkdown } from "@/features/chat/Markdown";
 import { PageHeader } from "@/features/dashboard/ui";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useTasks } from "@/features/tasks/hooks";
@@ -230,6 +232,10 @@ function ApprovalCard({
 }) {
   const original = editableContent(a);
   const [text, setText] = useState(original ?? "");
+  // Reddit bodies are markdown (**bold**, lists). Preview them rendered so the
+  // user sees how it will actually look, with an Edit toggle to tweak the raw text.
+  const isReddit = a.tool_slug.startsWith("REDDIT");
+  const [editing, setEditing] = useState(false);
   const subject = a.tool_slug.startsWith("GMAIL_")
     ? (((a.tool_args ?? {}) as { subject?: unknown }).subject as string | undefined)
     : undefined;
@@ -273,18 +279,37 @@ function ApprovalCard({
                 Subject: <span className="text-foreground">{subject}</span>
               </p>
             ) : null}
-            <Textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={Math.min(14, Math.max(4, text.split("\n").length + 1))}
-              className="resize-y text-sm leading-relaxed"
-              placeholder="Write the message…"
-            />
-            <p className="text-muted-foreground mt-1.5 text-xs">
-              {edited
-                ? "Edited. Your version is what goes out."
-                : "Edit this before you approve it."}
-            </p>
+            {isReddit && !editing ? (
+              <div className="bg-muted/30 rounded-md border px-3 py-2 text-sm leading-relaxed">
+                <ChatMarkdown>{text}</ChatMarkdown>
+              </div>
+            ) : (
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={Math.min(14, Math.max(4, text.split("\n").length + 1))}
+                className="resize-y text-sm leading-relaxed"
+                placeholder="Write the message…"
+              />
+            )}
+            <div className="mt-1.5 flex items-center gap-3">
+              {isReddit && (
+                <button
+                  type="button"
+                  onClick={() => setEditing((v) => !v)}
+                  className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                >
+                  <Pencil className="size-3" /> {editing ? "Done" : "Edit"}
+                </button>
+              )}
+              <span className="text-muted-foreground text-xs">
+                {edited
+                  ? "Edited. Your version is what goes out."
+                  : isReddit
+                    ? "This is how it will look on Reddit. Edit if needed, then approve."
+                    : "Edit this before you approve it."}
+              </span>
+            </div>
           </div>
         ) : a.detail ? (
           <p className="text-muted-foreground mt-2 text-sm leading-relaxed whitespace-pre-wrap">
