@@ -290,7 +290,6 @@ function ApprovalCard({
                 rows={Math.min(14, Math.max(4, text.split("\n").length + 1))}
                 className="resize-y text-sm leading-relaxed"
                 placeholder="Write the message…"
-                autoFocus={isReddit}
               />
             )}
             <div className="mt-1.5 flex items-center gap-3">
