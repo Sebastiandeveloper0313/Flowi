@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { readFunctionError } from "@/integrations/supabase/functions";
 
 import type { Lead, LeadStatus } from "./queries";
 
@@ -67,7 +68,8 @@ export async function postLeadReplyNow(lead: Lead, text: string): Promise<{ edit
   const { data, error } = await supabase.functions.invoke("approvals", {
     body: { approval_id: approval.id, decision: "approve" },
   });
-  if (error) throw error;
+  if (error)
+    throw new Error(await readFunctionError(error, "Reddit didn't accept the reply. Try again."));
   if (data?.status !== "executed") {
     throw new Error(data?.error || "Reddit didn't accept the reply. Try again.");
   }

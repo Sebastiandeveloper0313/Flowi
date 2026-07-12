@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useActiveTeamId } from "@/features/workspace/active";
 import { supabase } from "@/integrations/supabase/client";
+import { readFunctionError } from "@/integrations/supabase/functions";
 
 import { approvalKeys, approvalsQueryOptions, pendingApprovalCountQueryOptions } from "./queries";
 
@@ -29,7 +30,7 @@ export function useDecideApproval() {
       const { data, error } = await supabase.functions.invoke("approvals", {
         body: { approval_id: id, decision, edited_text: editedText },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readFunctionError(error));
       if (data?.error) throw new Error(data.error);
       return data as { status: string };
     },
