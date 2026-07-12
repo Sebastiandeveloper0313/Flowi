@@ -85,6 +85,9 @@
 }
 .pb .byline {
   margin-top: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
   font-family: var(--mono);
   font-size: 0.82rem;
   color: var(--ink-mute);
@@ -93,6 +96,23 @@
 .pb .byline b {
   color: var(--ink);
   font-weight: 600;
+}
+.pb .byline-photo {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--card);
+  box-shadow: var(--shadow-soft);
+}
+.pb .byline-socials a {
+  color: var(--violet-ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+.pb .byline-socials a:hover {
+  text-decoration: underline;
 }
 
 /* ---- receipts / stats strips ---- */
