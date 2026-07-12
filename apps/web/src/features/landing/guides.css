@@ -723,6 +723,95 @@
   }
 }
 
+/* ---- linkable receipt cells ---- */
+.pb .receipts a.cell {
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+.pb .receipts a.cell:hover {
+  background: #eef4fd;
+}
+.pb .receipts a.cell .k {
+  color: var(--violet-ink);
+}
+
+/* ---- proof cards (real posts) ---- */
+.pb .proofs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 1.4rem 0;
+}
+.pb .proof {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  text-decoration: none;
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+.pb .proof:hover {
+  border-color: var(--violet);
+  transform: translateY(-2px);
+}
+.pb .proof-tag {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+.pb .t-trend {
+  background: rgba(154, 106, 22, 0.18);
+  color: var(--amber);
+}
+.pb .t-milestone {
+  background: rgba(61, 130, 245, 0.14);
+  color: var(--violet-ink);
+}
+.pb .t-build {
+  background: rgba(112, 79, 246, 0.14);
+  color: #5b3fd6;
+}
+.pb .t-value {
+  background: rgba(31, 170, 93, 0.16);
+  color: var(--green);
+}
+.pb .proof-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.pb .proof-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+.pb .proof-meta {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-mute);
+}
+.pb .proof-arrow {
+  margin-left: auto;
+  flex: none;
+  color: var(--violet);
+  font-weight: 700;
+}
+
 /* ---- hub (/playbook) cards ---- */
 .pb-cards {
   display: grid;
