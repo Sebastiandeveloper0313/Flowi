@@ -4,6 +4,7 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { Textarea } from "@workspace/ui/components/textarea";
 import {
   AlertTriangle,
+  ArrowUpRight,
   Check,
   CheckCheck,
   Loader2,
@@ -145,6 +146,7 @@ function ApprovalsPage() {
             {decided.map((a) => {
               const reason =
                 a.status === "failed" && typeof a.result === "string" ? a.result : null;
+              const url = a.status === "executed" ? postedUrl(a.result, a.tool_slug) : null;
               return (
                 <div
                   key={a.id}
@@ -156,7 +158,19 @@ function ApprovalsPage() {
                       {reason ? reason : formatWhen(a.decided_at)}
                     </p>
                   </div>
-                  <DecisionBadge status={a.status} />
+                  <div className="flex shrink-0 items-center gap-3">
+                    {url && (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener"
+                        className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                      >
+                        View post <ArrowUpRight className="size-3" />
+                      </a>
+                    )}
+                    <DecisionBadge status={a.status} />
+                  </div>
                 </div>
               );
             })}
@@ -292,6 +306,38 @@ function SourceLabel({ approval }: { approval: Approval }) {
   ) : (
     <span className="text-sm font-medium">{label}</span>
   );
+}
+
+/**
+ * Best-effort public link to what an approved action actually posted, pulled from
+ * the stored Composio response. Provider-specific on purpose, so we never surface
+ * a stray link from inside the post body; returns null when we can't be confident.
+ */
+function postedUrl(result: unknown, toolSlug: string): string | null {
+  if (typeof result !== "string" || !result) return null;
+  // Some responses JSON-escape slashes (https:\/\/...); normalize before matching.
+  const s = result.replace(/\\\//g, "/");
+  const clean = (u: string) => u.replace(/[)\]"'.,\s]+$/, "");
+
+  if (toolSlug.startsWith("REDDIT")) {
+    const direct = s.match(/https?:\/\/(?:www\.)?reddit\.com\/[^\s"'\\]+/);
+    if (direct) return clean(direct[0]);
+    const permalink = s.match(/"permalink"\s*:\s*"([^"]+)"/);
+    if (permalink) return `https://www.reddit.com${permalink[1]}`;
+  }
+  if (toolSlug.startsWith("FACEBOOK")) {
+    const direct = s.match(/https?:\/\/(?:www\.)?facebook\.com\/[^\s"'\\]+/);
+    if (direct) return clean(direct[0]);
+    const id = s.match(/"(?:permalink_url|post_id|id)"\s*:\s*"(\d+_\d+)"/);
+    if (id) return `https://www.facebook.com/${id[1]}`;
+  }
+  if (toolSlug.startsWith("LINKEDIN")) {
+    const direct = s.match(/https?:\/\/(?:www\.)?linkedin\.com\/[^\s"'\\]+/);
+    if (direct) return clean(direct[0]);
+    const urn = s.match(/urn:li:(?:share|ugcPost|activity):\d+/);
+    if (urn) return `https://www.linkedin.com/feed/update/${urn[0]}`;
+  }
+  return null;
 }
 
 function DecisionBadge({ status }: { status: string }) {
