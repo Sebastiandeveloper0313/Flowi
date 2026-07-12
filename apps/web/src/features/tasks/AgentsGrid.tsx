@@ -17,6 +17,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { ChatMarkdown } from "@/features/chat/Markdown";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 
 import {
@@ -29,7 +30,24 @@ import {
 } from "./hooks";
 import type { Task, TaskRun } from "./queries";
 import { requiredToolkits } from "./requirements";
-import { DeliveryChip } from "./ui";
+import { DeliveryChip, runSummaryLine } from "./ui";
+
+/** What the user does next with a result, by agent kind, all on the agent page. */
+function resultActionLabel(kind?: string | null): string {
+  switch (kind) {
+    case "reddit_monitor":
+      return "Review leads";
+    case "reddit_post":
+      return "Review & post";
+    case "tiktok_slideshow":
+      return "Open slideshow";
+    case "linkedin_post":
+    case "facebook_post":
+      return "Open the draft";
+    default:
+      return "Open result";
+  }
+}
 
 export function AgentsGrid() {
   const { data: tasks, isLoading } = useTasks();
@@ -189,13 +207,18 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
                   </Button>
                 )}
               </div>
-              <p className="text-muted-foreground mt-1.5 text-sm">
-                {latestRun.error ?? latestRun.summary ?? "No summary."}
-              </p>
+              <p className="text-muted-foreground mt-1.5 text-sm">{runSummaryLine(latestRun)}</p>
+              {latestRun.status === "succeeded" && (
+                <Button size="sm" asChild className="mt-2.5">
+                  <Link to="/agents/$agentId" params={{ agentId: task.id }}>
+                    {resultActionLabel(task.kind)} <ArrowUpRight className="size-3.5" />
+                  </Link>
+                </Button>
+              )}
               {showOutput && latestRun.output && (
-                <pre className="text-muted-foreground mt-2 max-h-60 overflow-auto border-t pt-2 text-xs whitespace-pre-wrap">
-                  {latestRun.output}
-                </pre>
+                <div className="text-foreground/80 mt-2 max-h-60 overflow-auto border-t pt-2 text-sm">
+                  <ChatMarkdown>{latestRun.output}</ChatMarkdown>
+                </div>
               )}
             </div>
           )}
