@@ -80,6 +80,14 @@ export function isWriteTool(slug: string): boolean {
   return WRITE_TOOLS.has(slug);
 }
 
+// Composio's LinkedIn connector hardcodes a deprecated LinkedIn-Version header,
+// so every publish gets "426 Upgrade Required" and nothing goes out
+// (ComposioHQ/composio#3113; a version override does not fix it). Until they ship
+// a supported version we never attempt a LinkedIn publish: agent posters and the
+// chat both draft the post for the user instead of hitting a doomed publish.
+// Flip to false the moment Composio updates their connector.
+export const LINKEDIN_PUBLISH_DISABLED = true;
+
 /**
  * Detect a Composio action that failed at the provider even though the HTTP call
  * succeeded. Composio wraps results as { data, error, successful }, and on a

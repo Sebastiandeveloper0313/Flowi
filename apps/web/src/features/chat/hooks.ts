@@ -187,17 +187,40 @@ export function useChat() {
   const queryClient = useQueryClient();
   const teamId = useActiveTeamId();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       messages,
       signal,
       onStatus,
       attachments,
+      persist,
     }: {
       messages: { role: string; content: string }[];
       signal?: AbortSignal;
       onStatus?: (text: string) => void;
       attachments?: Attachment[];
-    }) => sendChat(messages, signal, onStatus, attachments, teamId),
+      persist?: { convoId: string; teamId: string };
+    }) => {
+      const data = await sendChat(messages, signal, onStatus, attachments, teamId);
+      // Persist the assistant reply here, inside the mutation, so it survives the
+      // user navigating away mid-request. The component's onSuccess won't run once
+      // Chat unmounts, so saving there would silently drop the reply.
+      if (persist) {
+        const reply: ChatMessage = {
+          role: "assistant",
+          content: data.reply,
+          created: data.created,
+          proposals: data.proposals,
+          updates: data.updates,
+        };
+        try {
+          await saveMessage(persist.convoId, persist.teamId, reply);
+          await touchChat(persist.convoId);
+        } catch {
+          // best-effort persistence
+        }
+      }
+      return data;
+    },
     // a created agent should show up in the list immediately; a chat turn may
     // also have queued an action for approval, so refresh those too.
     onSuccess: (data) => {

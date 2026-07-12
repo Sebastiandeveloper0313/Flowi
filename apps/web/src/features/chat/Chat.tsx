@@ -51,7 +51,6 @@ import {
   createChat,
   fetchChatMessages,
   saveMessage,
-  touchChat,
   type ChatMessage,
   useChat,
 } from "./hooks";
@@ -633,9 +632,12 @@ export function Chat({ chatId }: { chatId?: string }) {
         signal: controller.signal,
         onStatus: setStatus,
         attachments: files,
+        persist: convoId && teamId ? { convoId, teamId } : undefined,
       },
       {
-        onSuccess: async (data) => {
+        onSuccess: (data) => {
+          // The reply is already persisted inside the mutation (so it survives the
+          // user navigating away mid-request); here we only update the live UI.
           const reply: ChatMessage = {
             role: "assistant",
             content: data.reply,
@@ -645,15 +647,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           };
           setMessages((m) => [...m, reply]);
           setTyping(0); // reveal the new reply character by character
-          if (convoId && teamId) {
-            try {
-              await saveMessage(convoId, teamId, reply);
-              await touchChat(convoId);
-              void queryClient.invalidateQueries({ queryKey: chatKeys.list });
-            } catch {
-              /* best-effort */
-            }
-          }
+          void queryClient.invalidateQueries({ queryKey: chatKeys.list });
         },
         onError: (e) => {
           // user hit stop: leave their message, add no error
