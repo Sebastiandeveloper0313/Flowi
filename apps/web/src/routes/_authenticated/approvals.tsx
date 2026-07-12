@@ -22,6 +22,7 @@ import { ChatMarkdown } from "@/features/chat/Markdown";
 import { PageHeader } from "@/features/dashboard/ui";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useTasks } from "@/features/tasks/hooks";
+import { humanizeRunError } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/approvals")({
   component: ApprovalsPage,
@@ -147,7 +148,9 @@ function ApprovalsPage() {
           <div className="grid gap-2">
             {decided.map((a) => {
               const reason =
-                a.status === "failed" && typeof a.result === "string" ? a.result : null;
+                a.status === "failed" && typeof a.result === "string"
+                  ? humanizeRunError(a.result)
+                  : null;
               const url = a.status === "executed" ? postedUrl(a.result, a.tool_slug) : null;
               return (
                 <div

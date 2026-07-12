@@ -64,6 +64,10 @@ function stripInlineMarkdown(s: string): string {
 export function humanizeRunError(raw: string | null | undefined): string {
   const s = (raw ?? "").trim();
   if (!s) return "This run didn't finish. It will try again on its next schedule.";
+  if (/NONEXISTENT_VERSION|Requested version .*is not active/i.test(s))
+    return "LinkedIn publishing is temporarily unavailable on our side (a provider issue), so this couldn't post. Nothing you did, we'll turn it back on as soon as it's fixed.";
+  if (/OAuthException|pages_manage_posts|pages_read_engagement|\(#200\)/i.test(s))
+    return "Facebook blocked this because the connection is missing permission to post to your Page. Reconnect Facebook and allow managing and posting to your Page. If it keeps failing, it's a setup issue on our side, not yours.";
   if (/credit balance is too low|insufficient\s+credits?|rate.?limit|overloaded|429|5\d\d/i.test(s))
     return "This run hit a temporary limit and didn't finish. It will run again automatically.";
   if (/SUBREDDIT_NOTALLOWED_BANNED|banned from (contributing|participating)/i.test(s))
