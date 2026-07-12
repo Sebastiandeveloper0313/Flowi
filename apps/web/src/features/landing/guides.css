@@ -162,6 +162,62 @@
   }
 }
 
+/* ---- author intro: who is writing this, and why trust it ---- */
+.pb .author {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.6rem;
+  align-items: start;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.6rem;
+  box-shadow: var(--shadow-soft);
+  margin-top: 3rem;
+}
+.pb .author-photo {
+  width: 116px;
+  height: 116px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+.pb .author-bio .eyebrow {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.pb .author-lead {
+  font-size: 1.12rem;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.55;
+}
+.pb .author-bio p {
+  margin: 0.7rem 0 0;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.pb .author-links {
+  margin-top: 0.95rem;
+}
+.pb .author-links a {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--violet-ink);
+  text-decoration: none;
+}
+.pb .author-links a:hover {
+  text-decoration: underline;
+}
+@media (max-width: 560px) {
+  .pb .author {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+}
+
 /* ---- table of contents ---- */
 .pb .toc {
   margin: 3rem 0 0;
