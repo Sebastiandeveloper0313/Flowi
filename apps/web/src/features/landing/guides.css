@@ -221,24 +221,31 @@
 
 /* ---- sections + prose ---- */
 .pb section.part {
-  padding: clamp(2.6rem, 6vw, 4rem) 0 0;
+  padding-top: clamp(2.8rem, 6vw, 4.4rem);
+  margin-top: clamp(2.8rem, 6vw, 4.4rem);
+  border-top: 1px solid var(--line);
   scroll-margin-top: 6rem;
+}
+.pb section.part:first-of-type {
+  border-top: none;
+  margin-top: 0;
 }
 .pb .part-head {
   display: flex;
-  gap: 1rem;
-  align-items: baseline;
-  border-top: 2px solid var(--ink);
-  padding-top: 1rem;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 0.2rem;
 }
 .pb .part-num {
   font-family: var(--mono);
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   color: var(--violet);
-  letter-spacing: 0.08em;
-  flex: none;
-  padding-top: 0.35rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.pb .part-num::before {
+  content: "Part ";
 }
 .pb h2 {
   font-family: var(--font-display);
@@ -616,7 +623,7 @@
 /* ---- closing CTA + companion ---- */
 .pb .pb-cta {
   margin: 3.5rem 0 0;
-  border-top: 2px solid var(--ink);
+  border-top: 1px solid var(--line);
   padding: 2.4rem 0 1rem;
 }
 .pb .pb-cta h2 {
