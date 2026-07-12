@@ -9,6 +9,7 @@ import {
   executeComposioTool,
   isComposioTool,
   isWriteTool,
+  LINKEDIN_PUBLISH_DISABLED,
   toolsForUser,
 } from "./composio.ts";
 import {
@@ -20,14 +21,6 @@ import {
 import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 import { createSlideshow, parseSlideshow } from "./slideshow.ts";
-
-// Composio's LinkedIn connector hardcodes a deprecated LinkedIn-Version header,
-// so every publish gets "426 Upgrade Required" from LinkedIn and nothing goes
-// out (ComposioHQ/composio#3113; a version override does not fix it). Until they
-// ship a supported version, LinkedIn posters draft the post for the user to copy
-// in by hand instead of attempting a doomed publish. Flip back to false the
-// moment Composio updates their connector.
-const LINKEDIN_PUBLISH_DISABLED = true;
 
 export interface TaskRow {
   id: string;

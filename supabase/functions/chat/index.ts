@@ -10,6 +10,7 @@ import {
   executeComposioTool,
   isComposioTool,
   isWriteTool,
+  LINKEDIN_PUBLISH_DISABLED,
   toolsForUser,
 } from "../_shared/composio.ts";
 import { autonomyMode, chatSystem, fetchWorkspaceContext } from "../_shared/marketing.ts";
@@ -331,8 +332,18 @@ Deno.serve(async (req: Request) => {
     let mode = autonomyMode(ws);
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
-    // not just talk. Executed against this team's own accounts via Composio.
-    const connectedTools = composioEnabled() ? await toolsForUser(teamId).catch(() => []) : [];
+    // not just talk. Executed against this team's own accounts via Composio. Drop
+    // the LinkedIn publish tool while it's disabled upstream so chat drafts the
+    // post instead of attempting a doomed publish (the runner does the same).
+    const connectedTools = (
+      composioEnabled() ? await toolsForUser(teamId).catch(() => []) : []
+    ).filter(
+      (t) =>
+        !(
+          LINKEDIN_PUBLISH_DISABLED &&
+          (t as { name?: string }).name === "LINKEDIN_CREATE_LINKED_IN_POST"
+        ),
+    );
 
     // Only trust plain {role, content:string} turns from the client.
     const convo: Msg[] = messages
