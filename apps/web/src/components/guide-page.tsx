@@ -46,6 +46,9 @@ export function GuidePage({ bodyHtml }: { bodyHtml: string }) {
               <a href="/playbook">Playbook</a>
             </li>
             <li>
+              <a href="/#security">Security</a>
+            </li>
+            <li>
               <a href="/#pricing">Pricing</a>
             </li>
           </ul>
