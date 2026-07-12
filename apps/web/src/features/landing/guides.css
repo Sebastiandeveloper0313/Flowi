@@ -780,6 +780,10 @@
   background: rgba(61, 130, 245, 0.14);
   color: var(--violet-ink);
 }
+.pb .t-build {
+  background: rgba(112, 79, 246, 0.14);
+  color: #5b3fd6;
+}
 .pb .t-value {
   background: rgba(31, 170, 93, 0.16);
   color: var(--green);
