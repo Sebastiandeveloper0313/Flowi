@@ -820,6 +820,10 @@
   background: rgba(31, 170, 93, 0.16);
   color: var(--green);
 }
+.pb .t-lead {
+  background: rgba(219, 39, 119, 0.14);
+  color: #db2777;
+}
 .pb .proof-body {
   display: flex;
   flex-direction: column;
