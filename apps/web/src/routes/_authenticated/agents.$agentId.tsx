@@ -62,7 +62,7 @@ import { uploadAgentMedia } from "@/features/tasks/mutations";
 import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
-import { RunDot, TaskStatusBadge } from "@/features/tasks/ui";
+import { humanizeRunError, RunDot, runSummaryLine, TaskStatusBadge } from "@/features/tasks/ui";
 
 export const Route = createFileRoute("/_authenticated/agents/$agentId")({
   component: AgentDetailPage,
@@ -429,7 +429,7 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
       >
         <RunDot status={run.status} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">{run.summary ?? run.error ?? "Run"}</div>
+          <div className="truncate text-sm font-medium">{runSummaryLine(run)}</div>
           <div className="text-muted-foreground text-xs">{formatWhen(run.created_at)}</div>
         </div>
         {open ? (
@@ -444,7 +444,7 @@ function RunRow({ run, defaultOpen }: { run: TaskRun; defaultOpen: boolean }) {
             <ChatMarkdown>{run.output}</ChatMarkdown>
           ) : (
             <div className="text-sm leading-relaxed whitespace-pre-wrap">
-              {run.error ?? run.summary ?? "No output."}
+              {humanizeRunError(run.error ?? run.summary)}
             </div>
           )}
         </div>
