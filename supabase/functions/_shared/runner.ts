@@ -7,6 +7,7 @@ import {
   composioActionError,
   composioEnabled,
   executeComposioTool,
+  FACEBOOK_PUBLISH_DISABLED,
   isComposioTool,
   isWriteTool,
   LINKEDIN_PUBLISH_DISABLED,
@@ -129,6 +130,10 @@ export async function executeTask(
     const linkedinCanPublish = linkedinConnected && !LINKEDIN_PUBLISH_DISABLED;
     const redditConnected = connectedTools.some((t) => t.name === "REDDIT_CREATE_REDDIT_POST");
     const facebookConnected = connectedTools.some((t) => t.name === "FACEBOOK_CREATE_POST");
+    // Like LinkedIn: publishing needs a live connection AND a working upstream path.
+    // Facebook Page posting is blocked until the app passes Meta App Review, so we
+    // only draft (see FACEBOOK_PUBLISH_DISABLED).
+    const facebookCanPublish = facebookConnected && !FACEBOOK_PUBLISH_DISABLED;
     const gmailConnected = connectedTools.some((t) => t.name === "GMAIL_REPLY_TO_THREAD");
 
     // A LinkedIn poster publishes when it can (the autonomy gate decides whether
@@ -244,15 +249,16 @@ export async function executeTask(
           : mediaType === "video"
             ? `then PUBLISH it to that Page WITH the attached video by calling the Facebook create-video-post tool: pass the Page id, the video url ${mediaUrl} as the file_url, and your post text as the description.`
             : "then PUBLISH the post to that Page by calling the Facebook create-post tool.";
-      system += facebookConnected
+      system += facebookCanPublish
         ? "\n\nThis agent is a Facebook Page poster. Write ONE on-brand Facebook post grounded in the " +
           "business and aimed at its audience (a clear hook, real value, a warm tone that fits Facebook; " +
           "no hashtag spam, no em dashes). FIRST call the Facebook get-pages tool to find the business's " +
           `Page and its id, ${publishStep} Do not just draft it, actually call the tool.` +
           (mediaType ? ` The user attached this ${mediaType} to include with the post.` : "")
-        : "\n\nThis agent is a Facebook Page poster, but Facebook is NOT connected for this workspace, so " +
-          "you cannot publish. Write ONE polished, on-brand Facebook post and deliver it as the result " +
-          "for the user to review. Do not claim you posted, scheduled, or queued it.";
+        : "\n\nThis agent is a Facebook Page poster, but publishing is not available right now, so you " +
+          "cannot post. Write ONE polished, on-brand Facebook post (a clear hook, real value, a warm tone " +
+          "that fits Facebook; no hashtag spam, no em dashes) and deliver it as the result for the user to " +
+          "post themselves. Do not call any publish tool; do not claim you posted, scheduled, or queued it.";
       const recentPosts = ctx?.client ? await recentTaskOutputs(ctx.client, task.id) : [];
       if (recentPosts.length) {
         system +=
@@ -329,6 +335,13 @@ export async function executeTask(
       const name = (t as { name?: string }).name;
       if (task.kind === "reddit_post" && name === "REDDIT_CREATE_REDDIT_POST") return false;
       if (LINKEDIN_PUBLISH_DISABLED && name === "LINKEDIN_CREATE_LINKED_IN_POST") return false;
+      if (
+        FACEBOOK_PUBLISH_DISABLED &&
+        (name === "FACEBOOK_CREATE_POST" ||
+          name === "FACEBOOK_CREATE_PHOTO_POST" ||
+          name === "FACEBOOK_CREATE_VIDEO_POST")
+      )
+        return false;
       return true;
     });
     const tools: unknown[] = [
@@ -549,13 +562,19 @@ export async function executeTask(
         }
       }
     }
-    if (task.kind === "facebook_post" && !facebookConnected) {
+    if (task.kind === "facebook_post" && !facebookCanPublish) {
+      const post = output || "(empty response)";
+      // Publishing paused upstream (App Review pending): deliver the CLEAN post so
+      // the user can copy it into Facebook, matching the LinkedIn draft behavior.
+      if (FACEBOOK_PUBLISH_DISABLED) {
+        return { summary: "Post ready to copy into Facebook", output: post };
+      }
       const notice =
         "Facebook isn't connected, so this post could not be published or sent for approval. " +
         "Connect Facebook on the Integrations page, then run this agent again to review and approve it.";
       return {
         summary: "Draft ready, connect Facebook to publish",
-        output: `${notice}\n\nDraft:\n\n${output || "(empty response)"}`,
+        output: `${notice}\n\nDraft:\n\n${post}`,
       };
     }
     if (task.kind === "facebook_dm" && !facebookConnected) {
