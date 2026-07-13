@@ -3,6 +3,8 @@
 // user; plan state itself is written only by the stripe-webhook function.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+import { resolveTeamId } from "../_shared/team.ts";
+
 const APP_URL = "https://www.sentrive.ai";
 
 const cors = {
@@ -69,14 +71,23 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
+    const { action, reason, team_id } = await req.json().catch(() => ({}));
+
+    // Scope every billing action to the active workspace the client is in.
+    // Without this we grabbed an arbitrary team (.limit(1)), so a user with
+    // more than one workspace could see/checkout/cancel the wrong one — e.g.
+    // the Billing tab showing "Start free trial" while their real trial lived
+    // on another workspace. resolveTeamId verifies membership via RLS and
+    // falls back to the user's first team for older clients that send no id.
+    const teamId = await resolveTeamId(userClient, team_id);
+    if (!teamId) return json({ error: "no team for user" }, 403);
     const { data: team } = await userClient
       .from("teams")
       .select("id, name, plan, stripe_customer_id, stripe_subscription_id, subscription_status")
-      .limit(1)
+      .eq("id", teamId)
       .maybeSingle();
     if (!team) return json({ error: "no team for user" }, 403);
 
-    const { action, reason } = await req.json().catch(() => ({}));
     const admin = createClient(url, service);
 
     if (action === "summary") {
