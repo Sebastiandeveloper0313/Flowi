@@ -52,6 +52,66 @@ async function stripeGet(path: string): Promise<any> {
 const RETENTION_PERCENT = 50;
 const RETENTION_MONTHS = 2;
 
+// ---- per-workspace add-on billing --------------------------------------
+// The base plan includes 1 workspace (the account's primary/oldest team).
+// Every additional workspace bills as quantity on a SECOND subscription item,
+// priced by STRIPE_WORKSPACE_ADDON_PRICE_ID. The webhook is status-only and
+// never reads line items, so a second item doesn't disturb plan sync.
+
+/** Display amount only. The real charge is whatever STRIPE_WORKSPACE_ADDON_PRICE_ID
+ *  is set to in Stripe — keep this in sync with that Price. */
+const WORKSPACE_ADDON_MONTHLY = 39;
+
+/** Workspaces created before go-live are grandfathered (never billed). Set this
+ *  to the actual launch date/time so nothing that already exists gets charged. */
+const WORKSPACE_BILLING_LAUNCH = "2026-07-20T00:00:00Z";
+const WORKSPACE_BILLING_LAUNCH_MS = Date.parse(WORKSPACE_BILLING_LAUNCH);
+
+/**
+ * Count workspaces that should be billed: everything except the primary (base-
+ * covered, oldest) and anything created before launch (grandfathered).
+ * `teams` must be ordered by created_at ascending (index 0 = primary).
+ */
+function billableWorkspaces(teams: Array<{ id: string; created_at: string | null }>): number {
+  return teams.filter(
+    (t, i) => i > 0 && t.created_at != null && Date.parse(t.created_at) >= WORKSPACE_BILLING_LAUNCH_MS,
+  ).length;
+}
+
+/**
+ * Make the subscription's workspace add-on item have exactly `targetQty`.
+ * Creates the item on first billable workspace, updates quantity after. A no-op
+ * when the add-on Price isn't configured yet, so workspaces stay free until the
+ * founder wires it up. Prorations land on the next invoice (create_prorations),
+ * which avoids immediate-charge and trial edge cases — switch to always_invoice
+ * if you want to bill the moment a workspace is added.
+ */
+async function syncWorkspaceSlots(subId: string, targetQty: number): Promise<void> {
+  const addonPrice = Deno.env.get("STRIPE_WORKSPACE_ADDON_PRICE_ID");
+  if (!addonPrice || targetQty <= 0) return;
+  const sub = await stripeGet(`subscriptions/${subId}`);
+  const items = (sub.items?.data ?? []) as Array<{
+    id: string;
+    quantity?: number;
+    price?: { id?: string };
+  }>;
+  const existing = items.find((it) => it.price?.id === addonPrice);
+  if (existing) {
+    if ((existing.quantity ?? 0) === targetQty) return;
+    await stripe(`subscription_items/${existing.id}`, {
+      quantity: String(targetQty),
+      proration_behavior: "create_prorations",
+    });
+  } else {
+    await stripe("subscription_items", {
+      subscription: subId,
+      price: addonPrice,
+      quantity: String(targetQty),
+      proration_behavior: "create_prorations",
+    });
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -100,12 +160,23 @@ Deno.serve(async (req: Request) => {
         usage[kind] = count ?? 0;
       }
       const plan = team.plan === "pro" ? "pro" : team.plan === "internal" ? "internal" : "free";
+      const { data: teamRows } = await userClient
+        .from("teams")
+        .select("id, created_at")
+        .order("created_at", { ascending: true });
+      const totalWorkspaces = teamRows?.length ?? 1;
+      const billableWs = billableWorkspaces(teamRows ?? []);
       return json({
         plan,
         subscription_status: team.subscription_status,
         usage,
         // Internal teams aren't metered; show pro numbers so the UI has limits to render.
         limits: DAILY_LIMITS[plan === "internal" ? "pro" : plan],
+        workspaces: {
+          total: totalWorkspaces,
+          billable: billableWs,
+          addon_monthly: WORKSPACE_ADDON_MONTHLY,
+        },
       });
     }
 
@@ -209,6 +280,26 @@ Deno.serve(async (req: Request) => {
         cancel_at_period_end: "false",
       });
       return json({ ok: true });
+    }
+
+    // Reconcile the workspace add-on to the account's current billable count.
+    // Called right after a workspace is created (or removed). Idempotent and
+    // self-healing: quantity is always derived from the actual set of teams, so
+    // a missed call is corrected on the next one.
+    if (action === "sync_workspace_billing") {
+      if (!team.stripe_subscription_id) return json({ ok: true, slots: 0, configured: false });
+      const { data: teamRows } = await userClient
+        .from("teams")
+        .select("id, created_at")
+        .order("created_at", { ascending: true });
+      const slots = billableWorkspaces(teamRows ?? []);
+      await syncWorkspaceSlots(team.stripe_subscription_id, slots);
+      return json({
+        ok: true,
+        slots,
+        monthly_addon: slots * WORKSPACE_ADDON_MONTHLY,
+        configured: Boolean(Deno.env.get("STRIPE_WORKSPACE_ADDON_PRICE_ID")),
+      });
     }
 
     return json({ error: "Unknown action." }, 400);

@@ -8,6 +8,7 @@ export interface BillingSummary {
   subscription_status: string | null;
   usage: Record<string, number>;
   limits: Record<string, number>;
+  workspaces?: { total: number; billable: number; addon_monthly: number };
 }
 
 export interface SubscriptionDetails {
@@ -95,6 +96,22 @@ export function useCancelSubscription() {
 /** Undo a scheduled cancellation. */
 export function useResumeSubscription() {
   return useBillingMutation(() => billing<{ ok: true }>("resume"), "subscription_resumed");
+}
+
+/**
+ * Reconcile the per-workspace add-on after a workspace is created (or removed).
+ * The server derives the billable count from the account's teams and sets the
+ * Stripe add-on quantity to match — idempotent, so it's safe to fire and forget.
+ */
+export function useSyncWorkspaceBilling() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      billing<{ ok: boolean; slots: number; monthly_addon: number; configured: boolean }>(
+        "sync_workspace_billing",
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: billingKeys.summary }),
+  });
 }
 
 /** Open Stripe Checkout (upgrade) or the Billing Portal (manage/cancel). */
