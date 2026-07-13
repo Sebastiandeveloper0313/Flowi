@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useActiveTeamId } from "@/features/workspace/active";
 import { track } from "@/integrations/posthog";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -24,13 +23,9 @@ export const billingKeys = {
   subscription: ["billing", "subscription"] as const,
 };
 
-async function billing<T>(
-  action: string,
-  teamId?: string | null,
-  extra?: Record<string, unknown>,
-): Promise<T> {
+async function billing<T>(action: string, extra?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("billing", {
-    body: { action, team_id: teamId ?? undefined, ...extra },
+    body: { action, ...extra },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
@@ -38,11 +33,9 @@ async function billing<T>(
 }
 
 export function useBillingSummary() {
-  const teamId = useActiveTeamId();
   return useQuery({
-    queryKey: [...billingKeys.summary, teamId],
-    queryFn: () => billing<BillingSummary>("summary", teamId),
-    enabled: !!teamId,
+    queryKey: billingKeys.summary,
+    queryFn: () => billing<BillingSummary>("summary"),
     staleTime: 30_000,
   });
 }
@@ -61,11 +54,10 @@ export async function startTrialCheckout(): Promise<void> {
 
 /** Live subscription state (pending cancellation, offer already used). */
 export function useSubscriptionDetails(enabled = true) {
-  const teamId = useActiveTeamId();
   return useQuery({
-    queryKey: [...billingKeys.subscription, teamId],
-    queryFn: () => billing<SubscriptionDetails>("subscription", teamId),
-    enabled: enabled && !!teamId,
+    queryKey: billingKeys.subscription,
+    queryFn: () => billing<SubscriptionDetails>("subscription"),
+    enabled,
     staleTime: 30_000,
     retry: 1,
   });
@@ -85,36 +77,32 @@ function useBillingMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult
 
 /** Accept the save offer: discount applied to the subscription right away. */
 export function useRetentionOffer() {
-  const teamId = useActiveTeamId();
   return useBillingMutation(
-    () => billing<{ ok: true; percent_off: number; months: number }>("retention_offer", teamId),
+    () => billing<{ ok: true; percent_off: number; months: number }>("retention_offer"),
     "retention_offer_accepted",
   );
 }
 
 /** Schedule the cancellation for the end of the billing period. */
 export function useCancelSubscription() {
-  const teamId = useActiveTeamId();
   return useBillingMutation(
     ({ reason }: { reason?: string }) =>
-      billing<{ ok: true; current_period_end: number | null }>("cancel", teamId, { reason }),
+      billing<{ ok: true; current_period_end: number | null }>("cancel", { reason }),
     "subscription_cancel_scheduled",
   );
 }
 
 /** Undo a scheduled cancellation. */
 export function useResumeSubscription() {
-  const teamId = useActiveTeamId();
-  return useBillingMutation(() => billing<{ ok: true }>("resume", teamId), "subscription_resumed");
+  return useBillingMutation(() => billing<{ ok: true }>("resume"), "subscription_resumed");
 }
 
 /** Open Stripe Checkout (upgrade) or the Billing Portal (manage/cancel). */
 export function useBillingRedirect() {
-  const teamId = useActiveTeamId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (action: "checkout" | "portal") => {
-      const { url } = await billing<{ url: string }>(action, teamId);
+      const { url } = await billing<{ url: string }>(action);
       window.open(url, "_blank", "noopener,noreferrer");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: billingKeys.summary }),
