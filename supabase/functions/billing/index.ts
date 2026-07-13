@@ -64,7 +64,7 @@ const WORKSPACE_ADDON_MONTHLY = 39;
 
 /** Workspaces created before go-live are grandfathered (never billed). Set this
  *  to the actual launch date/time so nothing that already exists gets charged. */
-const WORKSPACE_BILLING_LAUNCH = "2026-07-20T00:00:00Z";
+const WORKSPACE_BILLING_LAUNCH = "2026-07-13T00:00:00Z";
 const WORKSPACE_BILLING_LAUNCH_MS = Date.parse(WORKSPACE_BILLING_LAUNCH);
 
 /**
