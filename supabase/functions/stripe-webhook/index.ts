@@ -1,11 +1,41 @@
 // Sentrive - Stripe webhook. The single writer of billing state: checkout
 // completion and subscription lifecycle events flip the team's plan.
 // Authorized by Stripe's webhook signature (fail closed).
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { sendCancelConfirmation } from "../_shared/lifecycle-emails.ts";
 
 const enc = new TextEncoder();
+
+/**
+ * The team a Stripe subscription belongs to (by team_id metadata, else customer
+ * id), with its currently-tracked subscription id, so a stale event for an old
+ * subscription can't clobber an active plan.
+ */
+async function resolveTeam(
+  admin: SupabaseClient,
+  // deno-lint-ignore no-explicit-any
+  obj: any,
+): Promise<{ id: string; stripe_subscription_id: string | null } | null> {
+  const teamId = obj.metadata?.team_id;
+  if (teamId) {
+    const { data } = await admin
+      .from("teams")
+      .select("id, stripe_subscription_id")
+      .eq("id", teamId)
+      .maybeSingle();
+    if (data) return data;
+  }
+  if (obj.customer) {
+    const { data } = await admin
+      .from("teams")
+      .select("id, stripe_subscription_id")
+      .eq("stripe_customer_id", obj.customer)
+      .maybeSingle();
+    if (data) return data;
+  }
+  return null;
+}
 
 /** Verify Stripe-Signature: t=<ts>,v1=<hmac sha256 of "<ts>.<body>">. */
 async function validSignature(req: Request, body: string): Promise<boolean> {
@@ -73,52 +103,53 @@ Deno.serve(async (req: Request) => {
       }
       case "customer.subscription.created":
       case "customer.subscription.updated": {
-        const teamId = obj.metadata?.team_id;
         const status = String(obj.status ?? "");
         const pro = status === "active" || status === "trialing" || status === "past_due";
-        const patch = {
-          plan: pro ? "pro" : "free",
-          subscription_status: status,
-          stripe_subscription_id: obj.id ?? null,
-        };
-        if (teamId) await admin.from("teams").update(patch).eq("id", teamId);
-        else if (obj.customer) {
-          await admin.from("teams").update(patch).eq("stripe_customer_id", obj.customer);
+        const team = await resolveTeam(admin, obj);
+        // A pro subscription always wins and becomes the team's current one. A
+        // downgrade only applies if this IS the current sub, so a stale/old
+        // subscription's event can't clobber an active plan (webhooks arrive out
+        // of order, e.g. an old trial's cancel landing after a fresh paid sub).
+        if (
+          team &&
+          (pro || !team.stripe_subscription_id || team.stripe_subscription_id === obj.id)
+        ) {
+          await admin
+            .from("teams")
+            .update({
+              plan: pro ? "pro" : "free",
+              subscription_status: status,
+              stripe_subscription_id: obj.id ?? null,
+            })
+            .eq("id", team.id);
         }
 
         // A cancellation scheduled for period end: confirm it by email, once
         // (the send is deduped per subscription, so repeated updates are safe).
-        if (obj.cancel_at_period_end === true && obj.id) {
-          let tid = teamId as string | undefined;
-          if (!tid && obj.customer) {
-            const { data: t } = await admin
-              .from("teams")
-              .select("id")
-              .eq("stripe_customer_id", obj.customer)
-              .maybeSingle();
-            tid = t?.id;
-          }
-          if (tid) {
-            await sendCancelConfirmation(admin, {
-              teamId: tid,
-              subscriptionId: obj.id,
-              periodEndUnix: obj.current_period_end ?? null,
-            }).catch((e) => console.error("cancel confirm email failed:", e));
-          }
+        if (obj.cancel_at_period_end === true && obj.id && team) {
+          await sendCancelConfirmation(admin, {
+            teamId: team.id,
+            subscriptionId: obj.id,
+            periodEndUnix: obj.current_period_end ?? null,
+          }).catch((e) => console.error("cancel confirm email failed:", e));
         }
         break;
       }
       case "customer.subscription.deleted": {
-        const patch = {
-          plan: "free",
-          subscription_status: "canceled",
-          stripe_subscription_id: null,
-          subscription_canceled_at: new Date().toISOString(),
-        };
-        const teamId = obj.metadata?.team_id;
-        if (teamId) await admin.from("teams").update(patch).eq("id", teamId);
-        else if (obj.customer) {
-          await admin.from("teams").update(patch).eq("stripe_customer_id", obj.customer);
+        const team = await resolveTeam(admin, obj);
+        // Only downgrade if the deleted sub is the team's CURRENT one. Deleting an
+        // old trial sub after the user re-subscribed must NOT cancel their active
+        // plan, this exact out-of-order case locked a paying customer out.
+        if (team && (!team.stripe_subscription_id || team.stripe_subscription_id === obj.id)) {
+          await admin
+            .from("teams")
+            .update({
+              plan: "free",
+              subscription_status: "canceled",
+              stripe_subscription_id: null,
+              subscription_canceled_at: new Date().toISOString(),
+            })
+            .eq("id", team.id);
         }
         break;
       }
