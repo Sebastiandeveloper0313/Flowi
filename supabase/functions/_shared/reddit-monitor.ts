@@ -89,10 +89,29 @@ async function mapPool<R>(
   return out;
 }
 
-/** Stable, cheap signature of the business context, to re-derive only when it changes. */
-function contextSig(ws: WorkspaceContext | null): string {
+/**
+ * Steer appended to every stage so the agent's OWN instructions actually shape
+ * the search and scoring, not just the business context. Without this, refining
+ * an agent (updating its instructions) changed nothing about what it found.
+ */
+function instructionSteer(instructions: string | null | undefined): string {
+  const t = (instructions ?? "").trim();
+  return t
+    ? "\n\nThe user set these instructions for THIS agent. Let them steer whose pain to look for, which " +
+        `subreddits fit, and what counts as a good lead, over the generic business context:\n${t}`
+    : "";
+}
+
+/** Stable, cheap signature of the business context + agent instructions, to re-derive only when they change. */
+function contextSig(ws: WorkspaceContext | null, instructions: string): string {
   const s =
-    QUERY_VERSION + "|" + JSON.stringify(ws?.business_context ?? {}) + "|" + (ws?.name ?? "");
+    QUERY_VERSION +
+    "|" +
+    JSON.stringify(ws?.business_context ?? {}) +
+    "|" +
+    (ws?.name ?? "") +
+    "|" +
+    (instructions ?? "");
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return String(h >>> 0);
@@ -147,10 +166,12 @@ function extractJson<T>(text: string, open: "[" | "{"): T | null {
 async function deriveQueries(
   ws: WorkspaceContext | null,
   seeds: string[],
+  instructions: string,
 ): Promise<{ keywords: string[]; subreddits: string[] }> {
   const system =
     "You plan a Reddit search strategy for a lead-finding agent working inside this company." +
     contextBlock(ws) +
+    instructionSteer(instructions) +
     "\n\nGive SHORT search terms (2 to 4 words each) that real potential BUYERS type on Reddit when " +
     "they have the problem this company solves: their words, not the brand's marketing terms. Reddit " +
     "search is literal keyword matching, so full sentences return junk; prefer tight noun phrases and " +
@@ -182,7 +203,11 @@ async function deriveQueries(
  * scorer only sees candidates. Fails OPEN (keeps the batch) on any error or
  * unparseable reply, so a filter hiccup can never zero out a run.
  */
-async function triage(posts: RedditPost[], ws: WorkspaceContext | null): Promise<RedditPost[]> {
+async function triage(
+  posts: RedditPost[],
+  ws: WorkspaceContext | null,
+  instructions: string,
+): Promise<RedditPost[]> {
   if (posts.length <= TRIAGE_SKIP) return posts;
   const batches = chunkArr(posts, TRIAGE_BATCH);
   const kept: RedditPost[] = [];
@@ -202,7 +227,8 @@ async function triage(posts: RedditPost[], ws: WorkspaceContext | null): Promise
           "comparison of tools, or a stated need this business could help with. DROP obvious noise: " +
           "memes, news, announcements, self-promotion, giveaways, and off-topic chatter. Be generous: " +
           "when unsure, KEEP. Precision comes later." +
-          contextBlock(ws);
+          contextBlock(ws) +
+          instructionSteer(instructions);
         const user =
           `Posts:\n${list}\n\n` +
           'Return ONLY a JSON array of the external_ids to keep, e.g. ["t3_abc","t3_def"]. ' +
@@ -228,6 +254,7 @@ async function scoreAndDraft(
   posts: RedditPost[],
   ws: WorkspaceContext | null,
   minRel: number,
+  instructions: string,
 ): Promise<Judged[]> {
   const system =
     operatorPersona(ws) +
@@ -243,7 +270,8 @@ async function scoreAndDraft(
     "genuinely have a relevant problem and some intent. Write draft_reply only for posts scoring " +
     `${minRel}+, empty string otherwise.\n\n` +
     redditReplyStandards(ws) +
-    contextBlock(ws);
+    contextBlock(ws) +
+    instructionSteer(instructions);
 
   const list = posts
     .map(
@@ -290,7 +318,7 @@ async function resolveQueries(
     };
   }
 
-  const sig = contextSig(ws);
+  const sig = contextSig(ws, task.instructions ?? "");
   const haveFresh = (cfg.subreddits?.length ?? 0) > 0 && cfg.derived_sig === sig;
   if (haveFresh) {
     return {
@@ -300,7 +328,11 @@ async function resolveQueries(
     };
   }
 
-  const derived = await deriveQueries(ws, (cfg.keywords ?? []).map(String));
+  const derived = await deriveQueries(
+    ws,
+    (cfg.keywords ?? []).map(String),
+    task.instructions ?? "",
+  );
   if (derived.keywords.length || derived.subreddits.length) {
     return {
       ...derived,
@@ -441,11 +473,15 @@ export async function runRedditMonitor(
   const triageInput = fresh.slice(0, MAX_TRIAGE);
 
   // 3. cheap triage -> plausible leads, then 4. batched precise scoring
-  const survivors = triageInput.length ? await triage(triageInput, ws) : [];
+  const survivors = triageInput.length
+    ? await triage(triageInput, ws, task.instructions ?? "")
+    : [];
   const toScore = survivors.slice(0, MAX_SCORE);
   const batches = chunkArr(toScore, SCORE_BATCH);
   const judgedArrays = await Promise.all(
-    batches.map((b) => scoreAndDraft(b, ws, minRel).catch(() => [] as Judged[])),
+    batches.map((b) =>
+      scoreAndDraft(b, ws, minRel, task.instructions ?? "").catch(() => [] as Judged[]),
+    ),
   );
   const judged = judgedArrays.flat();
   const byId = new Map(toScore.map((p) => [p.external_id, p]));
