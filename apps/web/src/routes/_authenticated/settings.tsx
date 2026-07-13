@@ -503,6 +503,7 @@ function BillingTab() {
   const resume = useResumeSubscription();
   const [cancelOpen, setCancelOpen] = useState(false);
   const cancelPending = Boolean(sub?.cancel_at_period_end);
+  const ws = data?.workspaces;
 
   return (
     <div className="space-y-5">
@@ -513,6 +514,12 @@ function BillingTab() {
             <div className="mt-0.5 text-2xl font-bold">
               {isLoading ? "…" : isInternal ? "Internal" : isPro ? "Pro" : "Free"}
             </div>
+            {isPro && ws && ws.billable > 0 && (
+              <div className="text-muted-foreground mt-0.5 text-sm">
+                {ws.total} workspaces · +${ws.billable * ws.addon_monthly}/mo for {ws.billable} beyond
+                the first
+              </div>
+            )}
             <div className="text-muted-foreground text-sm">
               {isInternal
                 ? "Sentrive staff account. Nothing to bill, no usage limits."
