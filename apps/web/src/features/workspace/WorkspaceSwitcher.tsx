@@ -13,6 +13,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 
+import { useSyncWorkspaceBilling } from "@/features/billing/hooks";
 import { analyzeWebsite } from "@/features/onboarding/mutations";
 import { track } from "@/integrations/posthog";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +71,7 @@ function CreateProductDialog({
   const { setActiveTeamId } = useActiveWorkspace();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const syncBilling = useSyncWorkspaceBilling();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
 
@@ -85,6 +87,9 @@ function CreateProductDialog({
     onSuccess: async (teamId) => {
       track("workspace_created");
       await queryClient.invalidateQueries({ queryKey: workspacesQueryOptions.queryKey });
+      // Add this workspace to the subscription (base plan covers only the first).
+      // Idempotent and self-healing server-side, so fire and forget.
+      syncBilling.mutate();
       setActiveTeamId(teamId);
       // Read the new site into this workspace in the background (scoped by team_id).
       if (url.trim()) {
@@ -106,6 +111,8 @@ function CreateProductDialog({
         <DialogTitle className="text-lg font-bold tracking-tight">Add a workspace</DialogTitle>
         <p className="text-muted-foreground -mt-2 text-sm">
           Each workspace gets its own website, agents, and leads, kept separate from your others.
+          Additional workspaces are <span className="text-foreground font-medium">$39/mo</span>,
+          added to your subscription.
         </p>
         <div className="space-y-3">
           <div className="grid gap-1.5">
@@ -149,7 +156,7 @@ function CreateProductDialog({
           </Button>
           <Button disabled={create.isPending || !name.trim()} onClick={() => create.mutate()}>
             {create.isPending && <Loader2 className="size-4 animate-spin" />}
-            Create workspace
+            Create workspace · +$39/mo
           </Button>
         </div>
       </DialogContent>
