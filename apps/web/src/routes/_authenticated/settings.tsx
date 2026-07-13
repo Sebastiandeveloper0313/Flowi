@@ -516,8 +516,8 @@ function BillingTab() {
             </div>
             {isPro && ws && ws.billable > 0 && (
               <div className="text-muted-foreground mt-0.5 text-sm">
-                {ws.total} workspaces · +${ws.billable * ws.addon_monthly}/mo for {ws.billable} beyond
-                the first
+                {ws.total} workspaces · +${ws.billable * ws.addon_monthly}/mo for {ws.billable}{" "}
+                beyond the first
               </div>
             )}
             <div className="text-muted-foreground text-sm">

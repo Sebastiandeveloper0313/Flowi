@@ -74,7 +74,8 @@ const WORKSPACE_BILLING_LAUNCH_MS = Date.parse(WORKSPACE_BILLING_LAUNCH);
  */
 function billableWorkspaces(teams: Array<{ id: string; created_at: string | null }>): number {
   return teams.filter(
-    (t, i) => i > 0 && t.created_at != null && Date.parse(t.created_at) >= WORKSPACE_BILLING_LAUNCH_MS,
+    (t, i) =>
+      i > 0 && t.created_at != null && Date.parse(t.created_at) >= WORKSPACE_BILLING_LAUNCH_MS,
   ).length;
 }
 

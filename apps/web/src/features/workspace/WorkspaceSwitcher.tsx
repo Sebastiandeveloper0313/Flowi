@@ -111,8 +111,8 @@ function CreateProductDialog({
         <DialogTitle className="text-lg font-bold tracking-tight">Add a workspace</DialogTitle>
         <p className="text-muted-foreground -mt-2 text-sm">
           Each workspace gets its own website, agents, and leads, kept separate from your others.
-          Additional workspaces are <span className="text-foreground font-medium">$39/mo</span>, added
-          to your subscription.
+          Additional workspaces are <span className="text-foreground font-medium">$39/mo</span>,
+          added to your subscription.
         </p>
         <div className="space-y-3">
           <div className="grid gap-1.5">
