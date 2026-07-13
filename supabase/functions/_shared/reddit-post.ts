@@ -4,7 +4,7 @@
 // we can record a result per subreddit. Same content can go to several subs.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { executeComposioTool } from "./composio.ts";
+import { composioActionError, executeComposioTool } from "./composio.ts";
 
 export interface ParsedPost {
   title: string;
@@ -99,6 +99,14 @@ export async function publishRedditPost(
       text: body,
       kind: "self",
     });
+    // Composio returns HTTP 200 even when Reddit rejected the post (banned from
+    // the subreddit, rule violation, rate limit), so a non-throwing call is NOT
+    // proof it posted. Check the payload like the runner does, so "posted" only
+    // ever means Reddit actually accepted it; a rejection shows as failed with why.
+    const actionErr = composioActionError(result);
+    if (actionErr) {
+      return { subreddit: clean, status: "failed", error: actionErr, at };
+    }
     return { subreddit: clean, status: "posted", url: extractUrl(result), at };
   } catch (e) {
     return {
