@@ -1,12 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Check, ChevronDown, ChevronUp, Copy, Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 
+import { chatKeys, createChat, saveMessage } from "@/features/chat/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { PageHeader } from "@/features/dashboard/ui";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
 import type { TaskRun } from "@/features/tasks/queries";
 import { humanizeRunError, RunDot, runSummaryLine } from "@/features/tasks/ui";
+import { useActiveTeamId } from "@/features/workspace/active";
 
 export const Route = createFileRoute("/_authenticated/activity")({
   component: ActivityPage,
@@ -21,7 +24,7 @@ function ActivityPage() {
     <div className="flowy-page">
       <PageHeader
         title="Activity"
-        subtitle="Every run across all your agents: what fired, what it did, and whether it landed."
+        subtitle="A log of every result your agents produced. Open one to read it, copy it, or continue it in chat."
       />
 
       {isLoading ? (
@@ -64,7 +67,41 @@ function ActivityPage() {
 /** One run, expandable to read the full output (or error) it produced. */
 function ActivityRow({ run, title, bordered }: { run: TaskRun; title: string; bordered: boolean }) {
   const [open, setOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
   const body = run.output ?? run.error ?? null;
+
+  // Open a fresh chat seeded with this result (as an assistant message) so the
+  // user can pick it up and keep going, the reply the one-way log can't offer.
+  async function continueInChat() {
+    const output = run.output;
+    if (!teamId || !output || seeding) return;
+    setSeeding(true);
+    try {
+      const id = await createChat(teamId, `Continue: ${title}`);
+      await saveMessage(id, teamId, { role: "assistant", content: output });
+      await queryClient.invalidateQueries({ queryKey: chatKeys.list });
+      await navigate({ to: "/dashboard", search: { c: id } });
+    } catch {
+      setSeeding(false);
+    }
+  }
+
+  async function copyOutput() {
+    const output = run.output;
+    if (!output) return;
+    try {
+      await navigator.clipboard.writeText(output);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard blocked (non-secure context); nothing to do
+    }
+  }
+
   return (
     <div className={bordered ? "border-t" : ""}>
       <div className="hover:bg-muted/40 flex items-center gap-3.5 px-4 py-3.5 transition">
@@ -99,13 +136,40 @@ function ActivityRow({ run, title, bordered }: { run: TaskRun; title: string; bo
         )}
       </div>
       {open && body && (
-        <div className="text-foreground/80 max-h-96 overflow-auto border-t px-4 py-3.5">
-          {run.output ? (
-            <ChatMarkdown>{run.output}</ChatMarkdown>
-          ) : (
-            <p className="text-destructive text-sm whitespace-pre-wrap">
-              {humanizeRunError(run.error)}
-            </p>
+        <div className="border-t px-4 py-3.5">
+          <div className="text-foreground/80 max-h-96 overflow-auto">
+            {run.output ? (
+              <ChatMarkdown>{run.output}</ChatMarkdown>
+            ) : (
+              <p className="text-destructive text-sm whitespace-pre-wrap">
+                {humanizeRunError(run.error)}
+              </p>
+            )}
+          </div>
+          {run.output && (
+            <div className="mt-3 flex items-center gap-4 border-t pt-3">
+              <button
+                type="button"
+                onClick={copyOutput}
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs font-medium"
+              >
+                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <button
+                type="button"
+                onClick={continueInChat}
+                disabled={seeding}
+                className="text-primary inline-flex items-center gap-1.5 text-xs font-medium hover:underline disabled:opacity-60"
+              >
+                {seeding ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <MessageSquare className="size-3.5" />
+                )}
+                {seeding ? "Opening…" : "Continue in chat"}
+              </button>
+            </div>
           )}
         </div>
       )}
