@@ -5,8 +5,9 @@ import {
   type BusinessContext,
   updateWorkspace,
 } from "@/features/onboarding/mutations";
+import { supabase } from "@/integrations/supabase/client";
 
-import { useActiveWorkspace } from "./active";
+import { useActiveWorkspace, workspacesQueryOptions } from "./active";
 import { workspaceKeys } from "./queries";
 
 /** The active workspace (product), in the { data, isLoading } shape callers expect. */
@@ -54,6 +55,28 @@ export function useUpdateAutoPostPacing() {
         auto_post_gap_minutes: gapMinutes,
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: workspaceKeys.current }),
+  });
+}
+
+/**
+ * Delete a non-primary workspace (cascades its agents, runs, leads, chats, and
+ * drafts) and reconcile the per-workspace add-on so the bill drops by one. The
+ * server refuses to delete the primary workspace.
+ */
+export function useDeleteWorkspace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (teamId: string) => {
+      const { error } = await supabase.rpc("delete_workspace", { p_team_id: teamId });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      // One fewer billable workspace: reconcile the Stripe add-on quantity.
+      await supabase.functions
+        .invoke("billing", { body: { action: "sync_workspace_billing" } })
+        .catch(() => {});
+      await queryClient.invalidateQueries({ queryKey: workspacesQueryOptions.queryKey });
+    },
   });
 }
 
