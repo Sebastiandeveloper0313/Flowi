@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
   const { data: tasks, error } = await admin
     .from("tasks")
     .select(
-      "id, team_id, title, instructions, channel, schedule_cron, timezone, status, kind, config, autonomy_mode, next_run_at",
+      "id, team_id, created_by, title, instructions, channel, schedule_cron, timezone, status, kind, config, autonomy_mode, next_run_at",
     )
     .eq("status", "active")
     .not("schedule_cron", "is", null)
@@ -68,11 +68,29 @@ Deno.serve(async (req: Request) => {
 
   if (error) return json({ error: error.message }, 500);
 
+  // Only run agents for paying accounts. Trialing/past_due both keep plan='pro',
+  // and 'internal' is staff. Free and canceled accounts are already blocked from
+  // the app by the paywall, but their agents would otherwise keep firing on cron
+  // forever — that's the bulk of our API spend (most runs come from non-payers).
+  // We still advance next_run_at above, so an agent resumes automatically the
+  // moment its owner subscribes again. Entitlement is account-level: a user's
+  // subscription lives on their primary team, so anyone who owns a pro/internal
+  // team is entitled across all their workspaces.
+  const { data: proOwners } = await admin
+    .from("teams")
+    .select("created_by")
+    .in("plan", ["pro", "internal"]);
+  const entitledOwners = new Set((proOwners ?? []).map((t) => t.created_by));
+
   let ran = 0;
   let initialized = 0;
   let failed = 0;
+  let skipped = 0;
 
-  for (const task of (tasks ?? []) as (TaskRow & { next_run_at: string | null })[]) {
+  for (const task of (tasks ?? []) as (TaskRow & {
+    next_run_at: string | null;
+    created_by: string;
+  })[]) {
     const next = nextRun(task.schedule_cron!, task.timezone, now);
 
     // Claim the task by advancing next_run_at BEFORE running, so an overlapping
@@ -85,6 +103,14 @@ Deno.serve(async (req: Request) => {
     // First time we see a task (no next_run_at yet): just schedule it, don't run.
     if (task.next_run_at === null) {
       initialized++;
+      continue;
+    }
+
+    // Paywall the scheduler: never spend API credits running a non-paying
+    // account's agents. next_run_at is already advanced, so it resumes on the
+    // next tick once the owner has an active plan again.
+    if (!entitledOwners.has(task.created_by)) {
+      skipped++;
       continue;
     }
 
@@ -114,6 +140,7 @@ Deno.serve(async (req: Request) => {
     ran,
     initialized,
     failed,
+    skipped,
     drip,
     postDrip,
     emails,
