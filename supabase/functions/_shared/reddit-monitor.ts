@@ -41,6 +41,9 @@ const MAX_SCORE = 72; // survivors sent to the expensive scorer
 const SCORE_BATCH = 12; // posts per scoring call (parallel)
 const AUTO_POST_PER_DAY = 10; // fallback daily auto-post cap if unset on the team
 const AUTO_POST_GAP_MIN = 8; // fallback minutes between auto-posts if unset
+// Overflow "new" leads older than this aren't auto-drained: replying to a stale
+// thread days later reads as off. Fresh backlog drains at the daily cap instead.
+const BACKLOG_MAX_AGE_MS = 3 * 24 * 3600_000;
 const SEEN_CAP = 1500; // rolling set of already-considered post ids
 
 interface MonitorConfig {
@@ -508,16 +511,16 @@ export async function runRedditMonitor(
   const dayMs = 24 * 3600_000;
   const baseGapMs = Math.max(gapMin * 60_000, perDay > 0 ? dayMs / perDay : gapMin * 60_000);
   let queuedCount = 0;
-  if (leads.length) {
-    let budget = 0;
-    // continue the drip after anything already waiting, so a new run stacks its
-    // posts onto the tail of the queue rather than on top of pending ones.
-    let scheduleFrom = Date.now();
-    if (auto && perDay > 0) {
-      budget = await autoPostBudget(admin, task.team_id, perDay);
-      scheduleFrom = Math.max(scheduleFrom, await lastQueuedAt(admin, task.team_id));
-    }
+  let budget = 0;
+  // continue the drip after anything already waiting, so a new run stacks its
+  // posts onto the tail of the queue rather than on top of pending ones.
+  let scheduleFrom = Date.now();
+  if (auto && perDay > 0) {
+    budget = await autoPostBudget(admin, task.team_id, perDay);
+    scheduleFrom = Math.max(scheduleFrom, await lastQueuedAt(admin, task.team_id));
+  }
 
+  if (leads.length) {
     const rows: Record<string, unknown>[] = [];
     for (const l of leads) {
       const p = byId.get(l.external_id)!;
@@ -554,6 +557,36 @@ export async function runRedditMonitor(
       onConflict: "team_id,source,external_id",
       ignoreDuplicates: true,
     });
+  }
+
+  // Drain the backlog. Overflow drafts from earlier runs stay "new" forever
+  // otherwise, so a heavy day permanently strands leads (the reason a user sees
+  // dozens sitting in "New" on auto mode). If today's budget isn't spent, queue
+  // the freshest un-posted "new" replies too — newest first, nothing stale, and
+  // never ones that already failed to post — so a big batch works itself off
+  // over the following days at the safe daily rate instead of piling up.
+  if (auto && queuedCount < budget) {
+    const freshSince = new Date(Date.now() - BACKLOG_MAX_AGE_MS).toISOString();
+    const { data: backlog } = await admin
+      .from("leads")
+      .select("id")
+      .eq("task_id", task.id)
+      .eq("status", "new")
+      .not("draft_reply", "is", null)
+      .or("auto_post_attempts.is.null,auto_post_attempts.eq.0")
+      .gte("created_at", freshSince)
+      .order("created_at", { ascending: false })
+      .limit(budget - queuedCount);
+    for (const row of (backlog ?? []) as { id: string }[]) {
+      const jitter = 0.8 + Math.random() * 0.4;
+      scheduleFrom += Math.round(baseGapMs * jitter);
+      await admin
+        .from("leads")
+        .update({ status: "queued", auto_post_at: new Date(scheduleFrom).toISOString() })
+        .eq("id", row.id)
+        .eq("status", "new"); // guard against a concurrent claim
+      queuedCount++;
+    }
   }
 
   // 6. persist the derived terms + roll the seen-set forward (so tomorrow's run
