@@ -10,21 +10,24 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Input } from "@workspace/ui/components/input";
-import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, Settings2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { useConfirm } from "@/components/useConfirm";
 import { useSyncWorkspaceBilling } from "@/features/billing/hooks";
 import { analyzeWebsite } from "@/features/onboarding/mutations";
+import { useDeleteWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 import { supabase } from "@/integrations/supabase/client";
 
-import { useActiveWorkspace, workspacesQueryOptions } from "./active";
+import { useActiveWorkspace, type Workspace, workspacesQueryOptions } from "./active";
 
 /** Switch between products (workspaces) or create a new one. Lives under the logo. */
 export function WorkspaceSwitcher() {
   const { workspaces, active, setActiveTeamId } = useActiveWorkspace();
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   function switchTo(id: string) {
     if (id === active?.id) return;
@@ -53,10 +56,98 @@ export function WorkspaceSwitcher() {
           <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New workspace
           </DropdownMenuItem>
+          {workspaces.length > 1 && (
+            <DropdownMenuItem onSelect={() => setManageOpen(true)}>
+              <Settings2 className="size-4" /> Manage workspaces
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
       <CreateProductDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ManageWorkspacesDialog open={manageOpen} onOpenChange={setManageOpen} />
+    </>
+  );
+}
+
+/** List the account's workspaces and let the user delete extra ones (not the primary). */
+function ManageWorkspacesDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { workspaces, active, primary } = useActiveWorkspace();
+  const navigate = useNavigate();
+  const del = useDeleteWorkspace();
+  const { confirm, dialog } = useConfirm();
+
+  async function onDelete(ws: Workspace) {
+    const ok = await confirm({
+      title: `Delete ${ws.name}?`,
+      description:
+        "This permanently removes this workspace and its agents, leads, chats, and drafts, and drops it from your bill. This can't be undone.",
+      confirmLabel: "Delete workspace",
+      destructive: true,
+    });
+    if (!ok) return;
+    del.mutate(ws.id, {
+      onSuccess: () => {
+        // If we deleted the workspace we were viewing, land somewhere safe.
+        if (active?.id === ws.id) void navigate({ to: "/dashboard", search: { c: undefined } });
+      },
+    });
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle className="text-lg font-bold tracking-tight">Manage workspaces</DialogTitle>
+          <p className="text-muted-foreground -mt-2 text-sm">
+            Your first workspace holds your plan, so it can't be deleted here. Removing an extra
+            workspace deletes it and its agents, and takes it off your bill.
+          </p>
+          <div className="mt-1 flex flex-col gap-1.5">
+            {workspaces.map((ws) => {
+              const isPrimary = ws.id === primary?.id;
+              return (
+                <div
+                  key={ws.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                >
+                  <span className="flex-1 truncate text-sm font-medium">
+                    {ws.name}
+                    {isPrimary && (
+                      <span className="text-muted-foreground ml-2 text-xs font-normal">
+                        Primary
+                      </span>
+                    )}
+                  </span>
+                  {!isPrimary && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      disabled={del.isPending}
+                      onClick={() => onDelete(ws)}
+                    >
+                      <Trash2 className="size-4" /> Delete
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {del.isError && (
+            <p className="text-destructive text-sm">
+              {(del.error as Error)?.message || "Couldn't delete the workspace. Try again."}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+      {dialog}
     </>
   );
 }
