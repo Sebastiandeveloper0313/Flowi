@@ -24,8 +24,10 @@ function PrivacyPage() {
         <p>
           This policy explains what data Sentrive ("Sentrive", "we", "us") collects, why, and how it
           is handled when you use our website and application (the "Service"). Sentrive is operated
-          from Sweden. The short version: we collect what is needed to run your AI marketing
-          employee, we never sell your data, and your data is never used to train AI models.
+          by Sebastian Mattsson, an individual based in Sweden, who is the data controller for the
+          personal data processed through the Service. The short version: we collect what is needed
+          to run your AI marketing employee, we never sell your data, and your data is never used to
+          train AI models.
         </p>
       </LegalSection>
 
@@ -163,7 +165,11 @@ function PrivacyPage() {
           We keep your data while your account is active. If you disconnect an integration, we stop
           accessing that account and its token is revoked. If you delete your account or ask us to,
           we delete your personal data within 30 days, except records we must keep for legal or
-          accounting reasons (such as invoices). You can request deletion by email at any time.
+          accounting reasons (such as invoices). You can request deletion at any time by emailing{" "}
+          <a href="mailto:hello@sentrive.ai" className="underline underline-offset-4">
+            hello@sentrive.ai
+          </a>
+          .
         </p>
       </LegalSection>
 
@@ -173,8 +179,12 @@ function PrivacyPage() {
           correct, export, restrict, object to the processing of, and delete your personal data. The
           legal bases we rely on are performance of our contract with you (running the Service), our
           legitimate interests (security, preventing abuse), and consent where applicable (optional
-          integrations). Email us to exercise any right; you can also lodge a complaint with your
-          local data protection authority (in Sweden, IMY).
+          integrations). Email us at{" "}
+          <a href="mailto:hello@sentrive.ai" className="underline underline-offset-4">
+            hello@sentrive.ai
+          </a>{" "}
+          to exercise any right; you can also lodge a complaint with your local data protection
+          authority (in Sweden, IMY).
         </p>
       </LegalSection>
 
@@ -206,6 +216,18 @@ function PrivacyPage() {
           We may update this policy as the Service evolves. For material changes we will notify you
           by email or in the app before they take effect. The date at the top shows the latest
           revision.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="14. Who operates Sentrive & how to contact us">
+        <p>
+          Sentrive is operated by Sebastian Mattsson, an individual based in Sweden, who is the data
+          controller for personal data processed through the Service. For any privacy question, to
+          exercise your data rights, or to request deletion of your data, contact us at{" "}
+          <a href="mailto:hello@sentrive.ai" className="underline underline-offset-4">
+            hello@sentrive.ai
+          </a>
+          . We aim to respond within 30 days.
         </p>
       </LegalSection>
     </LegalPage>

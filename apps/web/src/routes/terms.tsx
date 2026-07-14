@@ -21,12 +21,12 @@ function TermsPage() {
     <LegalPage title="Terms of Service" updated="July 2, 2026">
       <LegalSection heading="1. Who we are">
         <p>
-          Sentrive ("Sentrive", "we", "us") is an AI marketing service operated from Sweden. These
-          Terms of Service ("Terms") are a binding agreement between you and Sentrive and govern
-          your use of the Sentrive website, application, and related services (together, the
-          "Service"). By creating an account or using the Service, you agree to these Terms. If you
-          use Sentrive on behalf of a company, you confirm you have authority to bind that company,
-          and "you" means that company.
+          Sentrive ("Sentrive", "we", "us") is an AI marketing service operated by Sebastian
+          Mattsson, an individual based in Sweden. These Terms of Service ("Terms") are a binding
+          agreement between you and Sentrive and govern your use of the Sentrive website,
+          application, and related services (together, the "Service"). By creating an account or
+          using the Service, you agree to these Terms. If you use Sentrive on behalf of a company,
+          you confirm you have authority to bind that company, and "you" means that company.
         </p>
       </LegalSection>
 
@@ -178,6 +178,17 @@ function TermsPage() {
           We may update these Terms from time to time. For material changes we will notify you by
           email or in the app before they take effect. Continuing to use the Service after changes
           take effect means you accept the updated Terms.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="16. Contact">
+        <p>
+          Sentrive is operated by Sebastian Mattsson, an individual based in Sweden. Questions about
+          these Terms or the Service can be sent to{" "}
+          <a href="mailto:hello@sentrive.ai" className="underline underline-offset-4">
+            hello@sentrive.ai
+          </a>
+          .
         </p>
       </LegalSection>
     </LegalPage>
