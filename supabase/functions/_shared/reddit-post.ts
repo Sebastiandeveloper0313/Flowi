@@ -83,6 +83,81 @@ function extractUrl(result: unknown): string | undefined {
   return undefined;
 }
 
+/** A Reddit link (post) flair: the id CREATE_POST needs plus its label. */
+interface Flair {
+  id: string;
+  text: string;
+}
+
+/**
+ * Parse REDDIT_GET_USER_FLAIR's result into usable flairs. Composio returns
+ * { data: { flair_list: [...] } }, and the id/text field names differ between
+ * Reddit's link_flair (flair_template_id / flair_text) and link_flair_v2
+ * (id / text) shapes, so we read both.
+ */
+function parseFlairs(result: string): Flair[] {
+  try {
+    const d = JSON.parse(result) as { data?: { flair_list?: unknown[] } };
+    const list = d?.data?.flair_list;
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((raw) => {
+        const f = (raw ?? {}) as Record<string, unknown>;
+        return {
+          id: String(f.id ?? f.flair_template_id ?? f.flair_id ?? ""),
+          text: String(f.text ?? f.flair_text ?? ""),
+        };
+      })
+      .filter((f) => f.id);
+  } catch {
+    return [];
+  }
+}
+
+// Our posts are self/text posts. An image/media flair on a text post gets
+// auto-removed by most subs, so avoid those; a discussion/question flair is the
+// safe default.
+const MEDIA_FLAIR =
+  /\b(image|images|photo|photos|picture|pic|pics|gallery|video|gif|oc|result|results|capture|astrophoto|edit|processed|my\s?work)\b/i;
+const TEXT_FLAIR =
+  /\b(question|discussion|help|advice|general|text|self|info|information|tips|guide|meta|other|beginner|feedback|showcase)\b/i;
+
+/**
+ * Pick the flair that best fits a self/text post: prefer discussion-style flairs
+ * and ones whose label matches the post, and penalize media-only flairs. Returns
+ * a flair id, or null if the subreddit has none.
+ */
+function chooseFlair(flairs: Flair[], title: string, body: string): string | null {
+  if (!flairs.length) return null;
+  const hay = `${title} ${body}`.toLowerCase();
+  const scored = flairs.map((f) => {
+    const text = f.text.toLowerCase().trim();
+    let score = 0;
+    if (text && hay.includes(text)) score += 5;
+    if (TEXT_FLAIR.test(text)) score += 3;
+    if (MEDIA_FLAIR.test(text)) score -= 4;
+    for (const w of text.split(/\W+/)) if (w.length > 3 && hay.includes(w)) score += 1;
+    return { id: f.id, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].id;
+}
+
+/** Fetch a subreddit's post flairs and choose one for this post. Null if none. */
+async function pickFlairId(
+  teamId: string,
+  subreddit: string,
+  title: string,
+  body: string,
+): Promise<string | null> {
+  try {
+    const raw = await executeComposioTool(teamId, "REDDIT_GET_USER_FLAIR", { subreddit });
+    return chooseFlair(parseFlairs(raw), title, body);
+  } catch {
+    return null;
+  }
+}
+
 /** Submit one self-post to Reddit for this team via Composio. */
 export async function publishRedditPost(
   teamId: string,
@@ -92,18 +167,31 @@ export async function publishRedditPost(
 ): Promise<SubResult> {
   const clean = subreddit.replace(/^r\//i, "").trim();
   const at = new Date().toISOString();
-  try {
-    const result = await executeComposioTool(teamId, "REDDIT_CREATE_REDDIT_POST", {
+  const post = (flairId?: string) =>
+    executeComposioTool(teamId, "REDDIT_CREATE_REDDIT_POST", {
       subreddit: clean,
       title: title.slice(0, 300),
       text: body,
       kind: "self",
+      ...(flairId ? { flair_id: flairId } : {}),
     });
+  try {
+    let result = await post();
     // Composio returns HTTP 200 even when Reddit rejected the post (banned from
     // the subreddit, rule violation, rate limit), so a non-throwing call is NOT
     // proof it posted. Check the payload like the runner does, so "posted" only
     // ever means Reddit actually accepted it; a rejection shows as failed with why.
-    const actionErr = composioActionError(result);
+    let actionErr = composioActionError(result);
+    // Many subreddits require a post flair and reject us with "missing flair_id".
+    // Fetch that sub's available flairs, pick the best fit for our text post, and
+    // retry once with it, so flair-gated subreddits actually go through.
+    if (actionErr && /flair/i.test(actionErr)) {
+      const flairId = await pickFlairId(teamId, clean, title, body);
+      if (flairId) {
+        result = await post(flairId);
+        actionErr = composioActionError(result);
+      }
+    }
     if (actionErr) {
       return { subreddit: clean, status: "failed", error: actionErr, at };
     }
