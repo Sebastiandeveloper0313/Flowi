@@ -190,6 +190,15 @@ export async function publishRedditPost(
       if (flairId) {
         result = await post(flairId);
         actionErr = composioActionError(result);
+        // We attached a flair but it was still rejected: the sub wants a specific
+        // one we can't infer. Say so plainly instead of the raw Reddit error.
+        if (actionErr && /flair/i.test(actionErr)) {
+          actionErr = `r/${clean} needs a specific post flair we couldn't determine, so it was skipped.`;
+        }
+      } else {
+        // The sub requires a flair, but Reddit does not expose its flair list to
+        // the API, so there is no valid flair_id to attach. It can't be posted to.
+        actionErr = `r/${clean} requires a post flair that Reddit doesn't expose to the API, so it can't be posted to automatically.`;
       }
     }
     if (actionErr) {
