@@ -473,7 +473,26 @@ export async function executeTask(
       .join("\n")
       .trim();
     // Deterministically honor the no-em-dash rule regardless of the model.
-    const output = raw.replace(/\s*—\s*/g, ", ");
+    let output = raw.replace(/\s*—\s*/g, ", ");
+
+    // The model sometimes narrates before the deliverable ("I have enough to
+    // write...", "The intent is clear...") despite the prompt telling it not to.
+    // For a written deliverable that reads as a log entry, not a finished piece.
+    // For an SEO article the real content starts at the "Title:" line, so cut
+    // anything before it; for other written content, drop a leading self-narration
+    // paragraph. Never eat real body copy: if there's no clean cut, keep it as-is.
+    if (task.kind === "seo_blog") {
+      const m = output.match(/^[ \t]*(?:#+[ \t]*)?title[ \t]*:/im);
+      if (m && (m.index ?? 0) > 0) output = output.slice(m.index).trimStart();
+    }
+    if (task.kind === "seo_blog" || task.kind === "content") {
+      const narration =
+        /^\s*(okay|alright|sure|got it|understood|here('?s| is)\b|let me\b|i'?ll\b|i will\b|i have\b|i've\b|the intent\b|to answer\b|based on\b)/i;
+      const lines = output.split("\n");
+      let i = 0;
+      while (i < lines.length && (lines[i].trim() === "" || narration.test(lines[i]))) i++;
+      if (i > 0 && i < lines.length) output = lines.slice(i).join("\n").trimStart();
+    }
 
     // If the agent tried to publish/send and the action never went through, this
     // run failed no matter how gracefully it wrapped up: surface that so it shows

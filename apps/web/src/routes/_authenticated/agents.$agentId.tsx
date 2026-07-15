@@ -273,7 +273,12 @@ function AgentDetailPage() {
 
           <InstructionCard agent={agent} />
 
-          <RunHistoryCard runs={runs} defaultCollapsed={hasPanel} title={agent.title} />
+          <RunHistoryCard
+            runs={runs}
+            defaultCollapsed={hasPanel}
+            expandLatest={!hasPanel}
+            title={agent.title}
+          />
         </div>
 
         {/* right: config */}
@@ -379,10 +384,13 @@ function InstructionCard({ agent }: { agent: Task }) {
 function RunHistoryCard({
   runs,
   defaultCollapsed,
+  expandLatest,
   title,
 }: {
   runs: TaskRun[] | undefined;
   defaultCollapsed: boolean;
+  // For content/SEO agents the newest run IS the deliverable, so show it open.
+  expandLatest?: boolean;
   title: string;
 }) {
   const [open, setOpen] = useState(!defaultCollapsed);
@@ -413,7 +421,9 @@ function RunHistoryCard({
           {!runs || runs.length === 0 ? (
             <p className="text-muted-foreground text-sm">No runs yet. Hit “Run now” to try it.</p>
           ) : (
-            runs.map((r) => <RunRow key={r.id} run={r} defaultOpen={false} title={title} />)
+            runs.map((r, i) => (
+              <RunRow key={r.id} run={r} defaultOpen={!!expandLatest && i === 0} title={title} />
+            ))
           )}
         </CardContent>
       )}
