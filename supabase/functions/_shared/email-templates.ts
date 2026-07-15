@@ -82,6 +82,62 @@ Resume your plan: ${url}`;
   return { subject, html, text };
 }
 
+/**
+ * The daily agent-activity digest. Tells the user what their agents did in the
+ * last day and pulls them back in to act on drafted replies (or switch to auto),
+ * which is where most of the value actually gets delivered. Non-essential, so it
+ * carries an unsubscribe link.
+ */
+export function dailyDigestEmail(opts: {
+  fullName?: string | null;
+  newLeads: number;
+  pending: number;
+  posted: number;
+  unsubscribeUrl: string;
+}): RenderedEmail {
+  const url = `${appUrl()}/dashboard`;
+  const hi = firstName(opts.fullName);
+  const { newLeads, pending, posted } = opts;
+  const b = (n: number) => `<strong style="color:#101828;">${n}</strong>`;
+
+  const found: string[] = [];
+  if (newLeads > 0) found.push(`${b(newLeads)} new lead${newLeads === 1 ? "" : "s"} found`);
+  if (posted > 0) found.push(`${b(posted)} repl${posted === 1 ? "y" : "ies"} posted for you`);
+
+  let body = p(`Hi ${hi}, here is what your Sentrive agents did in the last day.`);
+  if (found.length) body += p(`${found.join(", ")}.`);
+  if (pending > 0) {
+    body += p(
+      `${b(pending)} drafted repl${pending === 1 ? "y is" : "ies are"} waiting for you to review and post.`,
+    );
+    body += p(
+      `Tired of approving each one? Switch an agent to auto and Sentrive posts them for you, spaced out safely.`,
+    );
+  }
+
+  const subject =
+    posted > 0
+      ? `Sentrive posted ${posted} repl${posted === 1 ? "y" : "ies"} for you`
+      : pending > 0
+        ? `${pending} repl${pending === 1 ? "y" : "ies"} ready for you to post`
+        : `${newLeads} new lead${newLeads === 1 ? "" : "s"} from your agents`;
+
+  const html = layout(body, {
+    heading: "Your daily Sentrive update",
+    preview: subject,
+    cta: { label: pending > 0 ? "Review and post" : "See your results", url },
+    unsubscribeUrl: opts.unsubscribeUrl,
+  });
+
+  const text = `Hi ${hi}, here is what your Sentrive agents did in the last day.
+${newLeads > 0 ? `\n- ${newLeads} new leads found` : ""}${posted > 0 ? `\n- ${posted} replies posted for you` : ""}${pending > 0 ? `\n- ${pending} drafted replies waiting for you to review and post` : ""}
+
+${pending > 0 ? "Review and post: " : "See your results: "}${url}
+
+Unsubscribe: ${opts.unsubscribeUrl}`;
+  return { subject, html, text };
+}
+
 /** A week or so after a plan lapsed. Warm, low-pressure, door held open. */
 export function winBackEmail(opts: {
   fullName?: string | null;

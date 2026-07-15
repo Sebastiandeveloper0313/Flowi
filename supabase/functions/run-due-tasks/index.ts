@@ -5,7 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { Cron } from "npm:croner@9";
 
 import { dripAutoPosts } from "../_shared/auto-post.ts";
-import { sweepLifecycleEmails } from "../_shared/lifecycle-emails.ts";
+import { sweepDailyDigest, sweepLifecycleEmails } from "../_shared/lifecycle-emails.ts";
 import { dripQueuedPosts } from "../_shared/reddit-post.ts";
 import { runTaskOnce, type TaskRow } from "../_shared/runner.ts";
 
@@ -135,6 +135,14 @@ Deno.serve(async (req: Request) => {
     emails = await sweepLifecycleEmails(admin).catch(() => ({ onboarding: 0, winback: 0 }));
   }
 
+  // Daily agent-activity digest: once a day at 14:00 UTC (mid-morning US, early
+  // afternoon EU). Deduped per user per day, so the exact minute only needs to be
+  // hit once. This is how results reach users who don't log in to the dashboard.
+  let digest: { digests: number } | undefined;
+  if (now.getUTCHours() === 14 && now.getUTCMinutes() === 0) {
+    digest = await sweepDailyDigest(admin).catch(() => ({ digests: 0 }));
+  }
+
   return json({
     checked: tasks?.length ?? 0,
     ran,
@@ -144,6 +152,7 @@ Deno.serve(async (req: Request) => {
     drip,
     postDrip,
     emails,
+    digest,
     at: nowIso,
   });
 });

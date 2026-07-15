@@ -8,7 +8,12 @@
 // releases the claim so it retries later.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
-import { cancelConfirmEmail, finishOnboardingEmail, winBackEmail } from "./email-templates.ts";
+import {
+  cancelConfirmEmail,
+  dailyDigestEmail,
+  finishOnboardingEmail,
+  winBackEmail,
+} from "./email-templates.ts";
 import { sendEmail } from "./email.ts";
 
 function unsubscribeUrl(token: string): string {
@@ -123,6 +128,52 @@ export async function sweepLifecycleEmails(
   }
 
   return { onboarding, winback };
+}
+
+interface DigestRow {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  new_leads: number;
+  pending: number;
+  posted: number;
+}
+
+/**
+ * Send the daily agent-activity digest, once per user per day. Driven by the
+ * email_digest_candidates RPC (only entitled users with fresh activity). This is
+ * how results actually reach users: most agents deliver to the dashboard only,
+ * and users rarely log in, so their drafted replies never get posted. The digest
+ * pulls them back to act, or to switch to auto. Run once a day by the scheduler.
+ */
+export async function sweepDailyDigest(admin: SupabaseClient): Promise<{ digests: number }> {
+  let digests = 0;
+  const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, one digest per user per day
+  const { data } = await admin.rpc("email_digest_candidates");
+  for (const c of (data ?? []) as DigestRow[]) {
+    const token = await optoutToken(admin, c.user_id);
+    if (!token) continue;
+    const sent = await claimAndSend(
+      admin,
+      {
+        userId: c.user_id,
+        teamId: null,
+        kind: "digest",
+        dedupeKey: `${c.user_id}:${day}`,
+        to: c.email,
+      },
+      () =>
+        dailyDigestEmail({
+          fullName: c.full_name,
+          newLeads: Number(c.new_leads),
+          pending: Number(c.pending),
+          posted: Number(c.posted),
+          unsubscribeUrl: unsubscribeUrl(token),
+        }),
+    );
+    if (sent) digests++;
+  }
+  return { digests };
 }
 
 /** Resolve a team's owner into an email + display name. */
