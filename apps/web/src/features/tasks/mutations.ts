@@ -126,7 +126,11 @@ export async function updateAgentFields(agentId: string, changes: AgentUpdateCha
   if (changes.title !== undefined) patch.title = changes.title.slice(0, 200);
   if (changes.instructions !== undefined) patch.instructions = changes.instructions;
   if (changes.channel !== undefined) patch.channel = changes.channel;
-  if (changes.schedule_cron !== undefined) patch.schedule_cron = changes.schedule_cron;
+  if (changes.schedule_cron !== undefined) {
+    patch.schedule_cron = changes.schedule_cron;
+    // Re-arm on the new schedule; the scheduler recomputes next_run_at from null.
+    patch.next_run_at = null;
+  }
 
   if (changes.keywords !== undefined || changes.subreddits !== undefined) {
     const { data: current } = await supabase
@@ -213,8 +217,12 @@ export async function bulkDeleteTasks(ids: string[]) {
 /** Change an agent's schedule (5-field cron, or null for run-once). */
 export async function updateTaskSchedule(id: string, scheduleCron: string | null) {
   const { error } = await supabase
+    // Clear next_run_at so the scheduler re-arms it from the new cron on its next
+    // tick. Without this the old next-run time sticks and the new schedule does
+    // not take effect until it passes (e.g. switching to hourly but not running
+    // until the old weekly slot).
     .from("tasks")
-    .update({ schedule_cron: scheduleCron })
+    .update({ schedule_cron: scheduleCron, next_run_at: null })
     .eq("id", id);
   if (error) throw error;
 }
