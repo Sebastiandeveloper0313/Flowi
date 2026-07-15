@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, Copy, Loader2, MessageSquare } from "lucide-react";
+import { Check, Copy, Download, Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 
 import { chatKeys, createChat, saveMessage } from "@/features/chat/hooks";
@@ -42,6 +42,26 @@ export function RunResultActions({ output, title }: { output: string; title: str
     }
   }
 
+  /** Save the deliverable as a Markdown file, so an article or write-up can be
+   *  taken straight to a blog/CMS or edited, instead of only living in-app. */
+  function downloadOutput() {
+    const name =
+      title
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60)
+        .toLowerCase() || "sentrive-result";
+    const blob = new Blob([output], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="mt-3 flex items-center gap-4 border-t pt-3">
       <button
@@ -51,6 +71,14 @@ export function RunResultActions({ output, title }: { output: string; title: str
       >
         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
         {copied ? "Copied" : "Copy"}
+      </button>
+      <button
+        type="button"
+        onClick={downloadOutput}
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs font-medium"
+      >
+        <Download className="size-3.5" />
+        Download
       </button>
       <button
         type="button"
