@@ -3,7 +3,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Chat } from "@/features/chat/Chat";
 import { TeamCards } from "@/features/employees/TeamCards";
 import { useTasks } from "@/features/tasks/hooks";
-import { SuggestedAgents } from "@/features/tasks/SuggestedAgents";
 import { WelcomeTour } from "@/features/tasks/WelcomeTour";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -30,7 +29,6 @@ function ChatPage() {
       {!inConversation && (
         <section className="mx-auto w-full max-w-5xl pb-20">
           <WelcomeTour />
-          <SuggestedAgents />
           <TeamSection />
         </section>
       )}
