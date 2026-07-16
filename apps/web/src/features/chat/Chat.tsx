@@ -866,7 +866,7 @@ export function Chat({
     <div className={embedded ? "flex h-full flex-col" : "flex h-screen flex-col"}>
       <div
         ref={scrollRef}
-        className={`flex-1 overflow-y-auto px-2 pb-6 ${embedded ? "pt-4" : "pt-16"}`}
+        className={`flex-1 overflow-y-auto px-2 ${embedded ? "pt-4 pb-2" : "pt-16 pb-6"}`}
       >
         {/* Embedded: bottom-anchor short conversations next to the composer,
             like any messenger; long ones scroll exactly as before. */}

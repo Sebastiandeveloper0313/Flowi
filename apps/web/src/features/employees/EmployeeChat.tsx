@@ -34,7 +34,7 @@ export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
   }, [isLoading, existing, teamId, title, queryClient]);
 
   return (
-    <div className="h-[calc(100vh-320px)] min-h-[480px]">
+    <div className="h-[calc(100vh-250px)] min-h-[520px]">
       {existing ? (
         <Chat
           chatId={existing.id}
