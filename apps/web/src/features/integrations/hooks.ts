@@ -60,3 +60,31 @@ export function useConnectIntegration() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: integrationKeys.all }),
   });
 }
+
+/**
+ * Connect a WordPress site with an Application Password. The server verifies the
+ * credentials against the site's REST API before storing them (password in Vault).
+ */
+export function useConnectWordpress() {
+  const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
+  return useMutation({
+    mutationFn: (input: { site_url: string; username: string; app_password: string }) =>
+      invoke<{ ok: true; site: string; connected_as: string }>({
+        action: "wordpress_connect",
+        team_id: teamId,
+        ...input,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: integrationKeys.all }),
+  });
+}
+
+/** Remove the workspace's WordPress connection (and its stored credential). */
+export function useDisconnectWordpress() {
+  const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
+  return useMutation({
+    mutationFn: () => invoke<{ ok: true }>({ action: "wordpress_disconnect", team_id: teamId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: integrationKeys.all }),
+  });
+}

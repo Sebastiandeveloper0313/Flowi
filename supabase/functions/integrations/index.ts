@@ -43,10 +43,14 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { action, toolkit, team_id } = await req.json().catch(() => ({}));
+    const { action, toolkit, team_id, site_url, username, app_password } = await req
+      .json()
+      .catch(() => ({}));
 
     const teamId = await resolveTeamId(userClient, team_id);
     if (!teamId) return json({ error: "no team for user" }, 403);
+
+    const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // List the toolkits we support and the team's current connection status for each.
     if (action === "list") {
@@ -65,7 +69,6 @@ Deno.serve(async (req: Request) => {
 
       // Slack isn't a Composio toolkit: it counts as connected when this team
       // has completed an "Add to Slack" install.
-      const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const { count } = await admin
         .from("slack_workspaces")
         .select("id", { count: "exact", head: true })
@@ -76,7 +79,86 @@ Deno.serve(async (req: Request) => {
         status: (count ?? 0) > 0 ? "ACTIVE" : "not_connected",
       });
 
+      // WordPress isn't Composio either: connected when the team has stored
+      // site credentials (the secret itself lives in Vault).
+      const { data: wp } = await admin
+        .from("connections")
+        .select("label")
+        .eq("team_id", teamId)
+        .eq("provider", "wordpress")
+        .maybeSingle();
+      toolkits.push({
+        slug: "wordpress",
+        connected: !!wp,
+        status: wp ? "ACTIVE" : "not_connected",
+        site: wp?.label ?? null,
+      });
+
       return json({ toolkits });
+    }
+
+    // Connect a WordPress site with an Application Password (WP 5.6+, built in:
+    // WP Admin -> Users -> Profile -> Application Passwords). We verify the
+    // credentials against the site's own REST API before storing anything, and
+    // the password goes straight into Vault via a service-role-only function.
+    if (action === "wordpress_connect") {
+      const site = String(site_url ?? "")
+        .trim()
+        .replace(/\/+$/, "");
+      const wpUser = String(username ?? "").trim();
+      const wpPass = String(app_password ?? "").trim();
+      if (!/^https:\/\/[^\s]+\.[^\s]+/.test(site) || !wpUser || !wpPass) {
+        return json(
+          { error: "A site URL (https://...), username, and application password are required." },
+          400,
+        );
+      }
+      const auth = `Basic ${btoa(`${wpUser}:${wpPass}`)}`;
+      let me: { id?: number; name?: string } = {};
+      try {
+        const res = await fetch(`${site}/wp-json/wp/v2/users/me`, {
+          headers: { Authorization: auth },
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) {
+          const why =
+            res.status === 401 || res.status === 403
+              ? "The username or application password was rejected."
+              : `The site's REST API answered ${res.status}.`;
+          return json({ error: `Couldn't connect to ${site}: ${why}` }, 400);
+        }
+        me = await res.json().catch(() => ({}));
+        if (!me?.id) {
+          return json(
+            {
+              error: `${site} doesn't look like a WordPress site with the REST API enabled (no /wp-json/wp/v2).`,
+            },
+            400,
+          );
+        }
+      } catch {
+        return json(
+          { error: `Couldn't reach ${site}. Check the URL is right and publicly accessible.` },
+          400,
+        );
+      }
+      const { error: storeErr } = await admin.rpc("wordpress_store_connection", {
+        p_team_id: teamId,
+        p_site_url: site,
+        p_username: wpUser,
+        p_app_password: wpPass,
+      });
+      if (storeErr)
+        return json({ error: `Could not save the connection: ${storeErr.message}` }, 500);
+      return json({ ok: true, site, connected_as: me.name ?? wpUser });
+    }
+
+    if (action === "wordpress_disconnect") {
+      const { error: delErr } = await admin.rpc("wordpress_delete_connection", {
+        p_team_id: teamId,
+      });
+      if (delErr) return json({ error: delErr.message }, 500);
+      return json({ ok: true });
     }
 
     // Start a connection: return the hosted-auth URL for the user to authorize.
