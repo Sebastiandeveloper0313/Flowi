@@ -9,6 +9,7 @@ import {
   Activity,
   Bot,
   CheckCheck,
+  House,
   LayoutGrid,
   MessageSquarePlus,
   MoreHorizontal,
@@ -31,6 +32,7 @@ import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 import { SentriveLogo } from "./brand";
 
 const NAV = [
+  { to: "/home", label: "Home", icon: House },
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
   { to: "/agents", label: "Agents", icon: Bot },
   { to: "/library", label: "Library", icon: LayoutGrid },
