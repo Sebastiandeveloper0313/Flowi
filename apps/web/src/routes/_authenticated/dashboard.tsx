@@ -47,7 +47,7 @@ function TeamSection() {
   const hasStaff = (tasks ?? []).length > 0;
 
   return (
-    <section>
+    <section id="your-team">
       <header className="mb-5 flex items-end justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Your team</h2>
