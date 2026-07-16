@@ -1,12 +1,19 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
+import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
+import { Input } from "@workspace/ui/components/input";
 import { AlertTriangle, Check, ExternalLink, Loader2, PartyPopper, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { env } from "@/env";
 import { PageHeader } from "@/features/dashboard/ui";
-import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
+import {
+  useConnectIntegration,
+  useConnectWordpress,
+  useDisconnectWordpress,
+  useIntegrations,
+} from "@/features/integrations/hooks";
 import { useMyTeam } from "@/features/tasks/hooks";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
@@ -45,6 +52,12 @@ const APPS: AppMeta[] = [
     slug: "slack",
     name: "Slack",
     description: "Chat with Sentrive right in your Slack workspace.",
+    available: true,
+  },
+  {
+    slug: "wordpress",
+    name: "WordPress",
+    description: "Your SEO agent publishes its articles straight to your blog.",
     available: true,
   },
   {
@@ -133,6 +146,7 @@ function SlackResultBanner() {
 
 function IntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [wpOpen, setWpOpen] = useState(false);
   const { data: toolkits } = useIntegrations(connecting !== null);
   const { data: teamId } = useMyTeam();
   const connect = useConnectIntegration();
@@ -153,6 +167,11 @@ function IntegrationsPage() {
   }, [connecting]);
 
   async function onConnect(slug: string) {
+    // WordPress connects with site credentials (Application Password), not OAuth.
+    if (slug === "wordpress") {
+      setWpOpen(true);
+      return;
+    }
     // Slack is not a Composio toolkit: "Add to Slack" runs our own OAuth install.
     // The team id rides along as OAuth state so the install is credited to this
     // workspace (that's what flips the card to Connected).
@@ -257,6 +276,143 @@ function IntegrationsPage() {
         Connecting opens a secure authorization window. After you approve access, this page updates
         automatically. Agents only ever use your team's own connected accounts.
       </p>
+
+      <WordpressDialog
+        open={wpOpen}
+        onOpenChange={setWpOpen}
+        connected={!!statusOf("wordpress")?.connected}
+      />
     </div>
+  );
+}
+
+/**
+ * Connect a WordPress site with an Application Password (built into WordPress
+ * 5.6+). The server verifies the credentials against the site before saving,
+ * and the password is stored encrypted, never shown again.
+ */
+function WordpressDialog({
+  open,
+  onOpenChange,
+  connected,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  connected: boolean;
+}) {
+  const [siteUrl, setSiteUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const connect = useConnectWordpress();
+  const disconnect = useDisconnectWordpress();
+
+  function close() {
+    onOpenChange(false);
+    setTimeout(() => {
+      connect.reset();
+      disconnect.reset();
+      setAppPassword("");
+    }, 300);
+  }
+
+  function onSubmit() {
+    connect.mutate(
+      { site_url: siteUrl.trim(), username: username.trim(), app_password: appPassword.trim() },
+      { onSuccess: () => close() },
+    );
+  }
+
+  const busy = connect.isPending || disconnect.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !busy && (next ? onOpenChange(true) : close())}>
+      <DialogContent className="sm:max-w-md">
+        <DialogTitle className="text-lg font-bold tracking-tight">
+          Connect your WordPress
+        </DialogTitle>
+        <p className="text-muted-foreground -mt-2 text-sm">
+          Your SEO agent will save its articles straight into your blog: as drafts for you to
+          review, or published automatically when the agent is on auto.
+        </p>
+        <div className="space-y-3">
+          <div className="grid gap-1.5">
+            <label htmlFor="wp-url" className="text-sm font-medium">
+              Site URL
+            </label>
+            <Input
+              id="wp-url"
+              type="url"
+              value={siteUrl}
+              onChange={(e) => setSiteUrl(e.target.value)}
+              placeholder="https://yourblog.com"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="wp-user" className="text-sm font-medium">
+              WordPress username
+            </label>
+            <Input
+              id="wp-user"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="wp-pass" className="text-sm font-medium">
+              Application password
+            </label>
+            <Input
+              id="wp-pass"
+              type="password"
+              value={appPassword}
+              onChange={(e) => setAppPassword(e.target.value)}
+              placeholder="xxxx xxxx xxxx xxxx"
+            />
+            <p className="text-muted-foreground text-xs">
+              Create one in your WordPress admin under Users, then Profile, then Application
+              Passwords. It only grants what your user can do, and you can revoke it there anytime.
+            </p>
+          </div>
+          {connect.isError && (
+            <p className="text-destructive text-sm">
+              {(connect.error as Error)?.message || "Couldn't connect. Check the details."}
+            </p>
+          )}
+          {disconnect.isError && (
+            <p className="text-destructive text-sm">
+              {(disconnect.error as Error)?.message || "Couldn't disconnect. Try again."}
+            </p>
+          )}
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {connected ? (
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={busy}
+              onClick={() => disconnect.mutate(undefined, { onSuccess: () => close() })}
+            >
+              {disconnect.isPending && <Loader2 className="size-4 animate-spin" />}
+              Disconnect
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" disabled={busy} onClick={close}>
+              Cancel
+            </Button>
+            <Button
+              disabled={busy || !siteUrl.trim() || !username.trim() || !appPassword.trim()}
+              onClick={onSubmit}
+            >
+              {connect.isPending && <Loader2 className="size-4 animate-spin" />}
+              {connected ? "Update connection" : "Connect"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

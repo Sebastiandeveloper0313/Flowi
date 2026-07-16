@@ -1,6 +1,7 @@
 // Shared task-execution logic used by both the on-demand runner (run-task)
 // and the scheduler (run-due-tasks), so the two paths can never drift.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { marked } from "npm:marked@12";
 
 import { queueApproval } from "./approvals.ts";
 import {
@@ -22,6 +23,38 @@ import {
 import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 import { createSlideshow, parseSlideshow } from "./slideshow.ts";
+
+/**
+ * Split an SEO article ("Title: ..., Meta description: ..., body") into the
+ * pieces WordPress wants. Also drops a leading heading that just repeats the
+ * title, since WordPress renders the title itself.
+ */
+function parseSeoArticle(text: string): { title: string; meta: string; body: string } {
+  let title = "";
+  let meta = "";
+  let body = text;
+
+  const tm = body.match(/^[ \t]*(?:#+[ \t]*)?title[ \t]*:[ \t]*(.+)$/im);
+  if (tm && tm.index !== undefined) {
+    title = tm[1].replace(/\*\*/g, "").trim();
+    body = (body.slice(0, tm.index) + body.slice(tm.index + tm[0].length)).trim();
+  }
+  const mm = body.match(/^[ \t]*(?:#+[ \t]*)?meta description[ \t]*:[ \t]*(.+)$/im);
+  if (mm && mm.index !== undefined) {
+    meta = mm[1].replace(/\*\*/g, "").trim();
+    body = (body.slice(0, mm.index) + body.slice(mm.index + mm[0].length)).trim();
+  }
+  if (!title) {
+    const h = body.match(/^#{1,2}[ \t]*(.+)$/m);
+    title = (h ? h[1] : "New article").replace(/\*\*/g, "").trim();
+  }
+  // Drop a first line that is just the title again (as a heading or bold line).
+  const lines = body.split("\n");
+  const first = (lines[0] ?? "").replace(/[#*]/g, "").trim().toLowerCase();
+  if (first && first === title.toLowerCase()) body = lines.slice(1).join("\n").trim();
+
+  return { title: title.slice(0, 200), meta: meta.slice(0, 300), body };
+}
 
 export interface TaskRow {
   id: string;
@@ -517,6 +550,69 @@ export async function executeTask(
         output: `${notice}\n\nDraft:\n\n${post}`,
       };
     }
+    // An SEO article publishes to the user's own WordPress when they've
+    // connected one: ask mode lands it as a WP draft to review inside their own
+    // CMS, auto mode publishes it live. No connection: stays an in-app
+    // deliverable exactly as before. A WordPress hiccup must never lose the
+    // article, so failures fall back to delivering the text with an honest note.
+    if (task.kind === "seo_blog" && ctx?.client && output) {
+      try {
+        const { data: wpData } = await ctx.client.rpc("wordpress_connection", {
+          p_team_id: task.team_id,
+        });
+        const conn = (Array.isArray(wpData) ? wpData[0] : wpData) as {
+          site_url?: string;
+          username?: string;
+          app_password?: string;
+        } | null;
+        if (conn?.site_url && conn.username && conn.app_password) {
+          const art = parseSeoArticle(output);
+          const goLive = taskAutonomy(task, ws) === "auto";
+          const res = await fetch(`${conn.site_url}/wp-json/wp/v2/posts`, {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${btoa(`${conn.username}:${conn.app_password}`)}`,
+              "content-type": "application/json",
+            },
+            signal: AbortSignal.timeout(30_000),
+            body: JSON.stringify({
+              title: art.title,
+              content: await marked.parse(art.body),
+              excerpt: art.meta,
+              status: goLive ? "publish" : "draft",
+            }),
+          });
+          const post = (await res.json().catch(() => ({}))) as {
+            id?: number;
+            link?: string;
+            message?: string;
+          };
+          if (res.ok && post?.id) {
+            const link = goLive
+              ? (post.link ?? conn.site_url)
+              : `${conn.site_url}/wp-admin/post.php?post=${post.id}&action=edit`;
+            const note = goLive
+              ? `Published to your blog: ${link}`
+              : `Draft created in your WordPress. Review and publish it here: ${link}`;
+            return { summary: note, output: `${note}\n\n${output}` };
+          }
+          const why = post?.message ? String(post.message) : `WordPress answered ${res.status}`;
+          return {
+            summary: "Article ready, but saving it to WordPress failed",
+            output:
+              `Couldn't save this article to your WordPress (${why}). ` +
+              `You can paste it manually, or reconnect WordPress on the Integrations page.\n\n${output}`,
+          };
+        }
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        return {
+          summary: "Article ready, but saving it to WordPress failed",
+          output: `Couldn't reach your WordPress (${why}). The article is below.\n\n${output}`,
+        };
+      }
+    }
+
     // A reddit_post run produces a draft (title + body) for the user to review
     // and publish. We save it as a post_draft so it shows on the agent's Posts
     // tab with per-subreddit posting. In auto mode we also publish it now to the
