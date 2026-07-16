@@ -463,7 +463,7 @@ function UpdateCard({ update }: { update: AgentUpdate }) {
   );
 }
 
-export function Chat({ chatId }: { chatId?: string }) {
+export function Chat({ chatId, embedded }: { chatId?: string; embedded?: boolean }) {
   const chat = useChat();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -819,6 +819,19 @@ export function Chat({ chatId }: { chatId?: string }) {
   );
 
   if (empty) {
+    // Embedded (an employee's chat tab): a quiet intro, composer at the bottom,
+    // sized by the parent instead of the viewport.
+    if (embedded) {
+      return (
+        <div className="flex h-full flex-col justify-end px-1 pb-1">
+          <p className="text-muted-foreground mb-4 text-center text-sm">
+            Your direct line. Assign work, ask what got done, or change how things run.
+          </p>
+          {composer}
+          {lightbox}
+        </div>
+      );
+    }
     // Top-aligned (not vertically centered) so what's under the chat, waiting
     // approvals and the agents, peeks above the fold instead of hiding below
     // a full-viewport hero.
@@ -834,8 +847,11 @@ export function Chat({ chatId }: { chatId?: string }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 pt-16 pb-6">
+    <div className={embedded ? "flex h-full flex-col" : "flex h-screen flex-col"}>
+      <div
+        ref={scrollRef}
+        className={`flex-1 overflow-y-auto px-2 pb-6 ${embedded ? "pt-4" : "pt-16"}`}
+      >
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
           {messages.map((m, i) =>
             m.role === "user" ? (

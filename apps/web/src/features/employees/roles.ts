@@ -22,6 +22,8 @@ export interface EmployeeMeta {
   blurb: string;
   /** What hiring it actually sets up, shown on the hire card. */
   hirePitch: string;
+  /** Integrations this employee can work through, shown on their Settings tab. */
+  relevantToolkits: string[];
 }
 
 export const EMPLOYEES: EmployeeMeta[] = [
@@ -34,6 +36,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     blurb: "Finds leads, writes content, and posts for you.",
     hirePitch:
       "Watches Reddit for buyers, writes SEO articles for your blog, and drafts posts. She reads your website and proposes her own work plan.",
+    relevantToolkits: ["reddit", "linkedin", "facebook", "wordpress", "webhook"],
   },
   {
     role: "support",
@@ -44,6 +47,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     blurb: "Answers your inbox with on-brand replies.",
     hirePitch:
       "Reads incoming Gmail and drafts replies in your voice for you to approve, so no customer waits on you being busy.",
+    relevantToolkits: ["gmail", "slack"],
   },
 ];
 
