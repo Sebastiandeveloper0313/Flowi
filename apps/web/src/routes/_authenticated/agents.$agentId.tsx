@@ -111,6 +111,7 @@ function AgentDetailPage() {
   const isRedditPost = agent.kind === "reddit_post";
   const isSlideshow = agent.kind === "tiktok_slideshow";
   const isLinkedin = agent.kind === "linkedin_post";
+  const isSeo = agent.kind === "seo_blog";
   // Kinds whose real output is a dedicated panel (Leads/Posts/Slideshow/post), so
   // the run log is secondary and starts collapsed.
   const hasPanel = isReddit || isRedditPost || isSlideshow || isLinkedin;
@@ -209,6 +210,8 @@ function AgentDetailPage() {
           autoRunTaskId={runs && runs.length > 0 ? undefined : agent.id}
         />
       </div>
+
+      {isSeo && <WordpressNudge />}
 
       {run.isError && (
         <p className="text-destructive mb-4 text-sm">
@@ -928,6 +931,47 @@ function DeliveryEditor({ agent }: { agent: Task }) {
           so these emails can actually send.
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Soft nudge on SEO agents. WordPress is optional (articles land in the app
+ * either way), so this suggests instead of blocking like ConnectBanner does.
+ * Once connected it becomes a quiet one-liner so users know where articles go.
+ */
+function WordpressNudge() {
+  const { missing, loaded } = useMissingToolkits(["wordpress"]);
+  if (!loaded) return null;
+  if (missing.length === 0) {
+    return (
+      <p className="text-muted-foreground mb-4 text-xs">
+        WordPress connected: articles land on your blog as drafts to review, or go live when the
+        agent is on auto.
+      </p>
+    );
+  }
+  return (
+    <div className="bg-card mb-4 rounded-xl border p-3.5 shadow-xs">
+      <div className="flex flex-wrap items-center gap-3">
+        <img
+          src="https://logos.composio.dev/api/wordpress"
+          alt="WordPress"
+          className="ring-border size-9 shrink-0 rounded-lg bg-white object-contain p-1 ring-1"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">
+            Connect WordPress and these articles publish straight to your blog
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Right now articles only land here in the app. Connected, each one arrives on your site
+            as a draft to review, or goes live automatically when the agent is on auto.
+          </p>
+        </div>
+        <Button size="sm" asChild>
+          <Link to="/integrations">Connect</Link>
+        </Button>
+      </div>
     </div>
   );
 }
