@@ -117,12 +117,64 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-muted-foreground line-clamp-3 text-sm">{task.instructions}</p>
-
           <ConnectBanner
             toolkits={requiredToolkits(task)}
             autoRunTaskId={latestRun ? undefined : task.id}
           />
+
+          {/* No latest result yet: the instructions explain what it will do. Once
+              it has produced something, the result IS the card and the full
+              instructions live on the agent page. */}
+          {!latestRun && (
+            <p className="text-muted-foreground line-clamp-3 text-sm">{task.instructions}</p>
+          )}
+
+          {latestRun && (
+            <div className="bg-muted/50 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <span
+                    className={`size-2 rounded-full ${
+                      latestRun.status === "succeeded"
+                        ? "bg-green-500"
+                        : latestRun.status === "failed"
+                          ? "bg-destructive"
+                          : "bg-amber-500"
+                    }`}
+                  />
+                  Latest result
+                </span>
+                {latestRun.output && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setShowOutput((v) => !v)}
+                  >
+                    {showOutput ? (
+                      <ChevronUp className="size-3" />
+                    ) : (
+                      <ChevronDown className="size-3" />
+                    )}
+                    {showOutput ? "Hide" : "View"}
+                  </Button>
+                )}
+              </div>
+              <p className="text-muted-foreground mt-1.5 text-sm">{runSummaryLine(latestRun)}</p>
+              {latestRun.status === "succeeded" && (
+                <Button size="sm" asChild className="mt-2.5">
+                  <Link to="/agents/$agentId" params={{ agentId: task.id }}>
+                    {resultActionLabel(task.kind)} <ArrowUpRight className="size-3.5" />
+                  </Link>
+                </Button>
+              )}
+              {showOutput && latestRun.output && (
+                <div className="text-foreground/80 mt-2 max-h-60 overflow-auto border-t pt-2 text-sm">
+                  <ChatMarkdown>{latestRun.output}</ChatMarkdown>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="flex items-center gap-1.5">
@@ -174,53 +226,6 @@ function TaskCard({ task, latestRun }: { task: Task; latestRun?: TaskRun }) {
             <p className="text-destructive text-xs">
               {(run.error as Error).message || "Run failed."}
             </p>
-          )}
-
-          {latestRun && (
-            <div className="bg-muted/50 rounded-lg border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  <span
-                    className={`size-2 rounded-full ${
-                      latestRun.status === "succeeded"
-                        ? "bg-green-500"
-                        : latestRun.status === "failed"
-                          ? "bg-destructive"
-                          : "bg-amber-500"
-                    }`}
-                  />
-                  Latest result
-                </span>
-                {latestRun.output && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={() => setShowOutput((v) => !v)}
-                  >
-                    {showOutput ? (
-                      <ChevronUp className="size-3" />
-                    ) : (
-                      <ChevronDown className="size-3" />
-                    )}
-                    {showOutput ? "Hide" : "View"}
-                  </Button>
-                )}
-              </div>
-              <p className="text-muted-foreground mt-1.5 text-sm">{runSummaryLine(latestRun)}</p>
-              {latestRun.status === "succeeded" && (
-                <Button size="sm" asChild className="mt-2.5">
-                  <Link to="/agents/$agentId" params={{ agentId: task.id }}>
-                    {resultActionLabel(task.kind)} <ArrowUpRight className="size-3.5" />
-                  </Link>
-                </Button>
-              )}
-              {showOutput && latestRun.output && (
-                <div className="text-foreground/80 mt-2 max-h-60 overflow-auto border-t pt-2 text-sm">
-                  <ChatMarkdown>{latestRun.output}</ChatMarkdown>
-                </div>
-              )}
-            </div>
           )}
         </CardContent>
       </Card>

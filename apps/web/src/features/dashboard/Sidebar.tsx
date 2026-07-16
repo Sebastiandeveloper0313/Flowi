@@ -6,10 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
-  Activity,
-  Bot,
   CheckCheck,
-  LayoutGrid,
   MessageSquarePlus,
   MoreHorizontal,
   PanelLeftClose,
@@ -30,11 +27,11 @@ import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
+// Four doors. Agents/Library/Activity still exist as routes (agent settings,
+// history, deep links) but the main page now carries their daily jobs: the
+// agents grid, waiting approvals, and latest results all live there.
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
-  { to: "/agents", label: "Agents", icon: Bot },
-  { to: "/library", label: "Library", icon: LayoutGrid },
-  { to: "/activity", label: "Activity", icon: Activity },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },

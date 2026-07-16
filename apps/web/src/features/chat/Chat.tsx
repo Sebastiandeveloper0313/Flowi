@@ -33,6 +33,7 @@ import { createPortal } from "react-dom";
 
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
+import { MorningBrief } from "@/features/dashboard/MorningBrief";
 import {
   CHANNELS,
   channelLabel,
@@ -818,12 +819,13 @@ export function Chat({ chatId }: { chatId?: string }) {
   );
 
   if (empty) {
+    // Top-aligned (not vertically centered) so what's under the chat, waiting
+    // approvals and the agents, peeks above the fold instead of hiding below
+    // a full-viewport hero.
     return (
-      <div className="flex min-h-[82vh] flex-col items-center justify-center px-2">
+      <div className="flex flex-col items-center px-2 pt-20 pb-12 sm:pt-24">
         <div className="w-full max-w-2xl">
-          <h2 className="mb-8 text-center text-3xl font-bold tracking-tight sm:text-4xl">
-            What should Sentrive take care of?
-          </h2>
+          <MorningBrief />
           {composer}
         </div>
         {lightbox}

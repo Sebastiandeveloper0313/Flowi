@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { WaitingStrip } from "@/features/approvals/WaitingStrip";
 import { Chat } from "@/features/chat/Chat";
 import { AgentsGrid } from "@/features/tasks/AgentsGrid";
 import { SuggestedAgents } from "@/features/tasks/SuggestedAgents";
@@ -29,6 +30,7 @@ function ChatPage() {
       {!inConversation && (
         <section className="mx-auto w-full max-w-5xl pb-20">
           <WelcomeTour />
+          <WaitingStrip />
           <SuggestedAgents />
           <AgentsGrid />
         </section>
