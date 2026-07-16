@@ -15,6 +15,7 @@ import {
   Plug,
   Settings,
   Trash2,
+  Users,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -27,11 +28,12 @@ import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
-// Four doors. Agents/Library/Activity still exist as routes (agent settings,
-// history, deep links) but the main page now carries their daily jobs: the
-// agents grid, waiting approvals, and latest results all live there.
+// Five doors. Agents/Library/Activity still exist as routes (agent settings,
+// history, deep links) but daily life happens in Chat, Team, and Approvals:
+// agents live inside their employee's page on Team.
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
+  { to: "/team", label: "Team", icon: Users },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },

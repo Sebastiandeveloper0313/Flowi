@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { WaitingStrip } from "@/features/approvals/WaitingStrip";
 import { Chat } from "@/features/chat/Chat";
-import { AgentsGrid } from "@/features/tasks/AgentsGrid";
+import { TeamCards } from "@/features/employees/TeamCards";
+import { useTasks } from "@/features/tasks/hooks";
 import { SuggestedAgents } from "@/features/tasks/SuggestedAgents";
 import { WelcomeTour } from "@/features/tasks/WelcomeTour";
 
@@ -30,11 +30,31 @@ function ChatPage() {
       {!inConversation && (
         <section className="mx-auto w-full max-w-5xl pb-20">
           <WelcomeTour />
-          <WaitingStrip />
           <SuggestedAgents />
-          <AgentsGrid />
+          <TeamSection />
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * The team, under the chat: who's working for you right now. Hidden entirely
+ * until someone is hired (the plan proposal above handles the first run).
+ */
+function TeamSection() {
+  const { data: tasks } = useTasks();
+  if (!tasks || tasks.length === 0) return null;
+
+  return (
+    <section>
+      <header className="mb-5 flex items-end justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">Your team</h2>
+        <Link to="/team" className="text-primary text-sm font-medium hover:underline">
+          See all
+        </Link>
+      </header>
+      <TeamCards hideUnhired />
+    </section>
   );
 }
