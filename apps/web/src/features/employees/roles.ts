@@ -7,7 +7,7 @@ import { AGENT_TEMPLATES, type AgentTemplate } from "@/features/tasks/templates"
  * Marketing employee, inbox-answering kinds under Customer Support. Unknown
  * kinds default to Marketing so nothing ever falls off the team page.
  */
-export type EmployeeRole = "marketing" | "support";
+export type EmployeeRole = "marketing" | "support" | "sales";
 
 export interface EmployeeMeta {
   role: EmployeeRole;
@@ -25,6 +25,10 @@ export interface EmployeeMeta {
   hirePitch: string;
   /** Integrations this employee can work through, shown on their Settings tab. */
   relevantToolkits: string[];
+  /** One line selling that this hire arrives pre-briefed, shown on candidate cards. */
+  trainedLine: string;
+  /** On the roster but not hireable yet; sells the roadmap honestly. */
+  comingSoon?: boolean;
 }
 
 export const EMPLOYEES: EmployeeMeta[] = [
@@ -38,6 +42,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     hirePitch:
       "Watches Reddit for buyers, writes SEO articles for your blog, and drafts posts. She reads your website and proposes her own work plan.",
     relevantToolkits: ["reddit", "linkedin", "facebook", "wordpress", "webhook"],
+    trainedLine: "Pre-trained on your website: her work plan is already drafted.",
   },
   {
     role: "support",
@@ -49,6 +54,20 @@ export const EMPLOYEES: EmployeeMeta[] = [
     hirePitch:
       "Reads incoming Gmail and drafts replies in your voice for you to approve, so no customer waits on you being busy.",
     relevantToolkits: ["gmail", "slack"],
+    trainedLine: "Pre-trained on your website: he answers in your product's voice.",
+  },
+  {
+    role: "sales",
+    name: "Riley",
+    emoji: "📞",
+    tint: "bg-violet-50 text-violet-600",
+    title: "Sales",
+    blurb: "Finds prospects and drafts your outreach.",
+    hirePitch:
+      "Researches companies that match your ideal customer and drafts personalized outreach for your approval.",
+    relevantToolkits: ["gmail", "linkedin"],
+    trainedLine: "In training. Joins the roster soon.",
+    comingSoon: true,
   },
 ];
 

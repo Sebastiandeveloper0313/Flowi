@@ -39,22 +39,31 @@ function ChatPage() {
 }
 
 /**
- * The team, under the chat: who's working for you right now. Hidden entirely
- * until someone is hired (the plan proposal above handles the first run).
+ * The team, under the chat: everyone working for you, everyone you can hire,
+ * and who's joining the roster next. Always visible so the product reads as a
+ * team you're building, never a single lonely agent.
  */
 function TeamSection() {
-  const { data: tasks } = useTasks();
-  if (!tasks || tasks.length === 0) return null;
+  const { data: tasks, isLoading } = useTasks();
+  if (isLoading) return null;
+  const hasStaff = (tasks ?? []).length > 0;
 
   return (
     <section>
       <header className="mb-5 flex items-end justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Your team</h2>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Your team</h2>
+          {!hasStaff && (
+            <p className="text-muted-foreground mt-1 text-sm">
+              Pre-briefed on your business. Hire one and it starts today.
+            </p>
+          )}
+        </div>
         <Link to="/team" className="text-primary text-sm font-medium hover:underline">
           See all
         </Link>
       </header>
-      <TeamCards hideUnhired />
+      <TeamCards />
     </section>
   );
 }
