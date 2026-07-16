@@ -100,7 +100,9 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
         </p>
       </div>
       {hire.isError && (
-        <p className="text-destructive mt-3 text-sm">Couldn't start everything. Try again.</p>
+        <p className="text-destructive mt-3 text-sm">
+          Couldn't start everything: {(hire.error as Error)?.message || "unknown error"}. Try again.
+        </p>
       )}
     </div>
   );

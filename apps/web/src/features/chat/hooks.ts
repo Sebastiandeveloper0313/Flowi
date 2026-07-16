@@ -137,8 +137,25 @@ export async function sendChat(
 
   // Non-streaming path (validation errors, or the "no AI key" fallback).
   if (!res.headers.get("content-type")?.includes("text/event-stream") || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as Partial<ChatResponse> & { error?: string };
-    if (!res.ok || data.error) throw new Error(data.error ?? `Chat failed (${res.status})`);
+    const raw = await res.text().catch(() => "");
+    const data = (() => {
+      try {
+        return JSON.parse(raw) as Partial<ChatResponse> & { error?: string };
+      } catch {
+        return {} as Partial<ChatResponse> & { error?: string };
+      }
+    })();
+    if (!res.ok || data.error) {
+      // 5xx here is the platform (function crashed, worker limits, upstream AI
+      // outage), not the user's message. Say so honestly, and keep the raw body
+      // in the error so a screenshot tells us exactly what happened.
+      const detail = data.error ?? (raw ? raw.slice(0, 160) : "");
+      throw new Error(
+        res.status >= 500
+          ? `Sentrive had a hiccup (${res.status}${detail ? `: ${detail}` : ""}). Your message wasn't lost, try sending it again.`
+          : (data.error ?? `Chat failed (${res.status}${detail ? `: ${detail}` : ""})`),
+      );
+    }
     return {
       reply: data.reply ?? "Done.",
       created: data.created ?? [],
