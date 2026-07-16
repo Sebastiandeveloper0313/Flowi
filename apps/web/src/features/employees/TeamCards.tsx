@@ -32,7 +32,7 @@ export function TeamCards() {
   });
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map(({ meta, mine }) => (
         <EmployeeCard key={meta.role} meta={meta} mine={mine} />
       ))}

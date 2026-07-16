@@ -8,11 +8,15 @@ import { useState } from "react";
 import { useApprovals } from "@/features/approvals/hooks";
 import { EmployeeChat } from "@/features/employees/EmployeeChat";
 import { EmployeeSettings } from "@/features/employees/EmployeeSettings";
-import { HirePlan } from "@/features/employees/HirePlan";
 import { employeeStatsQueryOptions } from "@/features/employees/queries";
-import { employeeMeta, tasksOfRole, type EmployeeRole } from "@/features/employees/roles";
+import { RoleHire } from "@/features/employees/RoleHire";
+import {
+  employeeMeta,
+  HIREABLE_ROLES,
+  tasksOfRole,
+  type EmployeeRole,
+} from "@/features/employees/roles";
 import { SkillLibraryDialog } from "@/features/employees/SkillLibrary";
-import { SupportHire } from "@/features/employees/SupportHire";
 import { DutyRow, FeedRow, StatChip } from "@/features/employees/ui";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
@@ -23,7 +27,7 @@ import { useActiveTeamId } from "@/features/workspace/active";
 export const Route = createFileRoute("/_authenticated/team/$role")({
   params: {
     parse: (p) => {
-      if (p.role !== "marketing" && p.role !== "support") throw notFound();
+      if (!HIREABLE_ROLES.includes(p.role as EmployeeRole)) throw notFound();
       return { role: p.role as EmployeeRole };
     },
   },
@@ -105,7 +109,7 @@ function EmployeePage() {
         </div>
         {hired && (
           <div className="flex gap-2">
-            {role === "marketing" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
+            {role === "growth" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
             <StatChip label="Done · 24h" value={loading ? undefined : finished24h} />
             {waiting > 0 && (
               <Link to="/approvals" className="block">
@@ -121,11 +125,7 @@ function EmployeePage() {
           <Loader2 className="size-4 animate-spin" /> Loading…
         </div>
       ) : !hired ? (
-        role === "marketing" ? (
-          <HirePlan />
-        ) : (
-          <SupportHire />
-        )
+        <RoleHire meta={meta} />
       ) : (
         <>
           <div className="bg-card mb-5 flex w-fit gap-1 rounded-xl border p-1 shadow-xs">

@@ -2,12 +2,11 @@ import type { Task } from "@/features/tasks/queries";
 import { AGENT_TEMPLATES, type AgentTemplate } from "@/features/tasks/templates";
 
 /**
- * The employee layer. Every agent (task) belongs to one employee, derived from
- * its kind, no schema needed: all current marketing kinds roll up under the
- * Marketing employee, inbox-answering kinds under Customer Support. Unknown
- * kinds default to Marketing so nothing ever falls off the team page.
+ * The employee layer. Every agent (task) belongs to one employee. Roles mirror
+ * the template library's real capability areas, so every hireable employee is
+ * backed by skills that actually work today: no vaporware personas.
  */
-export type EmployeeRole = "marketing" | "support" | "sales";
+export type EmployeeRole = "growth" | "social" | "content" | "support" | "sales" | "analyst";
 
 export interface EmployeeMeta {
   role: EmployeeRole;
@@ -17,7 +16,7 @@ export interface EmployeeMeta {
   emoji: string;
   /** Tailwind classes tinting the avatar tile. */
   tint: string;
-  /** Display name of the role ("Marketing"), the employee's job title. */
+  /** Display name of the role ("Growth Marketer"), the employee's job title. */
   title: string;
   /** What this employee does, in one line a new user instantly gets. */
   blurb: string;
@@ -27,22 +26,51 @@ export interface EmployeeMeta {
   relevantToolkits: string[];
   /** One line selling that this hire arrives pre-briefed, shown on candidate cards. */
   trainedLine: string;
+  /** Template ids this employee starts with when hired. */
+  starterTemplates: string[];
   /** On the roster but not hireable yet; sells the roadmap honestly. */
   comingSoon?: boolean;
 }
 
 export const EMPLOYEES: EmployeeMeta[] = [
   {
-    role: "marketing",
+    role: "growth",
     name: "Maya",
     emoji: "🚀",
     tint: "bg-[#eef4fd] text-[#1566e6]",
-    title: "Marketing",
-    blurb: "Finds leads, writes content, and posts for you.",
+    title: "Growth Marketer",
+    blurb: "Finds the people already looking for you.",
     hirePitch:
-      "Watches Reddit for buyers, writes SEO articles for your blog, and drafts posts. She reads your website and proposes her own work plan.",
-    relevantToolkits: ["reddit", "linkedin", "facebook", "wordpress", "webhook"],
-    trainedLine: "Pre-trained on your website: her work plan is already drafted.",
+      "Watches Reddit for buyer-intent posts in your space and drafts natural replies, and keeps an eye on your competitors. You approve everything.",
+    relevantToolkits: ["reddit"],
+    trainedLine: "Pre-trained on your website: she knows what you sell and who buys it.",
+    starterTemplates: ["reddit-lead-finder", "competitor-watch"],
+  },
+  {
+    role: "social",
+    name: "Nova",
+    emoji: "📣",
+    tint: "bg-pink-50 text-pink-600",
+    title: "Social Media Manager",
+    blurb: "Keeps your socials alive with on-brand posts.",
+    hirePitch:
+      "Writes and schedules posts for LinkedIn, Reddit, Facebook, and TikTok slideshows, in your voice, on a steady cadence you set once.",
+    relevantToolkits: ["linkedin", "facebook", "reddit"],
+    trainedLine: "Pre-trained on your website: posts sound like you from day one.",
+    starterTemplates: ["linkedin-poster", "reddit-poster"],
+  },
+  {
+    role: "content",
+    name: "Alex",
+    emoji: "✍️",
+    tint: "bg-amber-50 text-amber-700",
+    title: "Content Writer",
+    blurb: "Writes SEO articles straight to your blog.",
+    hirePitch:
+      "Publishes a complete, search-optimized article to your blog every week (WordPress or any custom site), plus fresh content angles when you need them.",
+    relevantToolkits: ["wordpress", "webhook"],
+    trainedLine: "Pre-trained on your website: he writes about what you actually do.",
+    starterTemplates: ["seo-blog-writer", "content-angles"],
   },
   {
     role: "support",
@@ -52,32 +80,82 @@ export const EMPLOYEES: EmployeeMeta[] = [
     title: "Customer Support",
     blurb: "Answers your inbox with on-brand replies.",
     hirePitch:
-      "Reads incoming Gmail and drafts replies in your voice for you to approve, so no customer waits on you being busy.",
-    relevantToolkits: ["gmail", "slack"],
+      "Reads incoming Gmail and Messenger and drafts replies in your voice for you to approve, so no customer waits on you being busy.",
+    relevantToolkits: ["gmail", "facebook", "slack"],
     trainedLine: "Pre-trained on your website: he answers in your product's voice.",
+    starterTemplates: ["email-responder"],
   },
   {
     role: "sales",
     name: "Riley",
     emoji: "📞",
     tint: "bg-violet-50 text-violet-600",
-    title: "Sales",
+    title: "Sales Development",
     blurb: "Finds prospects and drafts your outreach.",
     hirePitch:
       "Researches companies that match your ideal customer and drafts personalized outreach for your approval.",
     relevantToolkits: ["gmail", "linkedin"],
     trainedLine: "In training. Joins the roster soon.",
+    starterTemplates: [],
+    comingSoon: true,
+  },
+  {
+    role: "analyst",
+    name: "Quinn",
+    emoji: "📊",
+    tint: "bg-sky-50 text-sky-600",
+    title: "Data Analyst",
+    blurb: "Turns your numbers into a weekly report.",
+    hirePitch:
+      "Pulls your marketing results together every week and tells you what changed and what to double down on.",
+    relevantToolkits: ["googleads", "hubspot", "notion"],
+    trainedLine: "In training. Joins the roster soon.",
+    starterTemplates: [],
     comingSoon: true,
   },
 ];
 
-const SUPPORT_KINDS = new Set(["email_responder", "facebook_dm"]);
+/** Roles a user can actually hire today (routable employee pages). */
+export const HIREABLE_ROLES = EMPLOYEES.filter((e) => !e.comingSoon).map((e) => e.role);
 
-export function roleOfTask(task: Pick<Task, "kind">): EmployeeRole {
-  return SUPPORT_KINDS.has(task.kind ?? "") ? "support" : "marketing";
+const CATEGORY_ROLE: Record<string, EmployeeRole> = {
+  "Leads & research": "growth",
+  "Social media": "social",
+  "SEO & content": "content",
+  "Inbox & replies": "support",
+};
+
+const KIND_ROLE: Record<string, EmployeeRole> = {
+  reddit_monitor: "growth",
+  reddit_post: "social",
+  linkedin_post: "social",
+  facebook_post: "social",
+  tiktok_slideshow: "social",
+  seo_blog: "content",
+  content: "content",
+  email_responder: "support",
+  facebook_dm: "support",
+};
+
+const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
+
+/**
+ * Which employee a live agent belongs to. Agents created from a template keep
+ * its category's role (that's what disambiguates the generic "content" kind);
+ * everything else maps by kind, and unknown/custom kinds land with Maya so
+ * nothing ever falls off the team page.
+ */
+export function roleOfTask(task: Pick<Task, "kind" | "config">): EmployeeRole {
+  const pid = (task.config as { proposal_id?: string } | null)?.proposal_id;
+  const template = pid ? TEMPLATE_BY_ID.get(pid) : undefined;
+  if (template) return CATEGORY_ROLE[template.category] ?? "growth";
+  return KIND_ROLE[task.kind ?? ""] ?? "growth";
 }
 
-export function tasksOfRole<T extends Pick<Task, "kind">>(tasks: T[], role: EmployeeRole): T[] {
+export function tasksOfRole<T extends Pick<Task, "kind" | "config">>(
+  tasks: T[],
+  role: EmployeeRole,
+): T[] {
   return tasks.filter((t) => roleOfTask(t) === role);
 }
 
@@ -85,11 +163,14 @@ export function employeeMeta(role: EmployeeRole): EmployeeMeta {
   return EMPLOYEES.find((e) => e.role === role) ?? EMPLOYEES[0];
 }
 
-/**
- * The skill library, per employee: the ready-made templates this role can take
- * on. Same kind→role mapping as live agents, so a template always lands under
- * the employee whose page offered it.
- */
+/** The skill library, per employee: the templates whose category is this role's. */
 export function templatesOfRole(role: EmployeeRole): AgentTemplate[] {
-  return AGENT_TEMPLATES.filter((t) => roleOfTask({ kind: t.kind }) === role);
+  return AGENT_TEMPLATES.filter((t) => (CATEGORY_ROLE[t.category] ?? "growth") === role);
+}
+
+/** The skills a role starts with when hired. */
+export function starterTemplatesOf(meta: EmployeeMeta): AgentTemplate[] {
+  return meta.starterTemplates
+    .map((id) => TEMPLATE_BY_ID.get(id))
+    .filter((t): t is AgentTemplate => !!t);
 }
