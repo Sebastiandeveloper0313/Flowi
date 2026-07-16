@@ -166,6 +166,135 @@ const ANALYZE_TOOL = {
   },
 };
 
+const ACTIVITY_TOOL = {
+  name: "get_recent_activity",
+  description:
+    "Look up what this workspace's agents actually did recently: community posts published to Reddit (with links), posts that failed and why, replies and posts queued to go out, and each agent's latest runs. Use this whenever the user asks what has been posted, published, sent, or done today or recently, or wants a status update on their agents' output. Present it conversationally, lead with what actually went out (with links), and keep it short. Never say you have no access to past posts; call this instead.",
+  input_schema: {
+    type: "object",
+    properties: {
+      days: {
+        type: "number",
+        description: "How many days back to look. Default 1 (today), max 14.",
+      },
+    },
+  },
+};
+
+/**
+ * Compact digest of the workspace's own recent output for the chat model:
+ * what published (with links), what failed, what's scheduled, and recent runs.
+ * Read-only, scoped to the team through the user's own client (RLS).
+ */
+async function recentActivitySummary(
+  // deno-lint-ignore no-explicit-any
+  client: any,
+  teamId: string,
+  days: number,
+): Promise<string> {
+  const sinceMs = Date.now() - days * 24 * 3600_000;
+  const since = new Date(sinceMs).toISOString();
+
+  const [tasksRes, runsRes, draftsRes, queuedRes] = await Promise.all([
+    client.from("tasks").select("id, title").eq("team_id", teamId),
+    client
+      .from("task_runs")
+      .select("task_id, status, summary, created_at")
+      .eq("team_id", teamId)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    client
+      .from("post_drafts")
+      .select("title, posts")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false })
+      .limit(15),
+    client
+      .from("leads")
+      .select("subreddit, title, auto_post_at")
+      .eq("team_id", teamId)
+      .eq("status", "queued")
+      .not("auto_post_at", "is", null)
+      .order("auto_post_at", { ascending: true })
+      .limit(10),
+  ]);
+
+  const titleOf = new Map<string, string>(
+    ((tasksRes.data ?? []) as { id: string; title: string }[]).map((t) => [t.id, t.title]),
+  );
+  const lines: string[] = [`Workspace activity for the last ${days} day(s), times in UTC.`];
+
+  // Community posts: published / failed inside the window, plus anything queued.
+  const published: string[] = [];
+  const failed: string[] = [];
+  const scheduled: string[] = [];
+  for (const d of (draftsRes.data ?? []) as { title: string; posts: unknown }[]) {
+    const entries = Array.isArray(d.posts) ? d.posts : [];
+    for (const e of entries as {
+      subreddit?: string;
+      status?: string;
+      url?: string;
+      at?: string;
+      error?: string;
+    }[]) {
+      const atMs = e.at ? Date.parse(e.at) : NaN;
+      if (e.status === "posted" && atMs >= sinceMs) {
+        published.push(
+          `- r/${e.subreddit}: "${d.title}" ${e.url ?? "(no link captured)"} at ${e.at}`,
+        );
+      } else if (e.status === "failed" && atMs >= sinceMs) {
+        failed.push(`- r/${e.subreddit}: "${d.title}" failed: ${e.error ?? "unknown reason"}`);
+      } else if (e.status === "queued" && atMs > Date.now() - 60_000) {
+        scheduled.push(`- r/${e.subreddit}: "${d.title}" goes out at ${e.at}`);
+      }
+    }
+  }
+  if (published.length) lines.push(`\nCommunity posts published:\n${published.join("\n")}`);
+  if (failed.length) lines.push(`\nCommunity posts that failed:\n${failed.join("\n")}`);
+  if (scheduled.length) lines.push(`\nCommunity posts scheduled:\n${scheduled.join("\n")}`);
+
+  const queued = (queuedRes.data ?? []) as {
+    subreddit: string | null;
+    title: string;
+    auto_post_at: string;
+  }[];
+  if (queued.length) {
+    lines.push(
+      `\nReplies queued to auto-post:\n${queued
+        .map((q) => `- r/${q.subreddit}: "${q.title}" at ${q.auto_post_at}`)
+        .join("\n")}`,
+    );
+  }
+
+  const runs = (runsRes.data ?? []) as {
+    task_id: string;
+    status: string;
+    summary: string | null;
+    created_at: string;
+  }[];
+  if (runs.length) {
+    lines.push(
+      `\nAgent runs:\n${runs
+        .map(
+          (r) =>
+            `- ${titleOf.get(r.task_id) ?? "Agent"}: ${r.status}${r.summary ? `, ${r.summary}` : ""} (${r.created_at})`,
+        )
+        .join("\n")}`,
+    );
+  } else {
+    lines.push("\nNo agent runs in this window.");
+  }
+
+  if (!published.length && !failed.length && !scheduled.length && !queued.length) {
+    lines.push(
+      "\nNothing was published or queued in this window. If the user expected posts, their posting agents may be scheduled later, paused, or in ask mode awaiting approval.",
+    );
+  }
+
+  return lines.join("\n").slice(0, 12000);
+}
+
 interface Msg {
   role: "user" | "assistant";
   content: unknown;
@@ -412,7 +541,14 @@ Deno.serve(async (req: Request) => {
                 model: "claude-opus-4-8",
                 max_tokens: 2048,
                 system,
-                tools: [TOOL, UPDATE_TOOL, ANALYZE_TOOL, SET_AUTONOMY_TOOL, ...connectedTools],
+                tools: [
+                  TOOL,
+                  UPDATE_TOOL,
+                  ANALYZE_TOOL,
+                  SET_AUTONOMY_TOOL,
+                  ACTIVITY_TOOL,
+                  ...connectedTools,
+                ],
                 messages: working,
               }),
             });
@@ -652,6 +788,24 @@ Deno.serve(async (req: Request) => {
                         is_error: true,
                       });
                     }
+                  }
+                } else if (block.name === "get_recent_activity") {
+                  send({ type: "status", text: "Checking what your agents did" });
+                  try {
+                    const days = Math.min(14, Math.max(1, Number(block.input?.days) || 1));
+                    const summary = await recentActivitySummary(userClient, teamId, days);
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: summary,
+                    });
+                  } catch (e) {
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: `Could not load the activity: ${e instanceof Error ? e.message : String(e)}`,
+                      is_error: true,
+                    });
                   }
                 } else if (
                   isComposioTool(block.name) &&
