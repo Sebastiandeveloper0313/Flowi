@@ -3,14 +3,16 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
-import { AlertTriangle, Check, ExternalLink, Loader2, PartyPopper, X } from "lucide-react";
+import { AlertTriangle, Check, Copy, ExternalLink, Loader2, PartyPopper, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { env } from "@/env";
 import { PageHeader } from "@/features/dashboard/ui";
 import {
   useConnectIntegration,
+  useConnectWebhook,
   useConnectWordpress,
+  useDisconnectWebhook,
   useDisconnectWordpress,
   useIntegrations,
 } from "@/features/integrations/hooks";
@@ -58,6 +60,13 @@ const APPS: AppMeta[] = [
     slug: "wordpress",
     name: "WordPress",
     description: "Your SEO agent publishes its articles straight to your blog.",
+    available: true,
+  },
+  {
+    slug: "webhook",
+    name: "Custom website",
+    description:
+      "Articles are sent to your own site by webhook. Any stack works, including AI-built sites.",
     available: true,
   },
   {
@@ -147,6 +156,7 @@ function SlackResultBanner() {
 function IntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [wpOpen, setWpOpen] = useState(false);
+  const [whOpen, setWhOpen] = useState(false);
   const { data: toolkits } = useIntegrations(connecting !== null);
   const { data: teamId } = useMyTeam();
   const connect = useConnectIntegration();
@@ -170,6 +180,11 @@ function IntegrationsPage() {
     // WordPress connects with site credentials (Application Password), not OAuth.
     if (slug === "wordpress") {
       setWpOpen(true);
+      return;
+    }
+    // Custom websites connect with an endpoint URL + generated signing secret.
+    if (slug === "webhook") {
+      setWhOpen(true);
       return;
     }
     // Slack is not a Composio toolkit: "Add to Slack" runs our own OAuth install.
@@ -281,6 +296,12 @@ function IntegrationsPage() {
         open={wpOpen}
         onOpenChange={setWpOpen}
         connected={!!statusOf("wordpress")?.connected}
+      />
+
+      <WebhookDialog
+        open={whOpen}
+        onOpenChange={setWhOpen}
+        connected={!!statusOf("webhook")?.connected}
       />
     </div>
   );
@@ -412,6 +433,168 @@ function WordpressDialog({
             </Button>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// The prompt a user pastes into whatever AI built their site, so it grows a
+// receiving endpoint in one shot. Kept in plain language on purpose.
+const WEBHOOK_BUILD_PROMPT = `Add a public POST endpoint at /api/blog-webhook that receives blog articles from Sentrive.
+
+It will get JSON like:
+{
+  "event": "article.created",
+  "status": "draft" | "publish",
+  "article": {
+    "title": "...",
+    "meta_description": "...",
+    "slug": "...",
+    "markdown": "...",
+    "html": "..."
+  },
+  "sent_at": "2026-07-16T09:00:00Z"
+}
+
+Save each article and render it on my blog at /blog/[slug], using the html field for the body and meta_description for the page's meta tags. Only show articles with "status": "publish" publicly; keep "draft" ones hidden until I approve them. If the JSON is {"event": "ping"}, just respond 200. Always respond with a 2xx status when the request is handled.`;
+
+/**
+ * Connect any website by webhook: the user pastes an endpoint URL, we send a
+ * signed test ping (must answer 2xx), then show the signing secret exactly
+ * once. Made for custom and AI-built sites where no CMS API exists; the
+ * build-me-an-endpoint prompt is right in the dialog to copy.
+ */
+function WebhookDialog({
+  open,
+  onOpenChange,
+  connected,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  connected: boolean;
+}) {
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState<"prompt" | "secret" | null>(null);
+  const connect = useConnectWebhook();
+  const disconnect = useDisconnectWebhook();
+  const secret = connect.data?.secret;
+
+  function close() {
+    onOpenChange(false);
+    setTimeout(() => {
+      connect.reset();
+      disconnect.reset();
+      setCopied(null);
+    }, 300);
+  }
+
+  function copy(what: "prompt" | "secret", text: string) {
+    void navigator.clipboard.writeText(text);
+    setCopied(what);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  const busy = connect.isPending || disconnect.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !busy && (next ? onOpenChange(true) : close())}>
+      <DialogContent className="sm:max-w-lg">
+        {secret ? (
+          <>
+            <DialogTitle className="text-lg font-bold tracking-tight">
+              Your website is connected
+            </DialogTitle>
+            <p className="text-muted-foreground -mt-2 text-sm">
+              Every article now gets sent to your endpoint. Optionally, verify each request is
+              really from Sentrive: the <code>x-sentrive-signature</code> header is the HMAC-SHA256
+              of the raw body, signed with this secret. It's shown only once.
+            </p>
+            <div className="bg-muted flex items-center gap-2 rounded-lg border p-2.5">
+              <code className="min-w-0 flex-1 truncate text-xs">{secret}</code>
+              <Button size="sm" variant="outline" onClick={() => copy("secret", secret)}>
+                {copied === "secret" ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {copied === "secret" ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            <div className="mt-2 flex justify-end">
+              <Button onClick={close}>Done</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogTitle className="text-lg font-bold tracking-tight">
+              Connect your own website
+            </DialogTitle>
+            <p className="text-muted-foreground -mt-2 text-sm">
+              Your SEO agent will send every article to your site as JSON (title, meta description,
+              slug, markdown, and HTML). Works with any stack. If an AI built your site, paste this
+              prompt into it and it will create the receiving endpoint for you:
+            </p>
+            <div className="space-y-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copy("prompt", WEBHOOK_BUILD_PROMPT)}
+              >
+                {copied === "prompt" ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {copied === "prompt" ? "Copied" : "Copy the build-my-endpoint prompt"}
+              </Button>
+              <div className="grid gap-1.5">
+                <label htmlFor="wh-url" className="text-sm font-medium">
+                  Endpoint URL
+                </label>
+                <Input
+                  id="wh-url"
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://yoursite.com/api/blog-webhook"
+                />
+                <p className="text-muted-foreground text-xs">
+                  We'll send a signed test ping when you connect; your endpoint just needs to answer
+                  with a 2xx status.
+                </p>
+              </div>
+              {connect.isError && (
+                <p className="text-destructive text-sm">
+                  {(connect.error as Error)?.message || "Couldn't connect. Check the URL."}
+                </p>
+              )}
+              {disconnect.isError && (
+                <p className="text-destructive text-sm">
+                  {(disconnect.error as Error)?.message || "Couldn't disconnect. Try again."}
+                </p>
+              )}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {connected ? (
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={busy}
+                  onClick={() => disconnect.mutate(undefined, { onSuccess: () => close() })}
+                >
+                  {disconnect.isPending && <Loader2 className="size-4 animate-spin" />}
+                  Disconnect
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" disabled={busy} onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={busy || !url.trim()}
+                  onClick={() => connect.mutate({ url: url.trim() })}
+                >
+                  {connect.isPending && <Loader2 className="size-4 animate-spin" />}
+                  {connected ? "Update connection" : "Connect"}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

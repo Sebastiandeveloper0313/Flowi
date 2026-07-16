@@ -936,18 +936,22 @@ function DeliveryEditor({ agent }: { agent: Task }) {
 }
 
 /**
- * Soft nudge on SEO agents. WordPress is optional (articles land in the app
- * either way), so this suggests instead of blocking like ConnectBanner does.
- * Once connected it becomes a quiet one-liner so users know where articles go.
+ * Soft nudge on SEO agents. A blog connection is optional (articles land in the
+ * app either way), so this suggests instead of blocking like ConnectBanner
+ * does. Once WordPress or a custom-website webhook is connected it becomes a
+ * quiet one-liner so users know where articles go.
  */
 function WordpressNudge() {
-  const { missing, loaded } = useMissingToolkits(["wordpress"]);
+  const { missing, loaded } = useMissingToolkits(["wordpress", "webhook"]);
   if (!loaded) return null;
-  if (missing.length === 0) {
+  const wpConnected = !missing.includes("wordpress");
+  const siteConnected = !missing.includes("webhook");
+  if (wpConnected || siteConnected) {
     return (
       <p className="text-muted-foreground mb-4 text-xs">
-        WordPress connected: articles land on your blog as drafts to review, or go live when the
-        agent is on auto.
+        {wpConnected
+          ? "WordPress connected: articles land on your blog as drafts to review, or go live when the agent is on auto."
+          : "Website connected: every article is sent to your site, as a draft to review, or marked to publish when the agent is on auto."}
       </p>
     );
   }
@@ -961,11 +965,12 @@ function WordpressNudge() {
         />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
-            Connect WordPress and these articles publish straight to your blog
+            Connect your blog and these articles publish straight to your site
           </p>
           <p className="text-muted-foreground text-xs">
-            Right now articles only land here in the app. Connected, each one arrives on your site
-            as a draft to review, or goes live automatically when the agent is on auto.
+            Right now articles only land here in the app. Connect WordPress, or any custom website
+            (including AI-built ones), and each article arrives on your site as a draft to review,
+            or goes live automatically when the agent is on auto.
           </p>
         </div>
         <Button size="sm" asChild>
