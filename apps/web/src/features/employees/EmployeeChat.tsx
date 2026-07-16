@@ -49,8 +49,7 @@ export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
               </span>
               <h2 className="text-3xl font-bold tracking-tight">Chat with {meta.name}</h2>
               <p className="text-muted-foreground mt-2 text-[15px]">
-                Assign work, ask what got done, or change how things run. {meta.name} sets it up and
-                it keeps running on schedule.
+                Assign work, ask what got done, or change how things run.
               </p>
             </div>
           }

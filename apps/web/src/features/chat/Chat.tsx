@@ -868,7 +868,11 @@ export function Chat({
         ref={scrollRef}
         className={`flex-1 overflow-y-auto px-2 pb-6 ${embedded ? "pt-4" : "pt-16"}`}
       >
-        <div className="mx-auto flex max-w-2xl flex-col gap-5">
+        {/* Embedded: bottom-anchor short conversations next to the composer,
+            like any messenger; long ones scroll exactly as before. */}
+        <div
+          className={`mx-auto flex max-w-2xl flex-col gap-5 ${embedded ? "min-h-full justify-end" : ""}`}
+        >
           {messages.map((m, i) =>
             m.role === "user" ? (
               <div key={i} className="group flex flex-col items-end gap-1">
