@@ -10,9 +10,9 @@ import type { EmployeeMeta } from "./roles";
 
 /**
  * The employee's direct line: one persistent conversation per employee (found
- * by title, created on first open), so talking to Maya always resumes where it
- * left off. It's the normal Sentrive chat underneath, which means assigning
- * work here creates real agents, exactly like the main chat.
+ * by title, created on first open), rendered exactly like the main chat page,
+ * just addressed to them. It's the normal Sentrive chat underneath, so
+ * assigning work here creates real agents.
  */
 export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
   const teamId = useActiveTeamId();
@@ -34,9 +34,27 @@ export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
   }, [isLoading, existing, teamId, title, queryClient]);
 
   return (
-    <div className="bg-card h-[66vh] overflow-hidden rounded-2xl border p-3 shadow-xs">
+    <div className="h-[calc(100vh-320px)] min-h-[480px]">
       {existing ? (
-        <Chat chatId={existing.id} embedded />
+        <Chat
+          chatId={existing.id}
+          embedded
+          placeholder={`Tell ${meta.name} what you need…  e.g. “write an article about our new feature” or “watch r/startups too”`}
+          emptyHero={
+            <div className="mb-8 text-center">
+              <span
+                className={`mx-auto mb-4 grid size-16 place-items-center rounded-2xl text-4xl shadow-xs ${meta.tint}`}
+              >
+                {meta.emoji}
+              </span>
+              <h2 className="text-3xl font-bold tracking-tight">Chat with {meta.name}</h2>
+              <p className="text-muted-foreground mt-2 text-[15px]">
+                Assign work, ask what got done, or change how things run. {meta.name} sets it up and
+                it keeps running on schedule.
+              </p>
+            </div>
+          }
+        />
       ) : (
         <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
           <Loader2 className="size-4 animate-spin" /> Opening your chat with {meta.name}…

@@ -463,7 +463,20 @@ function UpdateCard({ update }: { update: AgentUpdate }) {
   );
 }
 
-export function Chat({ chatId, embedded }: { chatId?: string; embedded?: boolean }) {
+export function Chat({
+  chatId,
+  embedded,
+  emptyHero,
+  placeholder,
+}: {
+  chatId?: string;
+  /** Fill the parent's height instead of the viewport (employee chat tab). */
+  embedded?: boolean;
+  /** Replaces the landing greeting when the conversation is empty. */
+  emptyHero?: React.ReactNode;
+  /** Overrides the composer placeholder (e.g. "Tell Maya what you need…"). */
+  placeholder?: string;
+}) {
   const chat = useChat();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -755,7 +768,10 @@ export function Chat({ chatId, embedded }: { chatId?: string; embedded?: boolean
         }}
         onPaste={onPaste}
         rows={1}
-        placeholder="Tell Sentrive what to do…  e.g. “every morning, find Reddit posts asking about what we sell and draft replies for me to approve”"
+        placeholder={
+          placeholder ??
+          "Tell Sentrive what to do…  e.g. “every morning, find Reddit posts asking about what we sell and draft replies for me to approve”"
+        }
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
       />
       <div className="mt-1 flex items-center justify-between px-1">
@@ -819,15 +835,15 @@ export function Chat({ chatId, embedded }: { chatId?: string; embedded?: boolean
   );
 
   if (empty) {
-    // Embedded (an employee's chat tab): a quiet intro, composer at the bottom,
-    // sized by the parent instead of the viewport.
+    // Embedded (an employee's chat tab): same shape as the main landing, the
+    // employee's own hero centered in the space the parent gives us.
     if (embedded) {
       return (
-        <div className="flex h-full flex-col justify-end px-1 pb-1">
-          <p className="text-muted-foreground mb-4 text-center text-sm">
-            Your direct line. Assign work, ask what got done, or change how things run.
-          </p>
-          {composer}
+        <div className="flex h-full flex-col items-center justify-center px-2 pb-6">
+          <div className="w-full max-w-2xl">
+            {emptyHero}
+            {composer}
+          </div>
           {lightbox}
         </div>
       );
@@ -838,7 +854,7 @@ export function Chat({ chatId, embedded }: { chatId?: string; embedded?: boolean
     return (
       <div className="flex flex-col items-center px-2 pt-20 pb-12 sm:pt-24">
         <div className="w-full max-w-2xl">
-          <MorningBrief />
+          {emptyHero ?? <MorningBrief />}
           {composer}
         </div>
         {lightbox}
