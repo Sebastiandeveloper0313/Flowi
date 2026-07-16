@@ -64,7 +64,7 @@ function ApprovalsPage() {
   return (
     <div className="flowy-page">
       <PageHeader
-        title="Approvals"
+        title="Inbox"
         subtitle="Nothing happens behind your back. Anything an agent needs a yes for waits here."
       />
 

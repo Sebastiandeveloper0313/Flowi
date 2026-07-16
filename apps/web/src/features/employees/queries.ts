@@ -2,18 +2,18 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const deskKeys = {
-  all: ["desk"] as const,
+export const employeeKeys = {
+  all: ["employees"] as const,
 };
 
 /**
- * The employee's "today" numbers for the desk header: leads found in the last
- * 24h and posts published in the last 24h (leads that reached status 'posted').
- * Cheap head-count queries; everything else on the desk reuses existing caches.
+ * One employee's last-24h numbers: leads its agents found, and replies that
+ * went out. Keyed by the employee's task ids so each role only counts its own
+ * work (the ids come from the client-side kind→role mapping).
  */
-export const deskStatsQueryOptions = (teamId: string | null) =>
+export const employeeStatsQueryOptions = (teamId: string | null, taskIds: string[]) =>
   queryOptions({
-    queryKey: [...deskKeys.all, "stats", teamId] as const,
+    queryKey: [...employeeKeys.all, "stats", teamId, [...taskIds].sort().join(",")] as const,
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const [leads, posted] = await Promise.all([
@@ -21,11 +21,13 @@ export const deskStatsQueryOptions = (teamId: string | null) =>
           .from("leads")
           .select("id", { count: "exact", head: true })
           .eq("team_id", teamId!)
+          .in("task_id", taskIds)
           .gte("created_at", since),
         supabase
           .from("leads")
           .select("id", { count: "exact", head: true })
           .eq("team_id", teamId!)
+          .in("task_id", taskIds)
           .eq("status", "posted")
           .gte("updated_at", since),
       ]);
@@ -33,6 +35,6 @@ export const deskStatsQueryOptions = (teamId: string | null) =>
       if (posted.error) throw posted.error;
       return { leadsFound: leads.count ?? 0, postedReplies: posted.count ?? 0 };
     },
-    enabled: !!teamId,
+    enabled: !!teamId && taskIds.length > 0,
     refetchInterval: 60_000,
   });

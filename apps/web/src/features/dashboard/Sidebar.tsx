@@ -6,11 +6,8 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
-  Activity,
-  Bot,
   CheckCheck,
   House,
-  LayoutGrid,
   MessageSquarePlus,
   MoreHorizontal,
   PanelLeftClose,
@@ -31,13 +28,13 @@ import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
+// The whole app in five doors: your team, the chat, what needs your yes, the
+// accounts it works through, and settings. Agents/Library/Activity still exist
+// as routes (duty settings, deep links) but live inside the employee pages.
 const NAV = [
-  { to: "/home", label: "Home", icon: House },
+  { to: "/home", label: "Your team", icon: House },
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
-  { to: "/agents", label: "Skills", icon: Bot },
-  { to: "/library", label: "Library", icon: LayoutGrid },
-  { to: "/activity", label: "Activity", icon: Activity },
-  { to: "/approvals", label: "Approvals", icon: CheckCheck },
+  { to: "/approvals", label: "Inbox", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
