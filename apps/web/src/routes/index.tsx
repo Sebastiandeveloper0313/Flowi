@@ -17,13 +17,13 @@ export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
     if (returningFromOAuth()) {
       const user = await context.queryClient.ensureQueryData(userQueryOptions).catch(() => null);
-      if (user) throw redirect({ to: "/dashboard" });
+      if (user) throw redirect({ to: "/home" });
       return;
     }
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (session) throw redirect({ to: "/dashboard" });
+    if (session) throw redirect({ to: "/home" });
   },
   head: () => ({
     meta: [

@@ -34,7 +34,7 @@ import { SentriveLogo } from "./brand";
 const NAV = [
   { to: "/home", label: "Home", icon: House },
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
-  { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/agents", label: "Skills", icon: Bot },
   { to: "/library", label: "Library", icon: LayoutGrid },
   { to: "/activity", label: "Activity", icon: Activity },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
@@ -74,7 +74,7 @@ export function Sidebar() {
   return (
     <aside className={`flowy-sidebar${collapsed ? " collapsed" : ""}`}>
       <div className="flowy-top">
-        <Link to="/dashboard" className="flowy-brand" title="Sentrive">
+        <Link to="/home" className="flowy-brand" title="Sentrive">
           <SentriveLogo />
           <span className="wm">sentrive</span>
         </Link>

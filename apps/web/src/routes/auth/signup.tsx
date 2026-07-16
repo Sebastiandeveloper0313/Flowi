@@ -9,7 +9,7 @@ export const Route = createFileRoute("/auth/signup")({
     const user = await context.queryClient.ensureQueryData(userQueryOptions).catch(() => null);
 
     if (user) {
-      throw redirect({ to: "/dashboard" });
+      throw redirect({ to: "/home" });
     }
   },
   component: SignupPage,

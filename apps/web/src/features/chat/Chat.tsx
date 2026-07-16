@@ -101,6 +101,9 @@ function CopyButton({ text }: { text: string }) {
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
 
+/** sessionStorage key the Home desk uses to hand a typed message to the chat. */
+export const DESK_DRAFT_KEY = "sentrive.chat.draft";
+
 function fileToAttachment(file: File): Promise<Attachment> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -495,6 +498,26 @@ export function Chat({ chatId }: { chatId?: string }) {
     window.addEventListener("sentrive:focus-composer", focusComposer);
     return () => window.removeEventListener("sentrive:focus-composer", focusComposer);
   }, []);
+
+  // A message typed on the Home desk arrives here as a draft: send it the
+  // moment auth context is ready. Remove-before-send keeps StrictMode's double
+  // effect run (and any re-render) from firing it twice.
+  const draftSent = useRef(false);
+  useEffect(() => {
+    if (!activeTeamId || chatId || draftSent.current) return;
+    let draft: string | null = null;
+    try {
+      draft = sessionStorage.getItem(DESK_DRAFT_KEY);
+      if (draft) sessionStorage.removeItem(DESK_DRAFT_KEY);
+    } catch {
+      /* storage blocked */
+    }
+    if (draft?.trim()) {
+      draftSent.current = true;
+      void send(draft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send is stable enough for a one-shot
+  }, [activeTeamId, chatId]);
 
   async function addFiles(files: File[]) {
     const accepted: Attachment[] = [];

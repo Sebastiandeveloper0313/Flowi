@@ -12,7 +12,7 @@ export const Route = createFileRoute("/onboarding")({
     }
     const ws = await context.queryClient.ensureQueryData(workspaceQueryOptions).catch(() => null);
     if (ws?.onboarding_completed) {
-      throw redirect({ to: "/dashboard", search: { c: undefined } });
+      throw redirect({ to: "/home" });
     }
   },
   component: Onboarding,

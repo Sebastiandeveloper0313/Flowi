@@ -218,7 +218,7 @@ export function Onboarding() {
         // has business context. Usually already done by now (the quick steps
         // covered the wait), so this is instant.
         if (analysisPromise.current) await analysisPromise.current.catch(() => {});
-        void navigate({ to: "/dashboard", search: { c: undefined } });
+        void navigate({ to: "/home" });
         return;
       }
     } catch (err) {
