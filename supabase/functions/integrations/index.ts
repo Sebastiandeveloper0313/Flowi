@@ -10,6 +10,7 @@ import {
   SUPPORTED_TOOLKITS,
 } from "../_shared/composio.ts";
 import { resolveTeamId } from "../_shared/team.ts";
+import { deliverWebhook } from "../_shared/webhook.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -43,9 +44,15 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { action, toolkit, team_id, site_url, username, app_password } = await req
-      .json()
-      .catch(() => ({}));
+    const {
+      action,
+      toolkit,
+      team_id,
+      site_url,
+      username,
+      app_password,
+      url: hook_url,
+    } = await req.json().catch(() => ({}));
 
     const teamId = await resolveTeamId(userClient, team_id);
     if (!teamId) return json({ error: "no team for user" }, 403);
@@ -92,6 +99,21 @@ Deno.serve(async (req: Request) => {
         connected: !!wp,
         status: wp ? "ACTIVE" : "not_connected",
         site: wp?.label ?? null,
+      });
+
+      // Custom-website webhook: connected when the team has stored an endpoint
+      // (the signing secret itself lives in Vault).
+      const { data: hook } = await admin
+        .from("connections")
+        .select("label")
+        .eq("team_id", teamId)
+        .eq("provider", "webhook")
+        .maybeSingle();
+      toolkits.push({
+        slug: "webhook",
+        connected: !!hook,
+        status: hook ? "ACTIVE" : "not_connected",
+        site: hook?.label ?? null,
       });
 
       return json({ toolkits });
@@ -151,6 +173,62 @@ Deno.serve(async (req: Request) => {
       if (storeErr)
         return json({ error: `Could not save the connection: ${storeErr.message}` }, 500);
       return json({ ok: true, site, connected_as: me.name ?? wpUser });
+    }
+
+    // Connect a custom website: the user gives us an endpoint URL, we generate
+    // a signing secret, prove the endpoint answers a signed ping with a 2xx,
+    // then store both (secret in Vault). The secret is returned exactly once so
+    // the user can add signature verification to their site.
+    if (action === "webhook_connect") {
+      const endpoint = String(hook_url ?? "")
+        .trim()
+        .replace(/\/+$/, "");
+      if (!/^https:\/\/[^\s]+\.[^\s]+/.test(endpoint)) {
+        return json({ error: "An https:// endpoint URL is required." }, 400);
+      }
+      const bytes = new Uint8Array(24);
+      crypto.getRandomValues(bytes);
+      const secret =
+        "whsec_" +
+        Array.from(bytes)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      try {
+        const res = await deliverWebhook(endpoint, secret, {
+          event: "ping",
+          message: "Sentrive webhook test. Respond with any 2xx status to finish connecting.",
+          sent_at: new Date().toISOString(),
+        });
+        if (!res.ok) {
+          return json(
+            {
+              error: `Your endpoint answered ${res.status} to the test ping. It needs to respond with a 2xx status.`,
+            },
+            400,
+          );
+        }
+      } catch {
+        return json(
+          { error: `Couldn't reach ${endpoint}. Check the URL is right and publicly accessible.` },
+          400,
+        );
+      }
+      const { error: storeErr } = await admin.rpc("webhook_store_connection", {
+        p_team_id: teamId,
+        p_url: endpoint,
+        p_secret: secret,
+      });
+      if (storeErr)
+        return json({ error: `Could not save the connection: ${storeErr.message}` }, 500);
+      return json({ ok: true, url: endpoint, secret });
+    }
+
+    if (action === "webhook_disconnect") {
+      const { error: delErr } = await admin.rpc("webhook_delete_connection", {
+        p_team_id: teamId,
+      });
+      if (delErr) return json({ error: delErr.message }, 500);
+      return json({ ok: true });
     }
 
     if (action === "wordpress_disconnect") {

@@ -79,6 +79,34 @@ export function useConnectWordpress() {
   });
 }
 
+/**
+ * Connect a custom website by webhook. The server pings the endpoint (it must
+ * answer 2xx), stores it, and returns the signing secret exactly once.
+ */
+export function useConnectWebhook() {
+  const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
+  return useMutation({
+    mutationFn: (input: { url: string }) =>
+      invoke<{ ok: true; url: string; secret: string }>({
+        action: "webhook_connect",
+        team_id: teamId,
+        ...input,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: integrationKeys.all }),
+  });
+}
+
+/** Remove the workspace's custom-website webhook (and its signing secret). */
+export function useDisconnectWebhook() {
+  const queryClient = useQueryClient();
+  const teamId = useActiveTeamId();
+  return useMutation({
+    mutationFn: () => invoke<{ ok: true }>({ action: "webhook_disconnect", team_id: teamId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: integrationKeys.all }),
+  });
+}
+
 /** Remove the workspace's WordPress connection (and its stored credential). */
 export function useDisconnectWordpress() {
   const queryClient = useQueryClient();

@@ -23,6 +23,7 @@ import {
 import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 import { createSlideshow, parseSlideshow } from "./slideshow.ts";
+import { deliverWebhook } from "./webhook.ts";
 
 /**
  * Split an SEO article ("Title: ..., Meta description: ..., body") into the
@@ -54,6 +55,15 @@ function parseSeoArticle(text: string): { title: string; meta: string; body: str
   if (first && first === title.toLowerCase()) body = lines.slice(1).join("\n").trim();
 
   return { title: title.slice(0, 200), meta: meta.slice(0, 300), body };
+}
+
+/** URL-safe slug from an article title, for the webhook payload. */
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 }
 
 export interface TaskRow {
@@ -609,6 +619,58 @@ export async function executeTask(
         return {
           summary: "Article ready, but saving it to WordPress failed",
           output: `Couldn't reach your WordPress (${why}). The article is below.\n\n${output}`,
+        };
+      }
+    }
+
+    // No WordPress? A custom-website webhook is the next stop for SEO articles:
+    // we POST the finished article (title, meta, slug, markdown, html) to the
+    // team's endpoint, signed, and their site decides how to render it. Same
+    // rule as WordPress: a delivery hiccup must never lose the article.
+    if (task.kind === "seo_blog" && ctx?.client && output) {
+      try {
+        const { data: whData } = await ctx.client.rpc("webhook_connection", {
+          p_team_id: task.team_id,
+        });
+        const hook = (Array.isArray(whData) ? whData[0] : whData) as {
+          url?: string;
+          secret?: string;
+        } | null;
+        if (hook?.url && hook.secret) {
+          const art = parseSeoArticle(output);
+          const goLive = taskAutonomy(task, ws) === "auto";
+          const res = await deliverWebhook(hook.url, hook.secret, {
+            event: "article.created",
+            status: goLive ? "publish" : "draft",
+            article: {
+              title: art.title,
+              meta_description: art.meta,
+              slug: slugify(art.title),
+              markdown: art.body,
+              html: await marked.parse(art.body),
+            },
+            agent: { id: task.id, title: task.title },
+            sent_at: new Date().toISOString(),
+          });
+          const host = new URL(hook.url).host;
+          if (res.ok) {
+            const note = goLive
+              ? `Sent to your website (${host}), marked to publish.`
+              : `Sent to your website (${host}) as a draft.`;
+            return { summary: note, output: `${note}\n\n${output}` };
+          }
+          return {
+            summary: "Article ready, but sending it to your website failed",
+            output:
+              `Your website's endpoint (${host}) answered ${res.status}. The article is below; ` +
+              `you can paste it manually, or reconnect your site on the Integrations page.\n\n${output}`,
+          };
+        }
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        return {
+          summary: "Article ready, but sending it to your website failed",
+          output: `Couldn't reach your website's endpoint (${why}). The article is below.\n\n${output}`,
         };
       }
     }
