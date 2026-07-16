@@ -11,6 +11,7 @@ import { EmployeeSettings } from "@/features/employees/EmployeeSettings";
 import { HirePlan } from "@/features/employees/HirePlan";
 import { employeeStatsQueryOptions } from "@/features/employees/queries";
 import { employeeMeta, tasksOfRole, type EmployeeRole } from "@/features/employees/roles";
+import { SkillLibraryDialog } from "@/features/employees/SkillLibrary";
 import { SupportHire } from "@/features/employees/SupportHire";
 import { DutyRow, FeedRow, StatChip } from "@/features/employees/ui";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
@@ -49,6 +50,7 @@ function EmployeePage() {
   const meta = employeeMeta(role);
   const teamId = useActiveTeamId();
   const [tab, setTab] = useState<Tab>("work");
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   const { data: tasks, isLoading: tasksLoading } = useTasks();
   const { data: runs, isLoading: runsLoading } = useRuns();
@@ -185,7 +187,7 @@ function EmployeePage() {
 
                 <Card className="self-start">
                   <CardHeader>
-                    <CardTitle className="text-base">Agents inside</CardTitle>
+                    <CardTitle className="text-base">Skills</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {mine.map((t) => (
@@ -195,15 +197,29 @@ function EmployeePage() {
                       variant="outline"
                       size="sm"
                       className="mt-1 w-full"
-                      onClick={() => setTab("chat")}
+                      onClick={() => setLibraryOpen(true)}
                     >
-                      <Plus className="size-4" /> Assign {meta.name} something new
+                      <Plus className="size-4" /> Teach {meta.name} a new skill
                     </Button>
+                    <button
+                      type="button"
+                      onClick={() => setTab("chat")}
+                      className="text-muted-foreground hover:text-foreground w-full py-1 text-center text-xs"
+                    >
+                      or describe something custom in chat
+                    </button>
                   </CardContent>
                 </Card>
               </div>
             </>
           )}
+
+          <SkillLibraryDialog
+            meta={meta}
+            mine={mine}
+            open={libraryOpen}
+            onOpenChange={setLibraryOpen}
+          />
         </>
       )}
     </div>

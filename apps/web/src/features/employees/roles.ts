@@ -1,4 +1,5 @@
 import type { Task } from "@/features/tasks/queries";
+import { AGENT_TEMPLATES, type AgentTemplate } from "@/features/tasks/templates";
 
 /**
  * The employee layer. Every agent (task) belongs to one employee, derived from
@@ -63,4 +64,13 @@ export function tasksOfRole<T extends Pick<Task, "kind">>(tasks: T[], role: Empl
 
 export function employeeMeta(role: EmployeeRole): EmployeeMeta {
   return EMPLOYEES.find((e) => e.role === role) ?? EMPLOYEES[0];
+}
+
+/**
+ * The skill library, per employee: the ready-made templates this role can take
+ * on. Same kind→role mapping as live agents, so a template always lands under
+ * the employee whose page offered it.
+ */
+export function templatesOfRole(role: EmployeeRole): AgentTemplate[] {
+  return AGENT_TEMPLATES.filter((t) => roleOfTask({ kind: t.kind }) === role);
 }

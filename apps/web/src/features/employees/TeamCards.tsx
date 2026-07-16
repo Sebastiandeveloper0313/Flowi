@@ -3,13 +3,14 @@ import { Button } from "@workspace/ui/components/button";
 import { ArrowRight, Bot, CalendarClock, CheckCheck } from "lucide-react";
 
 import { useApprovals } from "@/features/approvals/hooks";
+import { toolkitLogo } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 
-import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
+import { EMPLOYEES, tasksOfRole, templatesOfRole, type EmployeeMeta } from "./roles";
 
 /**
  * The team as cards: one per employee. Hired ones read like a person at work
@@ -103,7 +104,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
           </span>
           <span className="flex items-center gap-1.5">
             <Bot className="size-3.5" />
-            {mine.length} agent{mine.length === 1 ? "" : "s"} inside
+            {mine.length} skill{mine.length === 1 ? "" : "s"} running
           </span>
           {waiting > 0 && (
             <span className="text-primary flex items-center gap-1.5 font-medium">
@@ -112,13 +113,32 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
           )}
         </div>
       ) : (
-        <>
-          <p className="text-muted-foreground text-sm">{meta.hirePitch}</p>
-          <Button size="sm" className="pointer-events-none mt-auto w-full" tabIndex={-1}>
+        <p className="text-muted-foreground text-sm">{meta.hirePitch}</p>
+      )}
+
+      {/* The stack this employee works through, plus the size of their skill
+          library: the at-a-glance "what am I actually hiring" line. */}
+      <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
+        <span className="flex -space-x-1.5">
+          {meta.relevantToolkits.slice(0, 5).map((slug) => (
+            <img
+              key={slug}
+              src={toolkitLogo(slug)}
+              alt={slug}
+              className="ring-border size-6 rounded-md bg-white object-contain p-0.5 ring-1"
+            />
+          ))}
+        </span>
+        {hired ? (
+          <span className="text-muted-foreground text-xs">
+            {templatesOfRole(meta.role).length} skills in library
+          </span>
+        ) : (
+          <Button size="sm" className="pointer-events-none" tabIndex={-1}>
             Hire {meta.name}
           </Button>
-        </>
-      )}
+        )}
+      </div>
     </Link>
   );
 }
