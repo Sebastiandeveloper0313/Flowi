@@ -2,17 +2,42 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Activity, CalendarClock, CheckCheck, Loader2, Play, Plus, Sparkles } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
+import {
+  Activity,
+  CalendarClock,
+  CheckCheck,
+  Loader2,
+  Pause,
+  Play,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
-import { useRunTask, useTasks, useUpdateTaskAutonomy } from "@/features/tasks/hooks";
+import {
+  SCHEDULES,
+  scheduleLabel,
+  useRunTask,
+  useSetTaskStatus,
+  useTasks,
+  useUpdateTaskAutonomy,
+  useUpdateTaskSchedule,
+} from "@/features/tasks/hooks";
 import { runsQueryOptions, type Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 import { useActiveTeamId } from "@/features/workspace/active";
+import { useUpdateAutoPostPacing, useWorkspace } from "@/features/workspace/hooks";
 
 import { employeeStatsQueryOptions } from "./queries";
 import { kindLine, type EmployeeMeta } from "./roles";
@@ -176,6 +201,7 @@ export function WorkTab({
     .filter((t) => t.next_run_at)
     .sort((a, b) => new Date(a.next_run_at!).getTime() - new Date(b.next_run_at!).getTime());
   const onDemand = active.filter((t) => !t.next_run_at);
+  const pausedTasks = mine.filter((t) => t.status === "paused");
   const next = scheduled[0];
 
   const neededToolkits = [...new Set(active.flatMap((t) => requiredToolkits(t)))];
@@ -335,57 +361,21 @@ export function WorkTab({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {scheduled.length === 0 && onDemand.length === 0 ? (
+              {mine.length === 0 ? (
                 <p className="text-muted-foreground py-6 text-center text-sm">
                   Nothing scheduled. Teach {meta.name} a skill and it lands here.
                 </p>
               ) : (
                 <div className="grid gap-2">
-                  {[...scheduled, ...onDemand].map((t) => {
-                    const isRunning =
-                      runningIds.has(t.id) || (run.isPending && run.variables === t.id);
-                    return (
-                      <div
-                        key={t.id}
-                        className="bg-muted/30 flex items-center gap-3 rounded-xl border px-3.5 py-3"
-                      >
-                        <div className="w-24 shrink-0">
-                          {t.next_run_at ? (
-                            <>
-                              <p className="text-sm font-semibold tabular-nums">
-                                {clockLabel(t.next_run_at)}
-                              </p>
-                              <p className="text-muted-foreground text-xs">
-                                {inWords(t.next_run_at)}
-                              </p>
-                            </>
-                          ) : (
-                            <p className="text-muted-foreground text-xs font-medium">On demand</p>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{t.title}</p>
-                          <p className="text-muted-foreground truncate text-xs">
-                            {kindLine(t.kind)}
-                          </p>
-                        </div>
-                        {isRunning ? (
-                          <span className="text-primary flex shrink-0 items-center gap-1.5 text-xs font-medium">
-                            <Loader2 className="size-3.5 animate-spin" /> Working…
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-primary shrink-0"
-                            onClick={() => startNow(t.id)}
-                          >
-                            <Play className="size-3.5" /> Start now
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {[...scheduled, ...onDemand, ...pausedTasks].map((t) => (
+                    <ShiftRow
+                      key={t.id}
+                      task={t}
+                      meta={meta}
+                      isRunning={runningIds.has(t.id) || (run.isPending && run.variables === t.id)}
+                      onStartNow={() => startNow(t.id)}
+                    />
+                  ))}
                 </div>
               )}
               {run.isError && (
@@ -455,5 +445,143 @@ export function WorkTab({
         onCustom={teachCustom}
       />
     </>
+  );
+}
+
+/**
+ * One row of the shift plan, with the controls that make it feel like a real
+ * schedule you own: when it runs (preset picker, applies from the next run),
+ * how much it's allowed to send (Reddit replies/day, workspace-wide), pause
+ * and resume without leaving the page, and start-now.
+ */
+function ShiftRow({
+  task: t,
+  meta,
+  isRunning,
+  onStartNow,
+}: {
+  task: Task;
+  meta: EmployeeMeta;
+  isRunning: boolean;
+  onStartNow: () => void;
+}) {
+  const setStatus = useSetTaskStatus();
+  const setSchedule = useUpdateTaskSchedule();
+  const pacing = useUpdateAutoPostPacing();
+  const { data: ws } = useWorkspace();
+  const paused = t.status === "paused";
+
+  const cron = t.schedule_cron ?? "once";
+  const scheduleOptions = SCHEDULES.some((s) => s.value === cron)
+    ? [...SCHEDULES]
+    : [{ value: cron, label: scheduleLabel(t.schedule_cron) }, ...SCHEDULES];
+
+  const perDay = ws?.auto_post_per_day ?? 10;
+
+  return (
+    <div className={`bg-muted/30 rounded-xl border px-3.5 py-3 ${paused ? "opacity-70" : ""}`}>
+      <div className="flex items-center gap-3">
+        <div className="w-24 shrink-0">
+          {paused ? (
+            <p className="text-muted-foreground text-xs font-medium">Paused</p>
+          ) : t.next_run_at ? (
+            <>
+              <p className="text-sm font-semibold tabular-nums">{clockLabel(t.next_run_at)}</p>
+              <p className="text-muted-foreground text-xs">{inWords(t.next_run_at)}</p>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-xs font-medium">On demand</p>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{t.title}</p>
+          <p className="text-muted-foreground truncate text-xs">{kindLine(t.kind)}</p>
+        </div>
+        {isRunning ? (
+          <span className="text-primary flex shrink-0 items-center gap-1.5 text-xs font-medium">
+            <Loader2 className="size-3.5 animate-spin" /> Working…
+          </span>
+        ) : paused ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            disabled={setStatus.isPending}
+            onClick={() => setStatus.mutate({ id: t.id, status: "active" })}
+          >
+            <Play className="size-3.5" /> Resume
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground hover:text-primary shrink-0"
+            onClick={onStartNow}
+          >
+            <Play className="size-3.5" /> Start now
+          </Button>
+        )}
+      </div>
+
+      {/* the dials: schedule, volume cap, pause */}
+      <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t pt-2.5">
+        <Select
+          value={cron}
+          onValueChange={(v) =>
+            setSchedule.mutate({ id: t.id, scheduleCron: v === "once" ? null : v })
+          }
+        >
+          <SelectTrigger size="sm" className="bg-card h-8 w-auto gap-1.5 text-xs">
+            <CalendarClock className="size-3" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {scheduleOptions.map((s) => (
+              <SelectItem key={s.value} value={s.value} className="text-xs">
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {t.kind === "reddit_monitor" && (
+          <Select
+            value={String(perDay)}
+            onValueChange={(v) =>
+              ws &&
+              pacing.mutate({
+                teamId: ws.id,
+                perDay: Number(v),
+                gapMinutes: ws.auto_post_gap_minutes ?? 45,
+              })
+            }
+          >
+            <SelectTrigger size="sm" className="bg-card h-8 w-auto gap-1.5 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[...new Set([3, 5, 10, 15, 20, perDay])]
+                .sort((a, b) => a - b)
+                .map((n) => (
+                  <SelectItem key={n} value={String(n)} className="text-xs">
+                    max {n} replies/day
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {!paused && (
+          <button
+            type="button"
+            disabled={setStatus.isPending}
+            onClick={() => setStatus.mutate({ id: t.id, status: "paused" })}
+            className="text-muted-foreground hover:text-foreground ml-auto inline-flex items-center gap-1 text-xs font-medium"
+          >
+            <Pause className="size-3" /> Pause
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
