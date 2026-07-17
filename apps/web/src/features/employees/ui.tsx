@@ -1,14 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { Button } from "@workspace/ui/components/button";
-import { Check, Loader2, X } from "lucide-react";
 import { Check, Loader2, X } from "lucide-react";
 
 import { useConfirm } from "@/components/useConfirm";
-import { useConfirm } from "@/components/useConfirm";
 import { useDecideApproval } from "@/features/approvals/hooks";
-import { useDecideApproval } from "@/features/approvals/hooks";
-import type { Approval } from "@/features/approvals/queries";
 import type { Approval } from "@/features/approvals/queries";
 import { formatWhen, scheduleLabel } from "@/features/tasks/hooks";
 import type { Task, TaskRun } from "@/features/tasks/queries";
