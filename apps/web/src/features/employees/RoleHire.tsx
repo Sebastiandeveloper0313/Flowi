@@ -19,7 +19,7 @@ import { starterTemplatesOf, type EmployeeMeta, type EmployeeRole } from "./role
 
 interface HireQuestion {
   id: string;
-  /** The big question, addressed like you'd brief a real hire. */
+  /** The big question, asked by the employee like a real hire would. */
   question: string;
   hint: string;
   placeholder: string;
@@ -29,16 +29,17 @@ interface HireQuestion {
   short: string;
 }
 
-// The interview, per role: two questions that genuinely change the work. Every
-// answer is folded into the starter skills' instructions, so this is a real
-// briefing, not onboarding theater. Everything is skippable; the website
+// The interview, per role: two questions that genuinely change the work,
+// phrased in the employee's own voice (they conduct their own interview).
+// Every answer is folded into the starter skills' instructions, so this is a
+// real briefing, not onboarding theater. Everything is skippable; the website
 // analysis already covers the basics.
 const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
   growth: [
     {
       id: "dream-lead",
       question: "Who is your dream lead?",
-      hint: "Describe the person whose post should make Maya jump. She uses this to judge every thread she finds.",
+      hint: "Describe the person whose post should make me jump. I'll judge every thread I find against this.",
       placeholder:
         "e.g. solo founders venting that they can't get their first customers, or agencies drowning in manual invoicing",
       short: "What a dream lead looks like",
@@ -46,7 +47,7 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
     {
       id: "known-places",
       question: "Any subreddits or phrases you already know work?",
-      hint: "Skip this and Maya picks her own hunting grounds from your website.",
+      hint: "Skip this and I'll pick my own hunting grounds from your website.",
       placeholder: "e.g. r/startups, r/indiehackers, “how do I find clients”",
       short: "Places and phrases that already work",
     },
@@ -55,15 +56,15 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
     {
       id: "voice",
       question: "How should your posts sound?",
-      hint: "Nova writes every post in this voice.",
+      hint: "I'll write every post in this voice.",
       placeholder: "Describe it in your own words…",
       options: ["Professional and sharp", "Friendly and casual", "Bold and opinionated"],
       short: "Voice",
     },
     {
       id: "never",
-      question: "Anything Nova should never do or say?",
-      hint: "Hard rules she'll respect in every post.",
+      question: "Anything I should never do or say?",
+      hint: "Hard rules I'll respect in every post.",
       placeholder: "e.g. no emojis, never trash competitors, don't mention pricing",
       short: "Never do",
     },
@@ -72,7 +73,7 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
     {
       id: "topics",
       question: "What searches should your blog win?",
-      hint: "The topics your customers google before they find you. Alex plans articles around these.",
+      hint: "The things your customers google before they find you. I'll plan articles around these.",
       placeholder:
         "e.g. invoice templates for agencies, net 30 vs net 15, getting clients to pay on time",
       short: "Topics to own",
@@ -80,7 +81,7 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
     {
       id: "style",
       question: "Anything every article should include, or avoid?",
-      hint: "Standing instructions for every piece.",
+      hint: "Standing instructions for every piece I write.",
       placeholder: "e.g. always end with a link to the free trial, avoid corporate jargon",
       short: "Article rules",
     },
@@ -89,15 +90,15 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
     {
       id: "faq",
       question: "What are the 3–5 questions customers ask most?",
-      hint: "Sam answers these confidently from day one.",
+      hint: "I'll answer these confidently from day one.",
       placeholder:
         "e.g. how do I set up my first invoice, can I change plans, do you integrate with X",
       short: "Most common questions",
     },
     {
       id: "escalate",
-      question: "What should Sam hand to you instead of answering?",
-      hint: "His escalation line. Everything else he drafts himself for your approval.",
+      question: "What should I hand to you instead of answering?",
+      hint: "My escalation line. Everything else I draft myself for your approval.",
       placeholder: "Describe it in your own words…",
       options: [
         "Only bugs and refund requests",
@@ -120,10 +121,10 @@ function parseSubreddits(text: string): string[] {
 }
 
 /**
- * Hiring is an interview, like it would be for a human: a couple of questions
- * that actually shape the work, their tools, then they start. Answers are
- * folded into every starter skill's instructions ("From your manager: …"), so
- * the employee arrives briefed by the user on top of the website analysis.
+ * Hiring is an interview, and the employee conducts it: their avatar and name
+ * frame every question, inside one composed briefing card. Answers are folded
+ * into every starter skill's instructions ("From your manager: …"), so the
+ * employee arrives briefed by the user on top of the website analysis.
  */
 export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   const { data: ws } = useWorkspace();
@@ -167,59 +168,80 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   if (!ws || starters.length === 0) return null;
 
   return (
-    <div className="mx-auto max-w-2xl pt-6 sm:pt-12">
-      {/* progress */}
-      <div className="mb-10 flex items-center gap-1.5">
-        {Array.from({ length: reviewStep + 1 }, (_, i) => (
+    <div className="mx-auto max-w-2xl pt-2 sm:pt-6">
+      <div className="bg-card rounded-3xl border p-7 shadow-[0_28px_60px_-44px_rgba(16,48,120,0.5)] sm:p-10">
+        {/* the employee conducting their own interview */}
+        <div className="flex items-center gap-3 border-b pb-6">
           <span
-            key={i}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === step
-                ? "bg-primary w-6"
-                : i < step
-                  ? "bg-primary/40 w-3"
-                  : "bg-muted-foreground/20 w-3"
-            }`}
-          />
-        ))}
-      </div>
+            className={`grid size-11 shrink-0 place-items-center rounded-xl text-xl shadow-xs ${meta.tint}`}
+          >
+            {meta.emoji}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Hiring {meta.name}</p>
+            <p className="text-muted-foreground text-xs">
+              {meta.title} · getting to know your business
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: reviewStep + 1 }, (_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === step
+                    ? "bg-primary w-6"
+                    : i < step
+                      ? "bg-primary/40 w-3"
+                      : "bg-muted-foreground/20 w-3"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
 
-      {step < questions.length ? (
-        <QuestionStep
-          key={questions[step].id}
-          index={step}
-          q={questions[step]}
-          value={answers[questions[step].id] ?? ""}
-          onChange={(v) => setAnswers((a) => ({ ...a, [questions[step].id]: v }))}
-          onBack={step > 0 ? () => setStep(step - 1) : undefined}
-          onNext={() => setStep(step + 1)}
-        />
-      ) : step === toolsStep ? (
-        <ToolsStep meta={meta} onBack={() => setStep(step - 1)} onNext={() => setStep(step + 1)} />
-      ) : (
-        <ReviewStep
-          meta={meta}
-          company={ws.name && ws.name !== "My team" ? ws.name : "your business"}
-          briefed={questions.some((q) => (answers[q.id] ?? "").trim())}
-          hiring={hire.isPending}
-          error={hire.isError ? ((hire.error as Error)?.message ?? "unknown error") : null}
-          onBack={() => setStep(step - 1)}
-          onHire={() => hire.mutate()}
-        />
-      )}
+        <div className="pt-8">
+          {step < questions.length ? (
+            <QuestionStep
+              key={questions[step].id}
+              meta={meta}
+              q={questions[step]}
+              value={answers[questions[step].id] ?? ""}
+              onChange={(v) => setAnswers((a) => ({ ...a, [questions[step].id]: v }))}
+              onBack={step > 0 ? () => setStep(step - 1) : undefined}
+              onNext={() => setStep(step + 1)}
+            />
+          ) : step === toolsStep ? (
+            <ToolsStep
+              meta={meta}
+              onBack={() => setStep(step - 1)}
+              onNext={() => setStep(step + 1)}
+            />
+          ) : (
+            <ReviewStep
+              meta={meta}
+              company={ws.name && ws.name !== "My team" ? ws.name : "your business"}
+              briefed={questions.some((q) => (answers[q.id] ?? "").trim())}
+              hiring={hire.isPending}
+              error={hire.isError ? ((hire.error as Error)?.message ?? "unknown error") : null}
+              onBack={() => setStep(step - 1)}
+              onHire={() => hire.mutate()}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function QuestionStep({
-  index,
+  meta,
   q,
   value,
   onChange,
   onBack,
   onNext,
 }: {
-  index: number;
+  meta: EmployeeMeta;
   q: HireQuestion;
   value: string;
   onChange: (v: string) => void;
@@ -228,8 +250,8 @@ function QuestionStep({
 }) {
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-      <span className="text-muted-foreground/30 text-5xl font-bold">{index + 1}</span>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+      <p className="text-primary text-sm font-semibold">{meta.name} asks</p>
+      <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-balance sm:text-[1.75rem]">
         {q.question}
       </h2>
       <p className="text-muted-foreground mt-2 text-sm">{q.hint}</p>
@@ -262,24 +284,32 @@ function QuestionStep({
             onNext();
           }
         }}
-        rows={3}
+        rows={5}
+        autoFocus
         placeholder={q.placeholder}
-        className="bg-card mt-4 resize-none rounded-2xl p-4 text-[15px] shadow-xs"
+        className="focus-visible:ring-primary/25 focus-visible:border-primary/40 mt-5 min-h-36 resize-none rounded-2xl border p-5 text-[15px] leading-relaxed shadow-xs focus-visible:ring-4"
       />
 
-      <div className="mt-5 flex items-center gap-2">
+      <div className="mt-6 flex items-center gap-3">
         {onBack && (
-          <Button variant="outline" onClick={onBack}>
+          <Button variant="ghost" className="text-muted-foreground" onClick={onBack}>
             <ArrowLeft className="size-4" /> Back
           </Button>
         )}
-        <Button className="flex-1" onClick={onNext}>
-          {value.trim() ? "Next" : "Skip"} <ArrowRight className="size-4" />
+        <span className="flex-1" />
+        {!value.trim() && (
+          <button
+            type="button"
+            onClick={onNext}
+            className="text-muted-foreground hover:text-foreground text-sm font-medium"
+          >
+            Skip
+          </button>
+        )}
+        <Button size="lg" className="px-8" disabled={!value.trim()} onClick={onNext}>
+          Continue <ArrowRight className="size-4" />
         </Button>
       </div>
-      <p className="text-muted-foreground mt-2 text-center text-xs">
-        Enter to continue · Shift+Enter for a new line
-      </p>
     </div>
   );
 }
@@ -308,12 +338,12 @@ function ToolsStep({
 
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-      <h2 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">
-        Give {meta.name} access to {meta.name === "Sam" ? "his" : "her"} tools
+      <p className="text-primary text-sm font-semibold">One more thing</p>
+      <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-balance sm:text-[1.75rem]">
+        The accounts {meta.name} works through
       </h2>
       <p className="text-muted-foreground mt-2 text-sm">
-        The accounts this job runs through. Connect them now or skip; {meta.name} will remind you
-        and start by {meta.name === "Sam" ? "himself" : "herself"} the moment they're connected.
+        Connect them now or later; anything connected picks up work by itself.
       </p>
 
       <div className="mt-6 grid gap-2">
@@ -323,7 +353,7 @@ function ToolsStep({
           return (
             <div
               key={slug}
-              className="bg-card flex items-center gap-3 rounded-2xl border px-4 py-3.5 shadow-xs"
+              className="bg-muted/30 flex items-center gap-3 rounded-2xl border px-4 py-3.5"
             >
               <img
                 src={toolkitLogo(slug)}
@@ -359,11 +389,12 @@ function ToolsStep({
         </p>
       )}
 
-      <div className="mt-6 flex items-center gap-2">
-        <Button variant="outline" onClick={onBack}>
+      <div className="mt-6 flex items-center gap-3">
+        <Button variant="ghost" className="text-muted-foreground" onClick={onBack}>
           <ArrowLeft className="size-4" /> Back
         </Button>
-        <Button className="flex-1" onClick={onNext}>
+        <span className="flex-1" />
+        <Button size="lg" className="px-8" onClick={onNext}>
           Continue <ArrowRight className="size-4" />
         </Button>
       </div>
@@ -391,32 +422,20 @@ function ReviewStep({
   const starters = starterTemplatesOf(meta);
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-      <div className="flex items-center gap-4">
-        <span
-          className={`grid size-14 shrink-0 place-items-center rounded-2xl text-3xl shadow-xs ${meta.tint}`}
-        >
-          {meta.emoji}
-        </span>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {meta.name} is ready to start at {company}
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Briefed from your website{briefed ? " and your answers" : ""}. Here's the work{" "}
-            {meta.name === "Sam" ? "he" : "she"} starts with; you approve anything before it goes
-            out.
-          </p>
-        </div>
-      </div>
+      <p className="text-primary text-sm font-semibold">Ready when you are</p>
+      <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-balance sm:text-[1.75rem]">
+        {meta.name} starts at {company} with this
+      </h2>
+      <p className="text-muted-foreground mt-2 text-sm">
+        Briefed from your website{briefed ? " and your answers" : ""}. You approve anything before
+        it goes out.
+      </p>
 
       <div className="mt-6 grid gap-2.5">
         {starters.map((t) => {
           const Icon = t.icon;
           return (
-            <div
-              key={t.id}
-              className="bg-card flex items-start gap-3 rounded-2xl border p-4 shadow-xs"
-            >
+            <div key={t.id} className="bg-muted/30 flex items-start gap-3 rounded-2xl border p-4">
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white">
                 <Icon className="size-4" />
               </span>
@@ -432,8 +451,13 @@ function ReviewStep({
         })}
       </div>
 
-      <div className="mt-6 flex items-center gap-2">
-        <Button variant="outline" onClick={onBack} disabled={hiring}>
+      <div className="mt-6 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={onBack}
+          disabled={hiring}
+        >
           <ArrowLeft className="size-4" /> Back
         </Button>
         <Button className="flex-1" size="lg" disabled={hiring} onClick={onHire}>
