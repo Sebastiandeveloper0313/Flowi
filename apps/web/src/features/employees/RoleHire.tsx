@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowLeft, ArrowRight, CalendarClock, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarClock, Check, ChevronDown, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
@@ -114,6 +114,18 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
 
 // These connect through their own dialog on the Integrations page, not OAuth.
 const DIALOG_SLUGS = new Set(["wordpress", "webhook", "slack"]);
+
+// Everything connectable today; the tools step recommends the role's own stack
+// first and offers the rest behind "See more tools".
+const ALL_CONNECTABLE = [
+  "gmail",
+  "reddit",
+  "linkedin",
+  "facebook",
+  "slack",
+  "wordpress",
+  "webhook",
+];
 
 /** Pull r/name mentions out of a free-text answer for the Reddit skills' config. */
 function parseSubreddits(text: string): string[] {
@@ -325,7 +337,9 @@ function ToolsStep({
 }) {
   const { data: toolkits } = useIntegrations(true);
   const connect = useConnectIntegration();
+  const [showMore, setShowMore] = useState(false);
   const EXTRA_NAMES: Record<string, string> = { wordpress: "WordPress", webhook: "Custom website" };
+  const more = ALL_CONNECTABLE.filter((s) => !meta.relevantToolkits.includes(s));
 
   async function onConnect(slug: string) {
     try {
@@ -334,6 +348,39 @@ function ToolsStep({
     } catch {
       /* surfaced via connect.isError */
     }
+  }
+
+  function ToolRow({ slug }: { slug: string }) {
+    const connected = toolkits?.find((t) => t.slug === slug)?.connected ?? false;
+    const name = toolkitName(slug) !== slug ? toolkitName(slug) : (EXTRA_NAMES[slug] ?? slug);
+    return (
+      <div className="bg-muted/30 flex items-center gap-3 rounded-2xl border px-4 py-3.5">
+        <img
+          src={toolkitLogo(slug)}
+          alt=""
+          className="ring-border size-9 rounded-lg bg-white object-contain p-1 ring-1"
+        />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
+        {connected ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+            <Check className="size-3" /> Connected
+          </span>
+        ) : DIALOG_SLUGS.has(slug) ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/integrations">Connect</Link>
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={connect.isPending}
+            onClick={() => void onConnect(slug)}
+          >
+            Connect
+          </Button>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -346,43 +393,36 @@ function ToolsStep({
         Connect them now or later; anything connected picks up work by itself.
       </p>
 
-      <div className="mt-6 grid gap-2">
-        {meta.relevantToolkits.map((slug) => {
-          const connected = toolkits?.find((t) => t.slug === slug)?.connected ?? false;
-          const name = toolkitName(slug) !== slug ? toolkitName(slug) : (EXTRA_NAMES[slug] ?? slug);
-          return (
-            <div
-              key={slug}
-              className="bg-muted/30 flex items-center gap-3 rounded-2xl border px-4 py-3.5"
-            >
-              <img
-                src={toolkitLogo(slug)}
-                alt=""
-                className="ring-border size-9 rounded-lg bg-white object-contain p-1 ring-1"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
-              {connected ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                  <Check className="size-3" /> Connected
-                </span>
-              ) : DIALOG_SLUGS.has(slug) ? (
-                <Button size="sm" variant="outline" asChild>
-                  <Link to="/integrations">Connect</Link>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={connect.isPending}
-                  onClick={() => void onConnect(slug)}
-                >
-                  Connect
-                </Button>
-              )}
-            </div>
-          );
-        })}
+      <p className="text-muted-foreground mt-6 mb-2 text-xs font-semibold tracking-wide uppercase">
+        Recommended for this role
+      </p>
+      <div className="grid gap-2">
+        {meta.relevantToolkits.map((slug) => (
+          <ToolRow key={slug} slug={slug} />
+        ))}
       </div>
+
+      {more.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            className="text-muted-foreground hover:text-foreground mt-4 flex w-full items-center justify-center gap-1.5 text-sm font-medium transition"
+          >
+            See more tools ({more.length})
+            <ChevronDown
+              className={`size-4 transition-transform ${showMore ? "rotate-180" : ""}`}
+            />
+          </button>
+          {showMore && (
+            <div className="animate-in fade-in-0 slide-in-from-top-1 mt-3 grid gap-2 duration-200">
+              {more.map((slug) => (
+                <ToolRow key={slug} slug={slug} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
       {connect.isError && (
         <p className="text-destructive mt-2 text-xs">
           {(connect.error as Error)?.message || "Couldn't start the connection."}
