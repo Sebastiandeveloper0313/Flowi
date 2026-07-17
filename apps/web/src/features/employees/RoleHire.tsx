@@ -15,7 +15,7 @@ import { templateToProposal } from "@/features/tasks/templates";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 
-import { starterTemplatesOf, type EmployeeMeta, type EmployeeRole } from "./roles";
+import { starterTemplatesOf, templatesOfRole, type EmployeeMeta, type EmployeeRole } from "./roles";
 
 interface HireQuestion {
   id: string;
@@ -148,6 +148,10 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   // steps: one per question, then tools, then review
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // The whole role library is offered on the review step; starters come pre-picked.
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(starterTemplatesOf(meta).map((t) => t.id)),
+  );
   const toolsStep = questions.length;
   const reviewStep = questions.length + 1;
 
@@ -159,7 +163,7 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
         : "";
       const subs = parseSubreddits(Object.values(answers).join(" "));
       const created = [];
-      for (const t of starters) {
+      for (const t of templatesOfRole(meta.role).filter((t) => selected.has(t.id))) {
         const p = templateToProposal(t);
         p.instructions += note;
         if ((t.kind === "reddit_monitor" || t.kind === "reddit_post") && subs.length)
@@ -233,6 +237,15 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
               meta={meta}
               company={ws.name && ws.name !== "My team" ? ws.name : "your business"}
               briefed={questions.some((q) => (answers[q.id] ?? "").trim())}
+              selected={selected}
+              onToggle={(id) =>
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
               hiring={hire.isPending}
               error={hire.isError ? ((hire.error as Error)?.message ?? "unknown error") : null}
               onBack={() => setStep(step - 1)}
@@ -446,6 +459,8 @@ function ReviewStep({
   meta,
   company,
   briefed,
+  selected,
+  onToggle,
   hiring,
   error,
   onBack,
@@ -454,39 +469,69 @@ function ReviewStep({
   meta: EmployeeMeta;
   company: string;
   briefed: boolean;
+  selected: Set<string>;
+  onToggle: (id: string) => void;
   hiring: boolean;
   error: string | null;
   onBack: () => void;
   onHire: () => void;
 }) {
-  const starters = starterTemplatesOf(meta);
+  // The role's whole library, recommended starters first: pick the workload.
+  const starterIds = new Set(starterTemplatesOf(meta).map((t) => t.id));
+  const templates = [...templatesOfRole(meta.role)].sort(
+    (a, b) => Number(starterIds.has(b.id)) - Number(starterIds.has(a.id)),
+  );
+  const count = selected.size;
+
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
       <p className="text-primary text-sm font-semibold">Ready when you are</p>
       <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-balance sm:text-[1.75rem]">
-        {meta.name} starts at {company} with this
+        Pick what {meta.name} takes on at {company}
       </h2>
       <p className="text-muted-foreground mt-2 text-sm">
-        Briefed from your website{briefed ? " and your answers" : ""}. You approve anything before
-        it goes out.
+        Briefed from your website{briefed ? " and your answers" : ""}. The recommended workload is
+        picked; add or drop anything. You approve everything before it goes out.
       </p>
 
       <div className="mt-6 grid gap-2.5">
-        {starters.map((t) => {
+        {templates.map((t) => {
           const Icon = t.icon;
+          const on = selected.has(t.id);
           return (
-            <div key={t.id} className="bg-muted/30 flex items-start gap-3 rounded-2xl border p-4">
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onToggle(t.id)}
+              className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                on
+                  ? "border-primary/50 bg-primary/5 ring-primary/15 ring-2"
+                  : "bg-muted/30 hover:border-primary/30"
+              }`}
+            >
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white">
                 <Icon className="size-4" />
               </span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{t.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  {t.name}
+                  {starterIds.has(t.id) && (
+                    <span className="text-primary ml-2 text-xs font-semibold">Recommended</span>
+                  )}
+                </p>
                 <p className="text-muted-foreground text-sm">{t.tagline}</p>
                 <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
                   <CalendarClock className="size-3" /> {t.scheduleLabel}
                 </p>
               </div>
-            </div>
+              <span
+                className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition-colors ${
+                  on ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+                }`}
+              >
+                {on && <Check className="size-3" />}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -500,9 +545,9 @@ function ReviewStep({
         >
           <ArrowLeft className="size-4" /> Back
         </Button>
-        <Button className="flex-1" size="lg" disabled={hiring} onClick={onHire}>
+        <Button className="flex-1" size="lg" disabled={hiring || count === 0} onClick={onHire}>
           {hiring ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-          {hiring ? "Starting…" : `Hire ${meta.name}`}
+          {hiring ? "Starting…" : `Hire ${meta.name} with ${count} skill${count === 1 ? "" : "s"}`}
         </Button>
       </div>
       <p className="text-muted-foreground mt-2 text-center text-xs">
