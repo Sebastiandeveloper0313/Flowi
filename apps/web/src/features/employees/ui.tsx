@@ -9,6 +9,8 @@ import { formatWhen, scheduleLabel } from "@/features/tasks/hooks";
 import type { Task, TaskRun } from "@/features/tasks/queries";
 import { RunDot, runSummaryLine, TaskStatusBadge } from "@/features/tasks/ui";
 
+import { kindLine } from "./roles";
+
 /** One line of an employee's feed: what it did, when, click for the details. */
 export function FeedRow({ run, title }: { run: TaskRun; title: string }) {
   return (
@@ -37,6 +39,7 @@ export function DutyRow({ task }: { task: Task }) {
     >
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{task.title}</p>
+        <p className="text-muted-foreground truncate text-xs">{kindLine(task.kind)}</p>
         <p className="text-muted-foreground text-xs">{scheduleLabel(task.schedule_cron)}</p>
       </div>
       <TaskStatusBadge status={task.status} />

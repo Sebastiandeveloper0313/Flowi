@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@workspace/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
-import { CalendarClock, Check, Loader2, Plus } from "lucide-react";
+import { Textarea } from "@workspace/ui/components/textarea";
+import { CalendarClock, Check, Loader2, MessageSquare, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { createAgentFromProposal } from "@/features/tasks/mutations";
@@ -23,13 +24,17 @@ export function SkillLibraryDialog({
   mine,
   open,
   onOpenChange,
+  onCustom,
 }: {
   meta: EmployeeMeta;
   mine: Task[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Hand a custom brief to the employee's chat, which sets it up as a skill. */
+  onCustom?: (text: string) => void;
 }) {
   const templates = templatesOfRole(meta.role);
+  const [custom, setCustom] = useState("");
 
   // A template counts as added when an agent was created from it (proposal_id
   // stamp) or shares its exact title (pre-stamp agents).
@@ -60,6 +65,31 @@ export function SkillLibraryDialog({
             />
           ))}
         </div>
+
+        {onCustom && (
+          <div className="rounded-xl border border-dashed p-3.5">
+            <p className="text-sm font-medium">Something custom</p>
+            <p className="text-muted-foreground text-xs">
+              Describe the job in your own words. {meta.name} sets it up with you in chat: what it
+              does, how often, where results go.
+            </p>
+            <Textarea
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              rows={2}
+              placeholder="e.g. every Friday, write a short changelog post from what we shipped this week"
+              className="mt-2.5 resize-none rounded-xl text-sm"
+            />
+            <Button
+              size="sm"
+              className="mt-2.5"
+              disabled={!custom.trim()}
+              onClick={() => onCustom(custom.trim())}
+            >
+              <MessageSquare className="size-3.5" /> Teach {meta.name} in chat
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

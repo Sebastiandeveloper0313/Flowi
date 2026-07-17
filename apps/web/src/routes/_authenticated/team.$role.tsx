@@ -123,7 +123,7 @@ function EmployeePage() {
       ) : tab === "settings" ? (
         <EmployeeSettings meta={meta} mine={mine} />
       ) : (
-        <WorkTab meta={meta} mine={mine} />
+        <WorkTab meta={meta} mine={mine} onOpenChat={() => setTab("chat")} />
       )}
     </div>
   );

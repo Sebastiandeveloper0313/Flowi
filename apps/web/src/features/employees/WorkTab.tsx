@@ -6,15 +6,16 @@ import { Activity, CalendarClock, CheckCheck, Loader2, Play, Plus, Sparkles } fr
 import { useEffect, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
+import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
-import { useRunTask, useTasks } from "@/features/tasks/hooks";
+import { useRunTask, useTasks, useUpdateTaskAutonomy } from "@/features/tasks/hooks";
 import { runsQueryOptions, type Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 import { useActiveTeamId } from "@/features/workspace/active";
 
 import { employeeStatsQueryOptions } from "./queries";
-import type { EmployeeMeta } from "./roles";
+import { kindLine, type EmployeeMeta } from "./roles";
 import { SkillLibraryDialog } from "./SkillLibrary";
 import { DutyRow, FeedRow, InboxApprovalRow, StatChip } from "./ui";
 
@@ -80,19 +81,6 @@ function RunningStage({ kind, runId }: { kind: string; runId: string }) {
   );
 }
 
-// What one run of each kind actually does, in shift-plan language.
-const KIND_LINE: Record<string, string> = {
-  reddit_monitor: "Scan Reddit for new leads and draft replies",
-  reddit_post: "Write and queue a community post",
-  linkedin_post: "Draft a LinkedIn post",
-  facebook_post: "Draft a Facebook post",
-  tiktok_slideshow: "Build a TikTok slideshow",
-  seo_blog: "Write a complete SEO article",
-  content: "Draft content from fresh research",
-  email_responder: "Sweep the inbox and draft replies",
-  facebook_dm: "Answer Messenger conversations",
-};
-
 /** "in 4 min" / "in 3 h" / "in 2 d", from an ISO timestamp. */
 function inWords(iso: string): string {
   const d = new Date(iso).getTime() - Date.now();
@@ -119,11 +107,42 @@ function clockLabel(iso: string): string {
  * first, with a do-it-now button), then the finished work. Polls while open
  * so an in-flight run shows up as it happens.
  */
-export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
+export function WorkTab({
+  meta,
+  mine,
+  onOpenChat,
+}: {
+  meta: EmployeeMeta;
+  mine: Task[];
+  onOpenChat: () => void;
+}) {
   const teamId = useActiveTeamId();
   const run = useRunTask();
+  const setAutonomy = useUpdateTaskAutonomy();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const { refetch: refetchTasks } = useTasks();
+
+  // Employee-level autonomy: Auto only when every skill is explicitly auto;
+  // switching sets every skill so the whole employee behaves one way.
+  const allAuto = mine.length > 0 && mine.every((t) => t.autonomy_mode === "auto");
+  function setEmployeeAutonomy(mode: "ask" | "auto") {
+    for (const t of mine) setAutonomy.mutate({ id: t.id, mode });
+  }
+
+  // "Teach something custom" hands the brief to the employee's chat, which
+  // sets it up as a real agent (same draft handoff the desk composer used).
+  function teachCustom(text: string) {
+    try {
+      sessionStorage.setItem(
+        DESK_DRAFT_KEY,
+        `Set this up as one of your recurring skills: ${text}`,
+      );
+    } catch {
+      /* storage blocked: chat opens empty, nothing lost but the prefill */
+    }
+    setLibraryOpen(false);
+    onOpenChat();
+  }
 
   const mineIds = new Set(mine.map((t) => t.id));
   const active = mine.filter((t) => t.status === "active");
@@ -215,7 +234,7 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {meta.role === "growth" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
             <StatChip label="Done · 24h" value={runsLoading ? undefined : finished24h} />
             {waiting > 0 && (
@@ -223,6 +242,32 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
                 <StatChip label="Waiting for your OK" value={waiting} />
               </Link>
             )}
+            {/* Employee-level autonomy, always visible where you check on them. */}
+            <div className="flex flex-col items-center gap-1 pl-1">
+              <div className="bg-muted/50 flex rounded-full border p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setEmployeeAutonomy("ask")}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    !allAuto ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
+                  }`}
+                >
+                  Ask first
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmployeeAutonomy("auto")}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    allAuto ? "bg-card text-emerald-700 shadow-xs" : "text-muted-foreground"
+                  }`}
+                >
+                  Auto
+                </button>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                {allAuto ? `${meta.name} acts without asking` : "Everything waits for your OK"}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -321,7 +366,7 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{t.title}</p>
                           <p className="text-muted-foreground truncate text-xs">
-                            {KIND_LINE[t.kind ?? ""] ?? "Runs its instructions"}
+                            {kindLine(t.kind)}
                           </p>
                         </div>
                         {isRunning ? (
@@ -407,6 +452,7 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
         mine={mine}
         open={libraryOpen}
         onOpenChange={setLibraryOpen}
+        onCustom={teachCustom}
       />
     </>
   );

@@ -174,3 +174,20 @@ export function starterTemplatesOf(meta: EmployeeMeta): AgentTemplate[] {
     .map((id) => TEMPLATE_BY_ID.get(id))
     .filter((t): t is AgentTemplate => !!t);
 }
+
+// What one run of each kind actually does, in plain shift-plan language.
+const KIND_LINE: Record<string, string> = {
+  reddit_monitor: "Scans Reddit for new leads and drafts replies",
+  reddit_post: "Writes and queues community posts",
+  linkedin_post: "Drafts LinkedIn posts",
+  facebook_post: "Drafts Facebook posts",
+  tiktok_slideshow: "Builds TikTok slideshows",
+  seo_blog: "Writes complete SEO articles",
+  content: "Drafts content from fresh research",
+  email_responder: "Sweeps the inbox and drafts replies",
+  facebook_dm: "Answers Messenger conversations",
+};
+
+export function kindLine(kind: string | null | undefined): string {
+  return KIND_LINE[kind ?? ""] ?? "Runs its instructions";
+}
