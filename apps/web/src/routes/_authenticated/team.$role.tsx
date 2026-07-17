@@ -88,37 +88,57 @@ function EmployeePage() {
 
   return (
     <div className="flowy-page">
-      <Link
-        to="/team"
-        className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-sm"
-      >
-        <ArrowLeft className="size-4" /> Your team
-      </Link>
-
-      <header className="mb-5 flex flex-wrap items-center gap-4">
-        <span
-          className={`grid size-14 shrink-0 place-items-center rounded-2xl text-3xl shadow-xs ${meta.tint}`}
+      {/* One minimal bar: back on the left, the employee and their tabs as a
+          single floating pill in the center, pending count on the right. All
+          the old header bulk (big avatar, blurb, stat chips) lives in the Work
+          tab now, so Chat gets nearly the whole screen. */}
+      <div className="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <Link
+          to="/team"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 justify-self-start text-sm"
         >
-          {meta.emoji}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">{meta.name}</h1>
-          <p className="text-muted-foreground text-sm">
-            {meta.title} · {meta.blurb}
-          </p>
+          <ArrowLeft className="size-4" /> Your team
+        </Link>
+
+        <div className="bg-card flex items-center gap-1 rounded-full border p-1 shadow-xs">
+          <span
+            className={`grid size-7 shrink-0 place-items-center rounded-full text-sm ${meta.tint}`}
+          >
+            {meta.emoji}
+          </span>
+          <span className="px-1.5 text-sm font-semibold">{meta.name}</span>
+          {hired && (
+            <>
+              <span className="bg-border mx-1 h-4 w-px" />
+              {TABS.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                    tab === id
+                      ? "bg-[#eef4fd] text-[#1566e6]"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-3.5" /> {label}
+                </button>
+              ))}
+            </>
+          )}
         </div>
-        {hired && (
-          <div className="flex gap-2">
-            {role === "growth" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
-            <StatChip label="Done · 24h" value={loading ? undefined : finished24h} />
-            {waiting > 0 && (
-              <Link to="/approvals" className="block">
-                <StatChip label="Waiting for your OK" value={waiting} />
-              </Link>
-            )}
-          </div>
-        )}
-      </header>
+
+        <span className="justify-self-end">
+          {hired && waiting > 0 && (
+            <Link
+              to="/approvals"
+              className="text-primary bg-primary/5 hover:bg-primary/10 rounded-full px-3 py-1.5 text-sm font-medium transition"
+            >
+              {waiting} waiting
+            </Link>
+          )}
+        </span>
+      </div>
 
       {tasksLoading ? (
         <div className="text-muted-foreground flex items-center gap-2 py-12 text-sm">
@@ -128,29 +148,23 @@ function EmployeePage() {
         <RoleHire meta={meta} />
       ) : (
         <>
-          <div className="bg-card mb-5 flex w-fit gap-1 rounded-xl border p-1 shadow-xs">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-                  tab === id
-                    ? "bg-[#eef4fd] text-[#1566e6]"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon className="size-3.5" /> {label}
-              </button>
-            ))}
-          </div>
-
           {tab === "chat" ? (
             <EmployeeChat meta={meta} />
           ) : tab === "settings" ? (
             <EmployeeSettings meta={meta} mine={mine} />
           ) : (
             <>
+              {/* The numbers that used to crowd the header. */}
+              <div className="mb-5 flex flex-wrap gap-2">
+                {role === "growth" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
+                <StatChip label="Done · 24h" value={loading ? undefined : finished24h} />
+                {waiting > 0 && (
+                  <Link to="/approvals" className="block">
+                    <StatChip label="Waiting for your OK" value={waiting} />
+                  </Link>
+                )}
+              </div>
+
               <div className="mb-4 empty:hidden">
                 <ConnectBanner toolkits={neededToolkits} autoRunTaskId={firstUnrun?.id} />
               </div>

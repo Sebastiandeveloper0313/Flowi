@@ -1,14 +1,24 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { ArrowUpRight, CalendarClock, Check, ChevronDown, ExternalLink } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarClock,
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Loader2,
+  UserX,
+} from "lucide-react";
 import { useState } from "react";
 
+import { useConfirm } from "@/components/useConfirm";
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
-import { scheduleLabel } from "@/features/tasks/hooks";
+import { scheduleLabel, useBulkDeleteTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { TaskStatusBadge } from "@/features/tasks/ui";
+import { track } from "@/integrations/posthog";
 
 import type { EmployeeMeta } from "./roles";
 
@@ -36,6 +46,28 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
   const connect = useConnectIntegration();
   const [showMore, setShowMore] = useState(false);
   const more = ALL_CONNECTABLE.filter((s) => !meta.relevantToolkits.includes(s));
+  const fire = useBulkDeleteTasks();
+  const { confirm, dialog } = useConfirm();
+  const navigate = useNavigate();
+
+  async function onFire() {
+    const ok = await confirm({
+      title: `Fire ${meta.name}?`,
+      description: `All of ${meta.name}'s skills stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can hire ${meta.name} again anytime, with a fresh interview.`,
+      confirmLabel: `Fire ${meta.name}`,
+      destructive: true,
+    });
+    if (!ok) return;
+    fire.mutate(
+      mine.map((t) => t.id),
+      {
+        onSuccess: () => {
+          track("employee_fired", { role: meta.role, skills: mine.length });
+          void navigate({ to: "/team" });
+        },
+      },
+    );
+  }
 
   async function onConnect(slug: string) {
     try {
@@ -149,6 +181,41 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
           )}
         </CardContent>
       </Card>
+
+      {/* Letting someone go: the counterpart of hiring. Their skills stop and
+          are deleted; delivered work stays; the role returns to the roster as
+          a candidate you can re-hire with a fresh interview. */}
+      <Card className="self-start lg:col-span-2">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Fire {meta.name}</p>
+            <p className="text-muted-foreground text-sm">
+              Stops and removes all {mine.length} of {meta.name}'s skill
+              {mine.length === 1 ? "" : "s"}. Delivered work stays. You can always hire {meta.name}{" "}
+              again.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/30"
+            disabled={fire.isPending || mine.length === 0}
+            onClick={() => void onFire()}
+          >
+            {fire.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <UserX className="size-4" />
+            )}
+            Fire {meta.name}
+          </Button>
+          {fire.isError && (
+            <p className="text-destructive w-full text-xs">
+              {(fire.error as Error)?.message || "Couldn't do that. Try again."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      {dialog}
     </div>
   );
 }
