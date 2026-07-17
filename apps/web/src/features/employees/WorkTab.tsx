@@ -42,7 +42,7 @@ import { useUpdateAutoPostPacing, useWorkspace } from "@/features/workspace/hook
 import { employeeStatsQueryOptions } from "./queries";
 import { kindLine, type EmployeeMeta } from "./roles";
 import { SkillLibraryDialog } from "./SkillLibrary";
-import { DutyRow, FeedRow, InboxApprovalRow, StatChip } from "./ui";
+import { FeedRow, InboxApprovalRow, StatChip } from "./ui";
 
 // The real pipeline each kind walks through, narrated. While a run is in
 // flight the presence line cycles through these, so watching the employee
@@ -302,139 +302,121 @@ export function WorkTab({
         <ConnectBanner toolkits={neededToolkits} autoRunTaskId={firstUnrun?.id} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
-          {waiting > 0 && (
-            <Card className="self-start">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-base">
-                  <span className="flex items-center gap-2">
-                    <CheckCheck className="size-4" /> Waiting for your OK
-                  </span>
-                  <Link
-                    to="/approvals"
-                    className="text-primary text-sm font-medium hover:underline"
-                  >
-                    Open all
-                  </Link>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {myReplyGroups.map((g) => (
-                  <Link
-                    key={g.taskId}
-                    to="/agents/$agentId"
-                    params={{ agentId: g.taskId }}
-                    className="bg-muted/30 hover:border-primary/40 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-                        <Sparkles className="size-3.5 shrink-0" />
-                        {titleById.get(g.taskId) ?? "Reddit leads"}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {g.count} repl{g.count === 1 ? "y" : "ies"} drafted and ready to review
-                      </p>
-                    </div>
-                    <span className="text-primary shrink-0 text-sm font-medium">Review</span>
-                  </Link>
-                ))}
-                {myPending.slice(0, 3).map((a) => (
-                  <InboxApprovalRow key={a.id} approval={a} />
-                ))}
-                {myPending.length > 3 && (
-                  <Link
-                    to="/approvals"
-                    className="text-muted-foreground hover:text-foreground block py-1 text-center text-sm"
-                  >
-                    + {myPending.length - 3} more waiting
-                  </Link>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="self-start">
+      {/* One column, the boss's questions in order: what needs me, the
+          schedule (with its dials, and where new skills get taught), then the
+          record. No side rail: the shift plan IS the skill list. */}
+      <div className="space-y-5">
+        {waiting > 0 && (
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarClock className="size-4" /> {meta.name}'s shift plan
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2">
+                  <CheckCheck className="size-4" /> Waiting for your OK
+                </span>
+                <Link to="/approvals" className="text-primary text-sm font-medium hover:underline">
+                  Open all
+                </Link>
               </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {mine.length === 0 ? (
-                <p className="text-muted-foreground py-6 text-center text-sm">
-                  Nothing scheduled. Teach {meta.name} a skill and it lands here.
-                </p>
-              ) : (
-                <div className="grid gap-2">
-                  {[...scheduled, ...onDemand, ...pausedTasks].map((t) => (
-                    <ShiftRow
-                      key={t.id}
-                      task={t}
-                      meta={meta}
-                      isRunning={runningIds.has(t.id) || (run.isPending && run.variables === t.id)}
-                      onStartNow={() => startNow(t.id)}
-                    />
-                  ))}
-                </div>
-              )}
-              {run.isError && (
-                <p className="text-destructive mt-2 text-xs">
-                  {(run.error as Error)?.message || "Couldn't start that run."}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="self-start">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Activity className="size-4" /> Finished work
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {runsLoading ? (
-                <div className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
-                  <Loader2 className="size-4 animate-spin" /> Loading…
-                </div>
-              ) : myRuns.filter((r) => r.status !== "running").length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  Nothing yet. Results land here as soon as {meta.name} runs.
-                </p>
-              ) : (
-                <div className="-mx-2">
-                  {myRuns
-                    .filter((r) => r.status !== "running")
-                    .slice(0, 15)
-                    .map((r) => (
-                      <FeedRow key={r.id} run={r} title={titleById.get(r.task_id) ?? "Task"} />
-                    ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-5">
-          <Card className="self-start">
-            <CardHeader>
-              <CardTitle className="text-base">Skills</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {mine.map((t) => (
-                <DutyRow key={t.id} task={t} />
+              {myReplyGroups.map((g) => (
+                <Link
+                  key={g.taskId}
+                  to="/agents/$agentId"
+                  params={{ agentId: g.taskId }}
+                  className="bg-muted/30 hover:border-primary/40 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition"
+                >
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                      <Sparkles className="size-3.5 shrink-0" />
+                      {titleById.get(g.taskId) ?? "Reddit leads"}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {g.count} repl{g.count === 1 ? "y" : "ies"} drafted and ready to review
+                    </p>
+                  </div>
+                  <span className="text-primary shrink-0 text-sm font-medium">Review</span>
+                </Link>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-1 w-full"
-                onClick={() => setLibraryOpen(true)}
-              >
-                <Plus className="size-4" /> Teach {meta.name} a new skill
-              </Button>
+              {myPending.slice(0, 3).map((a) => (
+                <InboxApprovalRow key={a.id} approval={a} />
+              ))}
+              {myPending.length > 3 && (
+                <Link
+                  to="/approvals"
+                  className="text-muted-foreground hover:text-foreground block py-1 text-center text-sm"
+                >
+                  + {myPending.length - 3} more waiting
+                </Link>
+              )}
             </CardContent>
           </Card>
-        </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <CalendarClock className="size-4" /> {meta.name}'s shift plan
+              </span>
+              <Button size="sm" variant="outline" onClick={() => setLibraryOpen(true)}>
+                <Plus className="size-3.5" /> Teach a skill
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {mine.length === 0 ? (
+              <p className="text-muted-foreground py-6 text-center text-sm">
+                Nothing scheduled. Teach {meta.name} a skill and it lands here.
+              </p>
+            ) : (
+              <div className="grid gap-2">
+                {[...scheduled, ...onDemand, ...pausedTasks].map((t) => (
+                  <ShiftRow
+                    key={t.id}
+                    task={t}
+                    meta={meta}
+                    isRunning={runningIds.has(t.id) || (run.isPending && run.variables === t.id)}
+                    onStartNow={() => startNow(t.id)}
+                  />
+                ))}
+              </div>
+            )}
+            {run.isError && (
+              <p className="text-destructive mt-2 text-xs">
+                {(run.error as Error)?.message || "Couldn't start that run."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="size-4" /> Finished work
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {runsLoading ? (
+              <div className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
+                <Loader2 className="size-4 animate-spin" /> Loading…
+              </div>
+            ) : myRuns.filter((r) => r.status !== "running").length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center text-sm">
+                Nothing yet. Results land here as soon as {meta.name} runs.
+              </p>
+            ) : (
+              <div className="-mx-2">
+                {myRuns
+                  .filter((r) => r.status !== "running")
+                  .slice(0, 15)
+                  .map((r) => (
+                    <FeedRow key={r.id} run={r} title={titleById.get(r.task_id) ?? "Task"} />
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <SkillLibraryDialog
