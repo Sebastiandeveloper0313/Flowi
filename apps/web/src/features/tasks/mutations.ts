@@ -216,13 +216,17 @@ export async function bulkDeleteTasks(ids: string[]) {
 
 /** Change an agent's schedule (5-field cron, or null for run-once). */
 export async function updateTaskSchedule(id: string, scheduleCron: string | null) {
+  // The user picked "8 AM" meaning THEIR 8 AM: stamp the browser's timezone so
+  // the schedule label and the next-run time show the same clock. (Old agents
+  // created in UTC drift apart: the label says 8 AM, the run lands at 10 local.)
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const { error } = await supabase
     // Clear next_run_at so the scheduler re-arms it from the new cron on its next
     // tick. Without this the old next-run time sticks and the new schedule does
     // not take effect until it passes (e.g. switching to hourly but not running
     // until the old weekly slot).
     .from("tasks")
-    .update({ schedule_cron: scheduleCron, next_run_at: null })
+    .update({ schedule_cron: scheduleCron, next_run_at: null, timezone: browserTz })
     .eq("id", id);
   if (error) throw error;
 }

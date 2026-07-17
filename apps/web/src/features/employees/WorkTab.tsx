@@ -453,10 +453,17 @@ function ShiftRow({
   const { data: ws } = useWorkspace();
   const paused = t.status === "paused";
 
+  // An agent scheduled in another timezone shows "8 AM" but runs at your 10 AM.
+  // Until the user re-picks a schedule (which stamps their local zone), say
+  // which clock the label is on so the two times stop contradicting each other.
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tzSuffix =
+    t.schedule_cron && t.timezone && t.timezone !== browserTz ? ` (${t.timezone})` : "";
+
   const cron = t.schedule_cron ?? "once";
   const scheduleOptions = SCHEDULES.some((s) => s.value === cron)
     ? [...SCHEDULES]
-    : [{ value: cron, label: scheduleLabel(t.schedule_cron) }, ...SCHEDULES];
+    : [{ value: cron, label: scheduleLabel(t.schedule_cron) + tzSuffix }, ...SCHEDULES];
 
   const perDay = ws?.auto_post_per_day ?? 10;
 
@@ -475,10 +482,17 @@ function ShiftRow({
             <p className="text-muted-foreground text-xs font-medium">On demand</p>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{t.title}</p>
+        <Link
+          to="/agents/$agentId"
+          params={{ agentId: t.id }}
+          className="group min-w-0 flex-1"
+          title="Open this skill: full instructions, targeting, delivery"
+        >
+          <p className="group-hover:text-primary truncate text-sm font-medium transition">
+            {t.title}
+          </p>
           <p className="text-muted-foreground truncate text-xs">{kindLine(t.kind)}</p>
-        </div>
+        </Link>
         {isRunning ? (
           <span className="text-primary flex shrink-0 items-center gap-1.5 text-xs font-medium">
             <Loader2 className="size-3.5 animate-spin" /> Working…
@@ -552,6 +566,14 @@ function ShiftRow({
             </SelectContent>
           </Select>
         )}
+
+        <Link
+          to="/agents/$agentId"
+          params={{ agentId: t.id }}
+          className="text-muted-foreground hover:text-primary text-xs font-medium"
+        >
+          Full settings
+        </Link>
 
         {!paused && (
           <button
