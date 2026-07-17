@@ -102,6 +102,9 @@ function CopyButton({ text }: { text: string }) {
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
 
+/** sessionStorage key other surfaces use to hand a message to a chat. */
+export const DESK_DRAFT_KEY = "sentrive.chat.draft";
+
 function fileToAttachment(file: File): Promise<Attachment> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -509,6 +512,28 @@ export function Chat({
     window.addEventListener("sentrive:focus-composer", focusComposer);
     return () => window.removeEventListener("sentrive:focus-composer", focusComposer);
   }, []);
+
+  // A message handed over from another surface (the skill library's custom
+  // teach box) arrives as a sessionStorage draft: send it once auth context is
+  // ready. Remove-before-send keeps StrictMode's double effect run from firing
+  // twice. Embedded chats (an employee's conversation) accept drafts too.
+  const draftSent = useRef(false);
+  useEffect(() => {
+    if (!activeTeamId || (chatId && !embedded) || draftSent.current) return;
+    if (embedded && !chatId) return; // employee chat not resolved yet
+    let draft: string | null = null;
+    try {
+      draft = sessionStorage.getItem(DESK_DRAFT_KEY);
+      if (draft) sessionStorage.removeItem(DESK_DRAFT_KEY);
+    } catch {
+      /* storage blocked */
+    }
+    if (draft?.trim()) {
+      draftSent.current = true;
+      void send(draft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send is stable enough for a one-shot
+  }, [activeTeamId, chatId, embedded]);
 
   async function addFiles(files: File[]) {
     const accepted: Attachment[] = [];
