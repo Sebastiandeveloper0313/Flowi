@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Activity, CalendarClock, Loader2, Play, Plus } from "lucide-react";
-import { useState } from "react";
+import { Activity, CalendarClock, CheckCheck, Loader2, Play, Plus, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
@@ -16,7 +16,69 @@ import { useActiveTeamId } from "@/features/workspace/active";
 import { employeeStatsQueryOptions } from "./queries";
 import type { EmployeeMeta } from "./roles";
 import { SkillLibraryDialog } from "./SkillLibrary";
-import { DutyRow, FeedRow, StatChip } from "./ui";
+import { DutyRow, FeedRow, InboxApprovalRow, StatChip } from "./ui";
+
+// The real pipeline each kind walks through, narrated. While a run is in
+// flight the presence line cycles through these, so watching the employee
+// work shows the actual stages of the job (order is true; timing is paced).
+const KIND_STAGES: Record<string, string[]> = {
+  reddit_monitor: [
+    "Reading fresh posts in the target subreddits…",
+    "Scoring each thread against what a dream lead looks like…",
+    "Writing draft replies for the best matches…",
+    "Saving the new leads for your review…",
+  ],
+  reddit_post: [
+    "Reading the community's rules and recent vibe…",
+    "Writing a value-first post…",
+    "Queuing it up for your approval…",
+  ],
+  linkedin_post: [
+    "Reviewing your voice and recent angles…",
+    "Drafting the LinkedIn post…",
+    "Preparing it for your approval…",
+  ],
+  facebook_post: [
+    "Reviewing your voice and recent angles…",
+    "Drafting the Facebook post…",
+    "Preparing it for your approval…",
+  ],
+  tiktok_slideshow: ["Writing the slide copy…", "Rendering slides over your images…"],
+  seo_blog: [
+    "Picking a topic your customers actually search for…",
+    "Researching it with live web search…",
+    "Writing the article: title, meta description, body…",
+    "Delivering it to your blog…",
+  ],
+  content: [
+    "Researching with live web search…",
+    "Drafting the content…",
+    "Polishing the tone against your business profile…",
+  ],
+  email_responder: [
+    "Sweeping the inbox for real messages…",
+    "Drafting replies in your voice…",
+    "Queuing them for your OK…",
+  ],
+  facebook_dm: ["Reading new conversations…", "Drafting replies…"],
+};
+
+/** Cycles through the running kind's real pipeline stages while in flight. */
+function RunningStage({ kind, runId }: { kind: string; runId: string }) {
+  const stages = KIND_STAGES[kind] ?? ["Working through the task…"];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    setI(0);
+    const t = setInterval(() => setI((v) => (v + 1) % stages.length), 6000);
+    return () => clearInterval(t);
+  }, [runId, stages.length]);
+  return (
+    <span className="animate-in fade-in-0 inline-flex items-center gap-2 duration-500" key={i}>
+      <Loader2 className="text-primary size-3.5 animate-spin" />
+      {stages[i]}
+    </span>
+  );
+}
 
 // What one run of each kind actually does, in shift-plan language.
 const KIND_LINE: Record<string, string> = {
@@ -84,10 +146,11 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
   const finished24h = myRuns.filter(
     (r) => r.status === "succeeded" && new Date(r.created_at).getTime() >= since,
   ).length;
-  const waiting =
-    (approvals ?? []).filter((a) => a.status === "pending" && a.task_id && mineIds.has(a.task_id))
-      .length +
-    (leadGroups ?? []).filter((g) => mineIds.has(g.taskId)).reduce((s, g) => s + g.count, 0);
+  const myPending = (approvals ?? []).filter(
+    (a) => a.status === "pending" && a.task_id && mineIds.has(a.task_id),
+  );
+  const myReplyGroups = (leadGroups ?? []).filter((g) => mineIds.has(g.taskId));
+  const waiting = myPending.length + myReplyGroups.reduce((s, g) => s + g.count, 0);
 
   // The shift plan: every scheduled run, soonest first; on-demand skills last.
   const scheduled = active
@@ -131,15 +194,26 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
                   ? `${meta.name} is on duty`
                   : `${meta.name} is paused`}
             </p>
-            <p className="text-muted-foreground text-sm">
-              {runningRun
-                ? `${titleById.get(runningRun.task_id) ?? "A skill"} is running as we speak…`
-                : next
+            {runningRun ? (
+              <p className="text-muted-foreground text-sm">
+                <span className="text-foreground font-medium">
+                  {titleById.get(runningRun.task_id) ?? "A skill"}
+                </span>
+                {" · "}
+                <RunningStage
+                  kind={mine.find((t) => t.id === runningRun.task_id)?.kind ?? ""}
+                  runId={runningRun.id}
+                />
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {next
                   ? `Next up: ${next.title} · ${clockLabel(next.next_run_at!)} (${inWords(next.next_run_at!)})`
                   : active.length > 0
                     ? "On call: start anything below whenever you like."
                     : "Resume a skill to put them back to work."}
-            </p>
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             {meta.role === "growth" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
@@ -159,6 +233,56 @@ export function WorkTab({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5">
+          {waiting > 0 && (
+            <Card className="self-start">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between text-base">
+                  <span className="flex items-center gap-2">
+                    <CheckCheck className="size-4" /> Waiting for your OK
+                  </span>
+                  <Link
+                    to="/approvals"
+                    className="text-primary text-sm font-medium hover:underline"
+                  >
+                    Open all
+                  </Link>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {myReplyGroups.map((g) => (
+                  <Link
+                    key={g.taskId}
+                    to="/agents/$agentId"
+                    params={{ agentId: g.taskId }}
+                    className="bg-muted/30 hover:border-primary/40 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition"
+                  >
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                        <Sparkles className="size-3.5 shrink-0" />
+                        {titleById.get(g.taskId) ?? "Reddit leads"}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {g.count} repl{g.count === 1 ? "y" : "ies"} drafted and ready to review
+                      </p>
+                    </div>
+                    <span className="text-primary shrink-0 text-sm font-medium">Review</span>
+                  </Link>
+                ))}
+                {myPending.slice(0, 3).map((a) => (
+                  <InboxApprovalRow key={a.id} approval={a} />
+                ))}
+                {myPending.length > 3 && (
+                  <Link
+                    to="/approvals"
+                    className="text-muted-foreground hover:text-foreground block py-1 text-center text-sm"
+                  >
+                    + {myPending.length - 3} more waiting
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="self-start">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
