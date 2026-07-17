@@ -25,15 +25,15 @@
   --input: rgba(30, 60, 110, 0.12);
 }
 
+/* The canvas: flat, calm, blue-tinted, one faint glow. No texture: a quiet
+   floor is what lets card shadows and white surfaces read as premium. */
 .flowy-app-sky {
   position: fixed;
   inset: 0;
   z-index: 0;
-}
-.flowy-app-sky svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+  background:
+    radial-gradient(900px 380px at 50% -160px, rgba(90, 155, 255, 0.12), transparent 70%),
+    linear-gradient(180deg, #ecf3fb 0%, #f4f7fc 45%, #f7f9fd 100%);
 }
 .flowy-app > :not(.flowy-app-sky):not(.flowy-sidebar) {
   position: relative;
@@ -46,6 +46,16 @@
 .flowy-app [data-slot="card-title"] {
   font-family: "Gabarito", system-ui, sans-serif;
   letter-spacing: -0.02em;
+}
+
+/* Premium type scale: page chrome quiets down (heroes on the chat landing
+   are outside .flowy-page and keep their size). */
+.flowy-page h1 {
+  font-size: 1.375rem;
+}
+.flowy-app [data-slot="card-title"] {
+  font-size: 0.95rem;
+  font-weight: 650;
 }
 
 /* premium light cards: near-invisible border, layered soft depth */
