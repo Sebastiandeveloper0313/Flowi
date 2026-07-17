@@ -127,6 +127,37 @@ function clockLabel(iso: string): string {
 }
 
 /**
+ * The schedule in the USER's clock. An agent scheduled in another timezone
+ * would show "8 AM" while running at the user's 10 AM; since next_run_at is
+ * the ground truth of when it actually fires, re-express fixed-time cadences
+ * with that local time so the label and the next-run column always agree.
+ */
+function localScheduleLabel(t: Task): string {
+  const cron = t.schedule_cron;
+  if (!cron) return scheduleLabel(null);
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!t.timezone || t.timezone === browserTz || !t.next_run_at) return scheduleLabel(cron);
+
+  const parts = cron.trim().split(/\s+/);
+  const fallback = `${scheduleLabel(cron)} (${t.timezone})`;
+  if (parts.length !== 5) return fallback;
+  const [m, h, dom, , dow] = parts;
+  if (!/^\d+$/.test(m) || !/^\d+$/.test(h)) return fallback; // not a fixed clock time
+
+  const local = new Date(t.next_run_at).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  if (dom === "*" && dow === "*") return `Every day at ${local}`;
+  if (dom === "*" && dow === "1-5") return `Every weekday at ${local}`;
+  if (dom === "*" && /^\d$/.test(dow)) {
+    const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return `Every ${names[Number(dow)]} at ${local}`;
+  }
+  return fallback;
+}
+
+/**
  * Walking in on the employee: a live presence line (working right now vs on
  * duty with what's next), their shift plan (every scheduled run, soonest
  * first, with a do-it-now button), then the finished work. Polls while open
@@ -453,17 +484,11 @@ function ShiftRow({
   const { data: ws } = useWorkspace();
   const paused = t.status === "paused";
 
-  // An agent scheduled in another timezone shows "8 AM" but runs at your 10 AM.
-  // Until the user re-picks a schedule (which stamps their local zone), say
-  // which clock the label is on so the two times stop contradicting each other.
-  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const tzSuffix =
-    t.schedule_cron && t.timezone && t.timezone !== browserTz ? ` (${t.timezone})` : "";
-
   const cron = t.schedule_cron ?? "once";
-  const scheduleOptions = SCHEDULES.some((s) => s.value === cron)
-    ? [...SCHEDULES]
-    : [{ value: cron, label: scheduleLabel(t.schedule_cron) + tzSuffix }, ...SCHEDULES];
+  // The current schedule always renders in the user's own clock (derived from
+  // next_run_at), so this label and the next-run column never contradict.
+  const currentOption = { value: cron, label: localScheduleLabel(t) };
+  const scheduleOptions = [currentOption, ...SCHEDULES.filter((s) => s.value !== cron)];
 
   const perDay = ws?.auto_post_per_day ?? 10;
 
