@@ -12,8 +12,10 @@ export interface EmployeeMeta {
   role: EmployeeRole;
   /** The employee's given name ("Maya"): a hire, not a feature. */
   name: string;
-  /** Their avatar emoji, shown in a tinted tile. */
+  /** Their avatar emoji, the fallback when no character image exists yet. */
   emoji: string;
+  /** Their character portrait (public path); falls back to the emoji tile. */
+  avatar?: string;
   /** Tailwind classes tinting the avatar tile. */
   tint: string;
   /** Display name of the role ("Growth Marketer"), the employee's job title. */
@@ -37,6 +39,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     role: "growth",
     name: "Maya",
     emoji: "🚀",
+    avatar: "/employees/maya.png",
     tint: "bg-[#eef4fd] text-[#1566e6]",
     title: "Growth Marketer",
     blurb: "Finds the people already looking for you.",
@@ -50,6 +53,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     role: "social",
     name: "Nova",
     emoji: "📣",
+    avatar: "/employees/nova.png",
     tint: "bg-pink-50 text-pink-600",
     title: "Social Media Manager",
     blurb: "Keeps your socials alive with on-brand posts.",
@@ -63,6 +67,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     role: "content",
     name: "Alex",
     emoji: "✍️",
+    avatar: "/employees/alex.png",
     tint: "bg-amber-50 text-amber-700",
     title: "Content Writer",
     blurb: "Writes SEO articles straight to your blog.",
@@ -76,6 +81,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     role: "support",
     name: "Sam",
     emoji: "🎧",
+    avatar: "/employees/sam.png",
     tint: "bg-emerald-50 text-emerald-600",
     title: "Customer Support",
     blurb: "Answers your inbox with on-brand replies.",
@@ -89,6 +95,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     role: "sales",
     name: "Riley",
     emoji: "📞",
+    avatar: "/employees/riley.png",
     tint: "bg-violet-50 text-violet-600",
     title: "Sales Development",
     blurb: "Finds prospects and drafts your outreach.",
@@ -103,6 +110,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     role: "analyst",
     name: "Quinn",
     emoji: "📊",
+    avatar: "/employees/quinn.png",
     tint: "bg-sky-50 text-sky-600",
     title: "Data Analyst",
     blurb: "Turns your numbers into a weekly report.",

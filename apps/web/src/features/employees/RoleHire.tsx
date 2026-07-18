@@ -15,6 +15,7 @@ import { templateToProposal } from "@/features/tasks/templates";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 
+import { EmployeeAvatar } from "./EmployeeAvatar";
 import { starterTemplatesOf, templatesOfRole, type EmployeeMeta, type EmployeeRole } from "./roles";
 
 interface HireQuestion {
@@ -188,11 +189,7 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
       <div className="bg-card rounded-3xl border p-7 shadow-[0_28px_60px_-44px_rgba(16,48,120,0.5)] sm:p-10">
         {/* the employee conducting their own interview */}
         <div className="flex items-center gap-3 border-b pb-6">
-          <span
-            className={`grid size-11 shrink-0 place-items-center rounded-xl text-xl shadow-xs ${meta.tint}`}
-          >
-            {meta.emoji}
-          </span>
+          <EmployeeAvatar meta={meta} className="size-12 rounded-xl text-xl shadow-xs" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Hiring {meta.name}</p>
             <p className="text-muted-foreground text-xs">

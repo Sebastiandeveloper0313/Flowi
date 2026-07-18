@@ -3,6 +3,7 @@ import { Activity, ArrowLeft, Loader2, MessageSquare, Settings2 } from "lucide-r
 import { useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
+import { EmployeeAvatar } from "@/features/employees/EmployeeAvatar";
 import { EmployeeChat } from "@/features/employees/EmployeeChat";
 import { EmployeeSettings } from "@/features/employees/EmployeeSettings";
 import { RoleHire } from "@/features/employees/RoleHire";
@@ -73,11 +74,7 @@ function EmployeePage() {
         </Link>
 
         <div className="bg-card flex items-center gap-1 rounded-full border p-1 shadow-xs">
-          <span
-            className={`grid size-7 shrink-0 place-items-center rounded-full text-sm ${meta.tint}`}
-          >
-            {meta.emoji}
-          </span>
+          <EmployeeAvatar meta={meta} className="size-7 rounded-full text-sm" />
           <span className="px-1.5 text-sm font-semibold">{meta.name}</span>
           {hired && (
             <>

@@ -11,6 +11,7 @@ import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 import { useWorkspace } from "@/features/workspace/hooks";
 
+import { EmployeeAvatar } from "./EmployeeAvatar";
 import { EMPLOYEES, tasksOfRole, templatesOfRole, type EmployeeMeta } from "./roles";
 
 /**
@@ -83,11 +84,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
   const body = (
     <>
       <div className="flex items-center gap-3">
-        <span
-          className={`grid size-11 shrink-0 place-items-center rounded-xl text-xl ${meta.tint}`}
-        >
-          {meta.emoji}
-        </span>
+        <EmployeeAvatar meta={meta} className="size-12 rounded-xl text-xl" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-semibold">{meta.name}</span>

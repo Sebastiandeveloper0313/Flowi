@@ -6,6 +6,7 @@ import { Chat } from "@/features/chat/Chat";
 import { chatKeys, createChat, useChats } from "@/features/chat/hooks";
 import { useActiveTeamId } from "@/features/workspace/active";
 
+import { EmployeeAvatar } from "./EmployeeAvatar";
 import type { EmployeeMeta } from "./roles";
 
 /**
@@ -42,11 +43,10 @@ export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
           placeholder={`Tell ${meta.name} what you need…  e.g. “write an article about our new feature” or “watch r/startups too”`}
           emptyHero={
             <div className="mb-8 text-center">
-              <span
-                className={`mx-auto mb-4 grid size-16 place-items-center rounded-2xl text-4xl shadow-xs ${meta.tint}`}
-              >
-                {meta.emoji}
-              </span>
+              <EmployeeAvatar
+                meta={meta}
+                className="mx-auto mb-4 size-20 rounded-2xl text-4xl shadow-xs"
+              />
               <h2 className="text-3xl font-bold tracking-tight">Chat with {meta.name}</h2>
               <p className="text-muted-foreground mt-2 text-[15px]">
                 Assign work, ask what got done, or change how things run.
