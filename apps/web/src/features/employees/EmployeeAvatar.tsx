@@ -20,14 +20,14 @@ export function EmployeeAvatar({
   if (meta.avatar && !broken) {
     return (
       <span className={`block shrink-0 overflow-hidden bg-white ${className}`}>
-        {/* The portraits carry generous white margins; zoom in so the
-            character fills the tile instead of floating in whitespace. */}
+        {/* A whisper of zoom trims the portraits' white margins; any more and
+            the characters loom. */}
         <img
           src={meta.avatar}
           alt={meta.name}
           draggable={false}
           onError={() => setBroken(true)}
-          className="size-full scale-[1.4] object-cover object-[50%_42%]"
+          className="size-full scale-[1.08] object-cover object-[50%_45%]"
         />
       </span>
     );
