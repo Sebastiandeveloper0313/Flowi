@@ -1,18 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { ArrowRight, Bot, CalendarClock, CheckCheck, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { useApprovals } from "@/features/approvals/hooks";
-import { toolkitLogo } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
-import { useWorkspace } from "@/features/workspace/hooks";
 
 import { EmployeeAvatar } from "./EmployeeAvatar";
-import { EMPLOYEES, tasksOfRole, templatesOfRole, type EmployeeMeta } from "./roles";
+import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
 
 /**
  * The roster: every employee, always. Hired ones read like a person at work
@@ -57,7 +55,6 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
   const { data: runs } = useRuns();
   const { data: approvals } = useApprovals();
   const { data: leadGroups } = usePendingLeadReplies();
-  const { data: ws } = useWorkspace();
 
   const hired = mine.length > 0;
   const ids = new Set(mine.map((t) => t.id));
@@ -81,76 +78,41 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
           ? ({ label: "Working", tone: "green" } as const)
           : ({ label: "Paused", tone: "gray" } as const);
 
+  // One quiet line under the header; anything actionable gets its own accent
+  // line, everything else stays out of the card.
+  const metaLine = meta.comingSoon
+    ? meta.blurb
+    : !hired
+      ? meta.blurb
+      : lastRun
+        ? `${mine.length} skill${mine.length === 1 ? "" : "s"} · worked ${formatWhen(lastRun.created_at)}`
+        : `${mine.length} skill${mine.length === 1 ? "" : "s"} · no runs yet`;
+
   const body = (
     <>
-      <div className="flex items-center gap-3">
-        <EmployeeAvatar meta={meta} className="size-12 rounded-xl text-xl" />
+      <div className="flex items-center gap-4">
+        <EmployeeAvatar meta={meta} className="size-14 rounded-2xl text-2xl" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold">{meta.name}</span>
+            <span className="text-[15px] font-semibold">{meta.name}</span>
             <StatusChip label={status.label} tone={status.tone} />
           </div>
-          <p className="text-muted-foreground truncate text-sm">
-            {meta.title} · {meta.blurb}
-          </p>
+          <p className="text-muted-foreground truncate text-sm">{meta.title}</p>
         </div>
-        {!meta.comingSoon && (
+        {!meta.comingSoon && hired && (
           <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition group-hover:opacity-100" />
         )}
       </div>
 
-      {hired ? (
-        <div className="text-muted-foreground grid gap-1 text-xs">
-          <span className="flex items-center gap-1.5">
-            <CalendarClock className="size-3.5" />
-            {lastRun ? `Last worked ${formatWhen(lastRun.created_at)}` : "No runs yet"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Bot className="size-3.5" />
-            {mine.length} skill{mine.length === 1 ? "" : "s"} running
-          </span>
-          {waiting > 0 && (
-            <span className="text-primary flex items-center gap-1.5 font-medium">
-              <CheckCheck className="size-3.5" /> {waiting} waiting for your OK
-            </span>
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-muted-foreground truncate text-sm">{metaLine}</p>
+          {hired && waiting > 0 && (
+            <p className="text-primary mt-0.5 text-sm font-medium">{waiting} waiting for your OK</p>
           )}
         </div>
-      ) : (
-        <div className="grid gap-1.5">
-          <p className="text-muted-foreground text-sm">{meta.hirePitch}</p>
-          {(meta.comingSoon || ws?.business_context) && (
-            <p
-              className={`flex items-center gap-1.5 text-xs font-medium ${
-                meta.comingSoon ? "text-muted-foreground" : "text-primary"
-              }`}
-            >
-              <Sparkles className="size-3.5 shrink-0" /> {meta.trainedLine}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* The stack this employee works through, plus the size of their skill
-          library: the at-a-glance "what am I actually hiring" line. */}
-      <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
-        <span className="flex -space-x-1.5">
-          {meta.relevantToolkits.slice(0, 5).map((slug) => (
-            <img
-              key={slug}
-              src={toolkitLogo(slug)}
-              alt={slug}
-              className="ring-border size-6 rounded-md bg-white object-contain p-0.5 ring-1"
-            />
-          ))}
-        </span>
-        {meta.comingSoon ? (
-          <span className="text-muted-foreground text-xs">On the roadmap</span>
-        ) : hired ? (
-          <span className="text-muted-foreground text-xs">
-            {templatesOfRole(meta.role).length} skills in library
-          </span>
-        ) : (
-          <Button size="sm" className="pointer-events-none" tabIndex={-1}>
+        {!meta.comingSoon && !hired && (
+          <Button size="sm" className="pointer-events-none shrink-0" tabIndex={-1}>
             Hire {meta.name}
           </Button>
         )}
@@ -160,7 +122,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
 
   if (meta.comingSoon) {
     return (
-      <div className="bg-card/60 flex flex-col gap-3 rounded-2xl border border-dashed p-5 opacity-80">
+      <div className="bg-card/60 flex flex-col gap-4 rounded-2xl border border-dashed p-6 opacity-80">
         {body}
       </div>
     );
@@ -170,7 +132,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
     <Link
       to="/team/$role"
       params={{ role: meta.role }}
-      className="bg-card hover:border-primary/40 group flex flex-col gap-3 rounded-2xl border p-5 shadow-xs transition"
+      className="bg-card hover:border-primary/40 group flex flex-col gap-4 rounded-2xl border p-6 shadow-xs transition"
     >
       {body}
     </Link>
