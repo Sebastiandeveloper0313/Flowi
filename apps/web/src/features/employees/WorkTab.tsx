@@ -9,22 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import {
-  Activity,
-  CalendarClock,
-  CheckCheck,
-  Loader2,
-  Pause,
-  Play,
-  Plus,
-  Sparkles,
-} from "lucide-react";
+import { Activity, CalendarClock, CheckCheck, Loader2, Pause, Play, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
-import { usePendingLeadReplies } from "@/features/leads/hooks";
 import {
   SCHEDULES,
   scheduleLabel,
@@ -39,10 +29,11 @@ import { requiredToolkits } from "@/features/tasks/requirements";
 import { useActiveTeamId } from "@/features/workspace/active";
 import { useUpdateAutoPostPacing, useWorkspace } from "@/features/workspace/hooks";
 
-import { employeeStatsQueryOptions } from "./queries";
+import { buildWorkItems, LeadReplyCard, WorkItemRow } from "./Deliverables";
+import { employeeDeliverablesQueryOptions } from "./queries";
 import { kindLine, type EmployeeMeta } from "./roles";
 import { SkillLibraryDialog } from "./SkillLibrary";
-import { FeedRow, InboxApprovalRow, StatChip } from "./ui";
+import { InboxApprovalRow, StatChip } from "./ui";
 
 // The real pipeline each kind walks through, narrated. While a run is in
 // flight the presence line cycles through these, so watching the employee
@@ -208,24 +199,49 @@ export function WorkTab({
     ...runsQueryOptions(teamId),
     refetchInterval: 15_000,
   });
-  const { data: stats } = useQuery(employeeStatsQueryOptions(teamId, [...mineIds]));
+  const { data: deliverables } = useQuery(employeeDeliverablesQueryOptions(teamId, [...mineIds]));
   const { data: approvals } = useApprovals();
-  const { data: leadGroups } = usePendingLeadReplies();
 
   const myRuns = (runs ?? []).filter((r) => mineIds.has(r.task_id));
   const runningIds = new Set(myRuns.filter((r) => r.status === "running").map((r) => r.task_id));
   const runningRun = myRuns.find((r) => r.status === "running");
   const titleById = new Map(mine.map((t) => [t.id, t.title]));
 
-  const since = Date.now() - 24 * 60 * 60 * 1000;
-  const finished24h = myRuns.filter(
-    (r) => r.status === "succeeded" && new Date(r.created_at).getTime() >= since,
-  ).length;
   const myPending = (approvals ?? []).filter(
     (a) => a.status === "pending" && a.task_id && mineIds.has(a.task_id),
   );
-  const myReplyGroups = (leadGroups ?? []).filter((g) => mineIds.has(g.taskId));
-  const waiting = myPending.length + myReplyGroups.reduce((s, g) => s + g.count, 0);
+  // Reply drafts still waiting on the boss, reviewable right here.
+  const pendingLeads = (deliverables?.leads ?? []).filter(
+    (l) => l.status === "new" && (l.draft_reply ?? "").trim() !== "",
+  );
+  const waiting = myPending.length + pendingLeads.length;
+
+  // The week in outcomes, not activity: what actually got made and shipped.
+  const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const leads7 = (deliverables?.leads ?? []).filter(
+    (l) => new Date(l.created_at).getTime() >= week,
+  ).length;
+  const replies7 = (deliverables?.leads ?? []).filter(
+    (l) => l.status === "posted" && new Date(l.updated_at).getTime() >= week,
+  ).length;
+  const published7 = (deliverables?.drafts ?? []).filter(
+    (d) => d.status === "posted" && new Date(d.updated_at).getTime() >= week,
+  ).length;
+  const seoIds = new Set(mine.filter((t) => t.kind === "seo_blog").map((t) => t.id));
+  const articles7 = myRuns.filter(
+    (r) =>
+      r.status === "succeeded" && seoIds.has(r.task_id) && new Date(r.created_at).getTime() >= week,
+  ).length;
+  const done7 = myRuns.filter(
+    (r) => r.status === "succeeded" && new Date(r.created_at).getTime() >= week,
+  ).length;
+
+  const workItems = buildWorkItems({
+    leads: (deliverables?.leads ?? []).filter((l) => l.status !== "new"),
+    drafts: deliverables?.drafts ?? [],
+    runs: myRuns,
+    tasks: mine,
+  });
 
   // The shift plan: every scheduled run, soonest first; on-demand skills last.
   const scheduled = active
@@ -292,8 +308,19 @@ export function WorkTab({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {meta.role === "growth" && <StatChip label="Leads · 24h" value={stats?.leadsFound} />}
-            <StatChip label="Done · 24h" value={runsLoading ? undefined : finished24h} />
+            {meta.role === "growth" && (
+              <StatChip label="Leads found · 7d" value={deliverables ? leads7 : undefined} />
+            )}
+            {meta.role === "growth" && (
+              <StatChip label="Replies posted · 7d" value={deliverables ? replies7 : undefined} />
+            )}
+            {meta.role === "social" && (
+              <StatChip label="Published · 7d" value={deliverables ? published7 : undefined} />
+            )}
+            {meta.role === "content" && (
+              <StatChip label="Articles · 7d" value={runsLoading ? undefined : articles7} />
+            )}
+            <StatChip label="Done · 7d" value={runsLoading ? undefined : done7} />
             {waiting > 0 && (
               <Link to="/approvals" className="block">
                 <StatChip label="Waiting for your OK" value={waiting} />
@@ -350,25 +377,18 @@ export function WorkTab({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {myReplyGroups.map((g) => (
-                <Link
-                  key={g.taskId}
-                  to="/agents/$agentId"
-                  params={{ agentId: g.taskId }}
-                  className="bg-muted/30 hover:border-primary/40 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition"
-                >
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-                      <Sparkles className="size-3.5 shrink-0" />
-                      {titleById.get(g.taskId) ?? "Reddit leads"}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {g.count} repl{g.count === 1 ? "y" : "ies"} drafted and ready to review
-                    </p>
-                  </div>
-                  <span className="text-primary shrink-0 text-sm font-medium">Review</span>
-                </Link>
+              {pendingLeads.slice(0, 3).map((l) => (
+                <LeadReplyCard key={l.id} lead={l} />
               ))}
+              {pendingLeads.length > 3 && pendingLeads[3].task_id && (
+                <Link
+                  to="/agents/$agentId"
+                  params={{ agentId: pendingLeads[3].task_id }}
+                  className="text-muted-foreground hover:text-foreground block py-1 text-center text-sm"
+                >
+                  + {pendingLeads.length - 3} more drafted replies
+                </Link>
+              )}
               {myPending.slice(0, 3).map((a) => (
                 <InboxApprovalRow key={a.id} approval={a} />
               ))}
@@ -406,7 +426,6 @@ export function WorkTab({
                   <ShiftRow
                     key={t.id}
                     task={t}
-                    meta={meta}
                     isRunning={runningIds.has(t.id) || (run.isPending && run.variables === t.id)}
                     onStartNow={() => startNow(t.id)}
                   />
@@ -424,26 +443,23 @@ export function WorkTab({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="size-4" /> Finished work
+              <Activity className="size-4" /> {meta.name}'s work
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {runsLoading ? (
+            {runsLoading && workItems.length === 0 ? (
               <div className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
                 <Loader2 className="size-4 animate-spin" /> Loading…
               </div>
-            ) : myRuns.filter((r) => r.status !== "running").length === 0 ? (
+            ) : workItems.length === 0 ? (
               <p className="text-muted-foreground py-8 text-center text-sm">
-                Nothing yet. Results land here as soon as {meta.name} runs.
+                Nothing yet. Everything {meta.name} makes lands here: replies, posts, articles.
               </p>
             ) : (
               <div className="-mx-2">
-                {myRuns
-                  .filter((r) => r.status !== "running")
-                  .slice(0, 15)
-                  .map((r) => (
-                    <FeedRow key={r.id} run={r} title={titleById.get(r.task_id) ?? "Task"} />
-                  ))}
+                {workItems.slice(0, 12).map((item) => (
+                  <WorkItemRow key={item.id} item={item} />
+                ))}
               </div>
             )}
           </CardContent>
@@ -469,12 +485,10 @@ export function WorkTab({
  */
 function ShiftRow({
   task: t,
-  meta,
   isRunning,
   onStartNow,
 }: {
   task: Task;
-  meta: EmployeeMeta;
   isRunning: boolean;
   onStartNow: () => void;
 }) {
