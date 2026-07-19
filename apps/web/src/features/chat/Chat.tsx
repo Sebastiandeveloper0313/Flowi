@@ -471,6 +471,7 @@ export function Chat({
   embedded,
   emptyHero,
   placeholder,
+  avatar,
 }: {
   chatId?: string;
   /** Fill the parent's height instead of the viewport (employee chat tab). */
@@ -479,6 +480,8 @@ export function Chat({
   emptyHero?: React.ReactNode;
   /** Overrides the composer placeholder (e.g. "Tell Maya what you need…"). */
   placeholder?: string;
+  /** Who is speaking: replaces the Sentrive logo on replies (employee chats). */
+  avatar?: React.ReactNode;
 }) {
   const chat = useChat();
   const navigate = useNavigate();
@@ -910,7 +913,7 @@ export function Chat({
               </div>
             ) : (
               <div key={i} className="group flex gap-3">
-                <SentriveAvatar />
+                {avatar ?? <SentriveAvatar />}
                 <div className="min-w-0 flex-1 space-y-2">
                   {typing !== null && i === messages.length - 1 ? (
                     // revealing character by character: plain text + caret, format on finish
@@ -950,7 +953,7 @@ export function Chat({
           )}
           {chat.isPending && (
             <div className="flex items-center gap-3">
-              <SentriveAvatar />
+              {avatar ?? <SentriveAvatar />}
               <span className="flowy-shimmer text-sm font-medium">{status}…</span>
             </div>
           )}

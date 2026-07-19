@@ -30,6 +30,7 @@ import { useActiveTeamId } from "@/features/workspace/active";
 import { useUpdateAutoPostPacing, useWorkspace } from "@/features/workspace/hooks";
 
 import { buildWorkItems, LeadReplyCard, WorkItemRow } from "./Deliverables";
+import { EmployeeAvatar } from "./EmployeeAvatar";
 import { employeeDeliverablesQueryOptions } from "./queries";
 import { kindLine, type EmployeeMeta } from "./roles";
 import { SkillLibraryDialog } from "./SkillLibrary";
@@ -106,6 +107,46 @@ function inWords(iso: string): string {
   const h = Math.round(m / 60);
   if (h < 24) return `in ${h} h`;
   return `in ${Math.round(h / 24)} d`;
+}
+
+/** "a", "a and b", "a, b, and c". */
+function joinAnd(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
+/**
+ * The employee's own standup, written from their real last-24h numbers. Two
+ * sentences max: what got done, then what they need (or when they're back).
+ */
+function standupLine(c: {
+  leads24: number;
+  replies24: number;
+  published24: number;
+  articles24: number;
+  done24: number;
+  waiting: number;
+  nextAt?: string;
+}): string {
+  const bits: string[] = [];
+  if (c.leads24 > 0) bits.push(`found ${c.leads24} new lead${c.leads24 === 1 ? "" : "s"}`);
+  if (c.replies24 > 0) bits.push(`posted ${c.replies24} repl${c.replies24 === 1 ? "y" : "ies"}`);
+  if (c.published24 > 0)
+    bits.push(`published ${c.published24} post${c.published24 === 1 ? "" : "s"}`);
+  if (c.articles24 > 0)
+    bits.push(`delivered ${c.articles24} article${c.articles24 === 1 ? "" : "s"}`);
+  if (bits.length === 0 && c.done24 > 0)
+    bits.push(`finished ${c.done24} task${c.done24 === 1 ? "" : "s"}`);
+
+  const head =
+    bits.length > 0
+      ? `Since yesterday I ${joinAnd(bits)}.`
+      : "Quiet shift so far: nothing new since yesterday.";
+  if (c.waiting > 0)
+    return `${head} ${c.waiting === 1 ? "One thing is" : `${c.waiting} things are`} waiting on your OK.`;
+  if (c.nextAt) return `${head} Back on it at ${c.nextAt}.`;
+  return head;
 }
 
 /** "8:00 AM" today, "Mon 7:00 AM" otherwise. */
@@ -236,6 +277,24 @@ export function WorkTab({
     (r) => r.status === "succeeded" && new Date(r.created_at).getTime() >= week,
   ).length;
 
+  // Yesterday's shift, for the standup bubble.
+  const day = Date.now() - 24 * 60 * 60 * 1000;
+  const leads24 = (deliverables?.leads ?? []).filter(
+    (l) => new Date(l.created_at).getTime() >= day,
+  ).length;
+  const replies24 = (deliverables?.leads ?? []).filter(
+    (l) => l.status === "posted" && new Date(l.updated_at).getTime() >= day,
+  ).length;
+  const published24 = (deliverables?.drafts ?? []).filter(
+    (d) => d.status === "posted" && new Date(d.updated_at).getTime() >= day,
+  ).length;
+  const articles24 = myRuns.filter(
+    (r) =>
+      r.status === "succeeded" && seoIds.has(r.task_id) && new Date(r.created_at).getTime() >= day,
+  ).length;
+  const done24 = myRuns.filter(
+    (r) => r.status === "succeeded" && new Date(r.created_at).getTime() >= day,
+  ).length;
   const workItems = buildWorkItems({
     leads: (deliverables?.leads ?? []).filter((l) => l.status !== "new"),
     drafts: deliverables?.drafts ?? [],
@@ -251,6 +310,16 @@ export function WorkTab({
   const pausedTasks = mine.filter((t) => t.status === "paused");
   const next = scheduled[0];
 
+  const standup = standupLine({
+    leads24,
+    replies24,
+    published24,
+    articles24,
+    done24,
+    waiting,
+    nextAt: next?.next_run_at ? clockLabel(next.next_run_at) : undefined,
+  });
+
   const neededToolkits = [...new Set(active.flatMap((t) => requiredToolkits(t)))];
   const ranTaskIds = new Set(myRuns.map((r) => r.task_id));
   const firstUnrun = active.find((t) => requiredToolkits(t).length > 0 && !ranTaskIds.has(t.id));
@@ -261,6 +330,14 @@ export function WorkTab({
 
   return (
     <>
+      {/* The standup: the employee reports in, in their own words. */}
+      <div className="mb-5 flex items-end gap-3">
+        <EmployeeAvatar meta={meta} className="size-10 shrink-0 rounded-full text-lg" />
+        <div className="bg-card rounded-2xl rounded-bl-md border px-4 py-3 shadow-xs">
+          <p className="text-sm">{standup}</p>
+        </div>
+      </div>
+
       {/* Presence: is she working as we speak? */}
       <Card className="mb-5">
         <CardContent className="flex flex-wrap items-center gap-4 p-5">

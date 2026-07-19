@@ -40,6 +40,7 @@ export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
         <Chat
           chatId={existing.id}
           embedded
+          avatar={<EmployeeAvatar meta={meta} className="size-7 shrink-0 rounded-lg text-sm" />}
           placeholder={`Tell ${meta.name} what you need…  e.g. “write an article about our new feature” or “watch r/startups too”`}
           emptyHero={
             <div className="mb-8 text-center">
