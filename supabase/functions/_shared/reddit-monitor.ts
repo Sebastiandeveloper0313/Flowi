@@ -173,7 +173,7 @@ async function deriveQueries(
 ): Promise<{ keywords: string[]; subreddits: string[] }> {
   const system =
     "You plan a Reddit search strategy for a lead-finding agent working inside this company." +
-    contextBlock(ws) +
+    contextBlock(ws, "reddit_monitor") +
     instructionSteer(instructions) +
     "\n\nGive SHORT search terms (2 to 4 words each) that real potential BUYERS type on Reddit when " +
     "they have the problem this company solves: their words, not the brand's marketing terms. Reddit " +
@@ -230,7 +230,7 @@ async function triage(
           "comparison of tools, or a stated need this business could help with. DROP obvious noise: " +
           "memes, news, announcements, self-promotion, giveaways, and off-topic chatter. Be generous: " +
           "when unsure, KEEP. Precision comes later." +
-          contextBlock(ws) +
+          contextBlock(ws, "reddit_monitor") +
           instructionSteer(instructions);
         const user =
           `Posts:\n${list}\n\n` +
@@ -273,7 +273,7 @@ async function scoreAndDraft(
     "genuinely have a relevant problem and some intent. Write draft_reply only for posts scoring " +
     `${minRel}+, empty string otherwise.\n\n` +
     redditReplyStandards(ws) +
-    contextBlock(ws) +
+    contextBlock(ws, "reddit_monitor") +
     instructionSteer(instructions);
 
   const list = posts

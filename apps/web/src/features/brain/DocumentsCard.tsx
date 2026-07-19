@@ -7,6 +7,7 @@ import { Check, FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { employeeMeta, type EmployeeRole } from "@/features/employees/roles";
 import { formatWhen } from "@/features/tasks/hooks";
 import { useActiveTeamId } from "@/features/workspace/active";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,16 +20,24 @@ const MAX_DOCS = 20;
 
 const docKeys = { all: ["team-documents"] as const };
 
-function useTeamDocuments() {
+/** Who a document belongs to: one employee's shelf, or the shared Brain. */
+export interface DocOwner {
+  role: EmployeeRole;
+  name: string;
+}
+
+function useTeamDocuments(owner?: DocOwner) {
   const teamId = useActiveTeamId();
   return useQuery({
-    queryKey: [...docKeys.all, teamId],
+    queryKey: [...docKeys.all, teamId, owner?.role ?? "all"] as const,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("team_documents")
-        .select("id, name, created_at")
+        .select("id, name, role, created_at")
         .eq("team_id", teamId!)
         .order("created_at", { ascending: false });
+      if (owner) q = q.eq("role", owner.role);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -36,7 +45,7 @@ function useTeamDocuments() {
   });
 }
 
-function useAddDocument() {
+function useAddDocument(owner?: DocOwner) {
   const teamId = useActiveTeamId();
   const queryClient = useQueryClient();
   return useMutation({
@@ -45,6 +54,7 @@ function useAddDocument() {
         team_id: teamId!,
         name: name.slice(0, 120),
         content: content.slice(0, MAX_DOC_CHARS),
+        role: owner?.role ?? null,
       });
       if (error) throw error;
     },
@@ -64,13 +74,13 @@ function useDeleteDocument() {
 }
 
 /**
- * The Brain's document shelf: drop in the material you'd hand a new hire
- * (pitch notes, FAQs, product sheets) and every employee grounds its work in
- * it from the next run onward.
+ * A document shelf. On the Brain it's the shared shelf every employee reads
+ * (and it lists per-employee docs with a tag); on an employee's page, pass
+ * `owner` and it becomes their personal shelf: only they use those docs.
  */
-export function DocumentsCard() {
-  const { data: docs, isLoading } = useTeamDocuments();
-  const add = useAddDocument();
+export function DocumentsCard({ owner }: { owner?: DocOwner }) {
+  const { data: docs, isLoading } = useTeamDocuments(owner);
+  const add = useAddDocument(owner);
   const remove = useDeleteDocument();
   const { confirm, dialog } = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -118,7 +128,7 @@ export function DocumentsCard() {
   async function onDelete(id: string, docName: string) {
     const ok = await confirm({
       title: "Remove this document?",
-      description: `Your team will stop using “${docName}” from their next run.`,
+      description: `${owner?.name ?? "Your team"} will stop using “${docName}” from the next run.`,
       confirmLabel: "Remove",
       destructive: true,
     });
@@ -129,7 +139,7 @@ export function DocumentsCard() {
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
-          <FileText className="size-4" /> Documents
+          <FileText className="size-4" /> {owner ? `${owner.name}'s documents` : "Documents"}
         </CardTitle>
         <div className="flex items-center gap-2">
           <input
@@ -167,9 +177,9 @@ export function DocumentsCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-muted-foreground text-sm">
-          Whatever you'd hand a new hire on day one: pitch notes, FAQs, product sheets, pricing.
-          Plain text files ({ACCEPT.replaceAll(",", ", ")}) or pasted text; the whole team uses it
-          from their next run.
+          {owner
+            ? `Material only ${owner.name} uses: playbooks, examples, guidelines for their kind of work. Everything on the Brain page they read too.`
+            : "Whatever you'd hand a new hire on day one: pitch notes, FAQs, product sheets, pricing. Plain text files or pasted text; the whole team uses it from their next run."}
         </p>
 
         {pasting && (
@@ -217,7 +227,9 @@ export function DocumentsCard() {
           </div>
         ) : (docs?.length ?? 0) === 0 ? (
           <p className="text-muted-foreground py-4 text-center text-sm">
-            Nothing here yet. The first upload instantly makes every employee smarter about you.
+            {owner
+              ? `Nothing here yet. Give ${owner.name} a playbook and it shows in their next run.`
+              : "Nothing here yet. The first upload instantly makes every employee smarter about you."}
           </p>
         ) : (
           <div className="grid gap-2">
@@ -231,6 +243,9 @@ export function DocumentsCard() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{d.name}</p>
                     <p className="text-muted-foreground text-xs">
+                      {/* On the shared shelf, say whose doc it is. */}
+                      {!owner &&
+                        `${d.role ? `Only ${employeeMeta(d.role as EmployeeRole).name}` : "Everyone"} · `}
                       Added {formatWhen(d.created_at)}
                     </p>
                   </div>

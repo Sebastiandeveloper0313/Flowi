@@ -15,13 +15,28 @@ export interface WorkspaceContext {
   auto_post_per_day?: number | null;
   auto_post_gap_minutes?: number | null;
   /** Documents the user uploaded to the Brain, newest first. */
-  documents?: Array<{ name: string; content: string }> | null;
+  documents?: Array<{ name: string; content: string; role?: string | null }> | null;
 }
 
 // Prompt budget for uploaded documents: per-doc and total caps keep a big
 // paste from crowding out the task itself.
 const DOC_CHAR_CAP = 4000;
 const DOCS_TOTAL_CAP = 12000;
+
+// Which employee a task kind belongs to; mirrors the app's roleOfTask so a
+// doc pinned to one employee only reaches that employee's runs. Chat passes
+// no kind and sees everything (the manager reads all the docs).
+const KIND_ROLE: Record<string, string> = {
+  reddit_monitor: "growth",
+  reddit_post: "social",
+  linkedin_post: "social",
+  facebook_post: "social",
+  tiktok_slideshow: "social",
+  seo_blog: "content",
+  content: "content",
+  email_responder: "support",
+  facebook_dm: "support",
+};
 
 /** How much Sentrive may do on its own. 'ask' is the safe default. */
 export function autonomyMode(ws: WorkspaceContext | null): "ask" | "auto" {
@@ -82,10 +97,10 @@ export async function fetchWorkspaceContext(
       .maybeSingle(),
     client
       .from("team_documents")
-      .select("name, content")
+      .select("name, content, role")
       .eq("team_id", teamId)
       .order("created_at", { ascending: false })
-      .limit(10),
+      .limit(20),
   ]);
   if (!data) return null;
   return { ...data, documents: docs ?? [] };
@@ -100,7 +115,7 @@ export function companyName(ws: WorkspaceContext | null): string {
 }
 
 /** Render the company context as a prompt block the model must ground its work in. */
-export function contextBlock(ws: WorkspaceContext | null): string {
+export function contextBlock(ws: WorkspaceContext | null, kind?: string): string {
   if (!ws) return "";
   const bc = (ws.business_context ?? {}) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
@@ -128,16 +143,20 @@ export function contextBlock(ws: WorkspaceContext | null): string {
     ? "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
       lines.map((l) => `- ${l}`).join("\n")
     : "";
-  return head + documentsBlock(ws);
+  return head + documentsBlock(ws, kind);
 }
 
 /**
  * The user's uploaded documents, trimmed to a prompt budget. They rank as
  * first-party truth about the business: fresher and more specific than the
  * scraped website profile, so the model is told to prefer them on conflict.
+ * A task only sees shared docs plus the ones pinned to its own employee.
  */
-function documentsBlock(ws: WorkspaceContext | null): string {
-  const docs = (ws?.documents ?? []).filter((d) => (d?.content ?? "").trim());
+function documentsBlock(ws: WorkspaceContext | null, kind?: string): string {
+  const role = kind ? KIND_ROLE[kind] : undefined;
+  const docs = (ws?.documents ?? []).filter(
+    (d) => (d?.content ?? "").trim() && (!d.role || !kind || d.role === role),
+  );
   if (!docs.length) return "";
   let budget = DOCS_TOTAL_CAP;
   const parts: string[] = [];
@@ -255,7 +274,7 @@ export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string
     "to Chat or to editing this agent's instruction, the surfaces that actually let them respond, never to a reply here.\n" +
     "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
     autonomyBlock(ws) +
-    contextBlock(ws) +
+    contextBlock(ws, kind) +
     // Learn the user's voice from drafts they've hand-edited (this kind first).
     replyPersonalization(ws, kind)
   );

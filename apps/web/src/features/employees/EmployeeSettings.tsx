@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { DocumentsCard } from "@/features/brain/DocumentsCard";
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
 import { scheduleLabel, useBulkDeleteTasks } from "@/features/tasks/hooks";
@@ -181,6 +182,12 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
           )}
         </CardContent>
       </Card>
+
+      {/* Their personal shelf: docs only this employee grounds their work in,
+          on top of everything in the shared Brain. */}
+      <div className="lg:col-span-2">
+        <DocumentsCard owner={{ role: meta.role, name: meta.name }} />
+      </div>
 
       {/* Letting someone go: the counterpart of hiring. Their skills stop and
           are deleted; delivered work stays; the role returns to the roster as

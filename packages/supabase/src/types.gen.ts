@@ -688,6 +688,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          role: string | null
           team_id: string
         }
         Insert: {
@@ -696,6 +697,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          role?: string | null
           team_id: string
         }
         Update: {
@@ -704,6 +706,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          role?: string | null
           team_id?: string
         }
         Relationships: [
