@@ -208,6 +208,7 @@ export function WorkTab({
   const run = useRunTask();
   const setAutonomy = useUpdateTaskAutonomy();
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [showAllWaiting, setShowAllWaiting] = useState(false);
   const { refetch: refetchTasks } = useTasks();
 
   // Employee-level autonomy: Auto only when every skill is explicitly auto;
@@ -454,28 +455,22 @@ export function WorkTab({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {pendingLeads.slice(0, 3).map((l) => (
+              {pendingLeads.slice(0, showAllWaiting ? undefined : 3).map((l) => (
                 <LeadReplyCard key={l.id} lead={l} />
               ))}
-              {pendingLeads.length > 3 && pendingLeads[3].task_id && (
-                <Link
-                  to="/agents/$agentId"
-                  params={{ agentId: pendingLeads[3].task_id }}
-                  className="text-muted-foreground hover:text-foreground block py-1 text-center text-sm"
-                >
-                  + {pendingLeads.length - 3} more drafted replies
-                </Link>
-              )}
-              {myPending.slice(0, 3).map((a) => (
+              {myPending.slice(0, showAllWaiting ? undefined : 3).map((a) => (
                 <InboxApprovalRow key={a.id} approval={a} />
               ))}
-              {myPending.length > 3 && (
-                <Link
-                  to="/approvals"
-                  className="text-muted-foreground hover:text-foreground block py-1 text-center text-sm"
+              {(pendingLeads.length > 3 || myPending.length > 3) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllWaiting((v) => !v)}
+                  className="text-muted-foreground hover:text-foreground block w-full py-1 text-center text-sm font-medium"
                 >
-                  + {myPending.length - 3} more waiting
-                </Link>
+                  {showAllWaiting
+                    ? "Show fewer"
+                    : `Show all ${pendingLeads.length + myPending.length} waiting`}
+                </button>
               )}
             </CardContent>
           </Card>
