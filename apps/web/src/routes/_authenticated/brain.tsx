@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { DocumentsCard } from "@/features/brain/DocumentsCard";
 import { PageHeader } from "@/features/dashboard/ui";
 import { EmployeeAvatar } from "@/features/employees/EmployeeAvatar";
 import { EMPLOYEES } from "@/features/employees/roles";
@@ -78,17 +79,13 @@ function BrainPage() {
         </div>
 
         <BusinessKnowledge />
+        <DocumentsCard />
         {hasReddit && (
           <>
             <ReplyStyleCard />
             <AutoPostPacingCard />
           </>
         )}
-
-        <p className="text-muted-foreground text-xs">
-          Coming soon: upload documents (pitch deck, FAQs, product sheets) to teach the whole team
-          at once.
-        </p>
       </div>
     </div>
   );

@@ -14,7 +14,14 @@ export interface WorkspaceContext {
   reply_samples?: Array<{ before?: string; after?: string; kind?: string; at?: string }> | null;
   auto_post_per_day?: number | null;
   auto_post_gap_minutes?: number | null;
+  /** Documents the user uploaded to the Brain, newest first. */
+  documents?: Array<{ name: string; content: string }> | null;
 }
+
+// Prompt budget for uploaded documents: per-doc and total caps keep a big
+// paste from crowding out the task itself.
+const DOC_CHAR_CAP = 4000;
+const DOCS_TOTAL_CAP = 12000;
 
 /** How much Sentrive may do on its own. 'ask' is the safe default. */
 export function autonomyMode(ws: WorkspaceContext | null): "ask" | "auto" {
@@ -65,14 +72,23 @@ export async function fetchWorkspaceContext(
   client: any,
   teamId: string,
 ): Promise<WorkspaceContext | null> {
-  const { data } = await client
-    .from("teams")
-    .select(
-      "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples, auto_post_per_day, auto_post_gap_minutes",
-    )
-    .eq("id", teamId)
-    .maybeSingle();
-  return data ?? null;
+  const [{ data }, { data: docs }] = await Promise.all([
+    client
+      .from("teams")
+      .select(
+        "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples, auto_post_per_day, auto_post_gap_minutes",
+      )
+      .eq("id", teamId)
+      .maybeSingle(),
+    client
+      .from("team_documents")
+      .select("name, content")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+  if (!data) return null;
+  return { ...data, documents: docs ?? [] };
 }
 
 /** The company's name, or a safe generic if it's still a default workspace name. */
@@ -108,10 +124,32 @@ export function contextBlock(ws: WorkspaceContext | null): string {
   if (Array.isArray(bc.keywords) && bc.keywords.length) {
     lines.push(`Key themes: ${(bc.keywords as string[]).join(", ")}`);
   }
-  if (!lines.length) return "";
+  const head = lines.length
+    ? "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
+      lines.map((l) => `- ${l}`).join("\n")
+    : "";
+  return head + documentsBlock(ws);
+}
+
+/**
+ * The user's uploaded documents, trimmed to a prompt budget. They rank as
+ * first-party truth about the business: fresher and more specific than the
+ * scraped website profile, so the model is told to prefer them on conflict.
+ */
+function documentsBlock(ws: WorkspaceContext | null): string {
+  const docs = (ws?.documents ?? []).filter((d) => (d?.content ?? "").trim());
+  if (!docs.length) return "";
+  let budget = DOCS_TOTAL_CAP;
+  const parts: string[] = [];
+  for (const d of docs) {
+    if (budget <= 0) break;
+    const text = d.content.trim().slice(0, Math.min(DOC_CHAR_CAP, budget));
+    budget -= text.length;
+    parts.push(`--- ${d.name} ---\n${text}`);
+  }
   return (
-    "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
-    lines.map((l) => `- ${l}`).join("\n")
+    "\n\nCOMPANY DOCUMENTS the user uploaded (first-party facts; when they conflict with the profile above, the documents win):\n" +
+    parts.join("\n\n")
   );
 }
 
