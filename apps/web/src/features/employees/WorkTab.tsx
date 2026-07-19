@@ -164,7 +164,7 @@ function clockLabel(iso: string): string {
  * the ground truth of when it actually fires, re-express fixed-time cadences
  * with that local time so the label and the next-run column always agree.
  */
-function localScheduleLabel(t: Task): string {
+export function localScheduleLabel(t: Task): string {
   const cron = t.schedule_cron;
   if (!cron) return scheduleLabel(null);
   const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;

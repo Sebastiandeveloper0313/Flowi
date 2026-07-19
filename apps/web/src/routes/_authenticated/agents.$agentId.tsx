@@ -36,6 +36,9 @@ import { useRef, useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
+import { EmployeeAvatar } from "@/features/employees/EmployeeAvatar";
+import { employeeMeta, roleOfTask } from "@/features/employees/roles";
+import { localScheduleLabel } from "@/features/employees/WorkTab";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { LeadsPanel } from "@/features/leads/LeadsPanel";
@@ -46,7 +49,6 @@ import { AgentGuide, useAgentGuide } from "@/features/tasks/AgentGuide";
 import {
   formatWhen,
   SCHEDULES,
-  scheduleLabel,
   useDeleteTask,
   useRunTask,
   useSetTaskStatus,
@@ -86,7 +88,7 @@ function AgentDetailPage() {
     return (
       <div className="flowy-page">
         <div className="text-muted-foreground flex items-center gap-2 py-12 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Loading agent…
+          <Loader2 className="size-4 animate-spin" /> Loading skill…
         </div>
       </div>
     );
@@ -95,10 +97,10 @@ function AgentDetailPage() {
   if (!agent) {
     return (
       <div className="flowy-page">
-        <p className="text-muted-foreground">This agent doesn't exist or was deleted.</p>
+        <p className="text-muted-foreground">This skill doesn't exist or was deleted.</p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/agents">
-            <ArrowLeft className="size-4" /> All agents
+          <Link to="/team">
+            <ArrowLeft className="size-4" /> Your team
           </Link>
         </Button>
       </div>
@@ -132,28 +134,35 @@ function AgentDetailPage() {
   // "Open chat" returns to it instead of starting a blank one.
   const agentChatId = (agent.config as { chat_id?: string } | null)?.chat_id;
 
+  const meta = employeeMeta(roleOfTask(agent));
+
   return (
     <div className="flowy-page">
       <Link
-        to="/agents"
+        to="/team/$role"
+        params={{ role: meta.role }}
         className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-sm"
       >
-        <ArrowLeft className="size-4" /> All agents
+        <ArrowLeft className="size-4" /> Back to {meta.name}
       </Link>
 
       <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{agent.title}</h1>
-            <TaskStatusBadge status={agent.status} />
-          </div>
-          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
-            <span className="flex items-center gap-1.5">
-              <CalendarClock className="size-4" /> {scheduleLabel(agent.schedule_cron)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="size-4" /> Next: {formatWhen(agent.next_run_at)}
-            </span>
+        <div className="flex items-start gap-4">
+          <EmployeeAvatar meta={meta} className="mt-0.5 size-12 rounded-xl text-xl" />
+          <div>
+            <p className="text-muted-foreground text-xs font-medium">One of {meta.name}'s skills</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">{agent.title}</h1>
+              <TaskStatusBadge status={agent.status} />
+            </div>
+            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
+              <span className="flex items-center gap-1.5">
+                <CalendarClock className="size-4" /> {localScheduleLabel(agent)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock className="size-4" /> Next: {formatWhen(agent.next_run_at)}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -184,12 +193,15 @@ function AgentDetailPage() {
             disabled={remove.isPending}
             onClick={async () => {
               const ok = await confirm({
-                title: "Delete agent?",
-                description: `“${agent.title}” will be permanently deleted. This can't be undone.`,
+                title: "Delete this skill?",
+                description: `${meta.name} will stop doing “${agent.title}”. This can't be undone.`,
                 confirmLabel: "Delete",
                 destructive: true,
               });
-              if (ok) remove.mutate(agent.id, { onSuccess: () => navigate({ to: "/agents" }) });
+              if (ok)
+                remove.mutate(agent.id, {
+                  onSuccess: () => navigate({ to: "/team/$role", params: { role: meta.role } }),
+                });
             }}
           >
             <Trash2 className="size-4" />
@@ -804,7 +816,7 @@ function ScheduleEditor({ agent }: { agent: Task }) {
   // If the agent's cron isn't one of the presets, keep it selectable.
   const options = SCHEDULES.some((s) => s.value === current)
     ? SCHEDULES
-    : [{ value: current, label: scheduleLabel(agent.schedule_cron) }, ...SCHEDULES];
+    : [{ value: current, label: localScheduleLabel(agent) }, ...SCHEDULES];
 
   return (
     <div className="flex items-center justify-between gap-3">
@@ -851,10 +863,10 @@ function AutonomyEditor({ agent, isReddit }: { agent: Task; isReddit: boolean })
   async function onChange(mode: "ask" | "auto") {
     if (mode === "auto" && effective !== "auto") {
       const ok = await confirm({
-        title: "Turn on Auto for this agent?",
+        title: "Turn on Auto for this skill?",
         description: isReddit
-          ? "This agent will post its replies automatically from your connected Reddit account, spaced out and capped per day so your account stays safe. Only this agent is affected, and posts go out as you. You can switch back to Ask anytime."
-          : "This agent will carry out its high-stakes actions (posting, sending) on its own, without waiting for your approval. Only this agent is affected. You can switch back to Ask anytime.",
+          ? "Replies will post automatically from your connected Reddit account, spaced out and capped per day so your account stays safe. Only this skill is affected, and posts go out as you. You can switch back to Ask anytime."
+          : "This skill will carry out its high-stakes actions (posting, sending) on its own, without waiting for your approval. Only this skill is affected. You can switch back to Ask anytime.",
         confirmLabel: "Turn on Auto",
       });
       if (!ok) return;
@@ -883,9 +895,9 @@ function AutonomyEditor({ agent, isReddit }: { agent: Task; isReddit: boolean })
       <p className="text-muted-foreground mt-1.5 text-xs">
         {effective === "auto"
           ? isReddit
-            ? "This agent posts replies automatically, spaced out and capped per day."
-            : "This agent runs its actions automatically, without waiting for approval."
-          : "This agent drafts and waits for your approval. Applies to this agent only."}
+            ? "This skill posts replies automatically, spaced out and capped per day."
+            : "This skill runs its actions automatically, without waiting for approval."
+          : "This skill drafts and waits for your approval. Applies to this skill only."}
       </p>
       {dialog}
     </div>
