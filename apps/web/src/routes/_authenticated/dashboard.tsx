@@ -57,9 +57,17 @@ function TeamSection() {
             </p>
           )}
         </div>
-        <Link to="/team" className="text-primary text-sm font-medium hover:underline">
-          See all
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/brain"
+            className="text-muted-foreground hover:text-primary text-sm font-medium"
+          >
+            What they know
+          </Link>
+          <Link to="/team" className="text-primary text-sm font-medium hover:underline">
+            See all
+          </Link>
+        </div>
       </header>
       <TeamCards />
     </section>
