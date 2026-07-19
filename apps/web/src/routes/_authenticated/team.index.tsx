@@ -1,5 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { PageHeader } from "@/features/dashboard/ui";
 import { TeamCards } from "@/features/employees/TeamCards";
@@ -19,14 +18,6 @@ function TeamPage() {
       <PageHeader
         title="Your team"
         subtitle={`The AI employees working for ${company}. Open one to see their work, or hire for a role.`}
-        actions={
-          <Link
-            to="/brain"
-            className="text-muted-foreground hover:text-primary inline-flex items-center gap-1.5 text-sm font-medium"
-          >
-            <BookOpen className="size-4" /> What they know
-          </Link>
-        }
       />
       <TeamCards />
     </div>

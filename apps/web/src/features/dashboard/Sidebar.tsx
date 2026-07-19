@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
+  Brain,
   CheckCheck,
   MessageSquarePlus,
   MoreHorizontal,
@@ -28,12 +29,14 @@ import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
-// Five doors. Agents/Library/Activity still exist as routes (agent settings,
+// Six doors. Agents/Library/Activity still exist as routes (agent settings,
 // history, deep links) but daily life happens in Chat, Team, and Approvals:
-// agents live inside their employee's page on Team.
+// agents live inside their employee's page on Team, and everything the team
+// knows about the business lives in Brain.
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
   { to: "/team", label: "Team", icon: Users },
+  { to: "/brain", label: "Brain", icon: Brain },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },
