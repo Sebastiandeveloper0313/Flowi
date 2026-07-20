@@ -154,8 +154,12 @@ const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
  * nothing ever falls off the team page.
  */
 export function roleOfTask(task: Pick<Task, "kind" | "config">): EmployeeRole {
-  const pid = (task.config as { proposal_id?: string } | null)?.proposal_id;
-  const template = pid ? TEMPLATE_BY_ID.get(pid) : undefined;
+  const cfg = task.config as { role?: string; proposal_id?: string } | null;
+  // A manual assignment from the skill page beats the derived mapping.
+  if (cfg?.role && HIREABLE_ROLES.includes(cfg.role as EmployeeRole)) {
+    return cfg.role as EmployeeRole;
+  }
+  const template = cfg?.proposal_id ? TEMPLATE_BY_ID.get(cfg.proposal_id) : undefined;
   if (template) return CATEGORY_ROLE[template.category] ?? "growth";
   return KIND_ROLE[task.kind ?? ""] ?? "growth";
 }

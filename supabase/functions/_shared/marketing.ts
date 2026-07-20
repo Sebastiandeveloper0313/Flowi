@@ -115,7 +115,11 @@ export function companyName(ws: WorkspaceContext | null): string {
 }
 
 /** Render the company context as a prompt block the model must ground its work in. */
-export function contextBlock(ws: WorkspaceContext | null, kind?: string): string {
+export function contextBlock(
+  ws: WorkspaceContext | null,
+  kind?: string,
+  roleOverride?: string | null,
+): string {
   if (!ws) return "";
   const bc = (ws.business_context ?? {}) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
@@ -143,7 +147,7 @@ export function contextBlock(ws: WorkspaceContext | null, kind?: string): string
     ? "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
       lines.map((l) => `- ${l}`).join("\n")
     : "";
-  return head + documentsBlock(ws, kind);
+  return head + documentsBlock(ws, kind, roleOverride);
 }
 
 /**
@@ -152,10 +156,15 @@ export function contextBlock(ws: WorkspaceContext | null, kind?: string): string
  * scraped website profile, so the model is told to prefer them on conflict.
  * A task only sees shared docs plus the ones pinned to its own employee.
  */
-function documentsBlock(ws: WorkspaceContext | null, kind?: string): string {
-  const role = kind ? KIND_ROLE[kind] : undefined;
+function documentsBlock(
+  ws: WorkspaceContext | null,
+  kind?: string,
+  roleOverride?: string | null,
+): string {
+  const role = roleOverride ?? (kind ? KIND_ROLE[kind] : undefined);
+  const scoped = Boolean(roleOverride || kind);
   const docs = (ws?.documents ?? []).filter(
-    (d) => (d?.content ?? "").trim() && (!d.role || !kind || d.role === role),
+    (d) => (d?.content ?? "").trim() && (!d.role || !scoped || d.role === role),
   );
   if (!docs.length) return "";
   let budget = DOCS_TOTAL_CAP;
@@ -251,7 +260,11 @@ export function operatorPersona(ws: WorkspaceContext | null): string {
 }
 
 /** System prompt for the content runner: produce a finished, shippable deliverable. */
-export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string {
+export function runnerSystem(
+  ws: WorkspaceContext | null,
+  kind?: string,
+  roleOverride?: string | null,
+): string {
   return (
     operatorPersona(ws) +
     "\n\nYou are handed a recurring task and you produce the finished marketing work, ready to ship. " +
@@ -274,7 +287,7 @@ export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string
     "to Chat or to editing this agent's instruction, the surfaces that actually let them respond, never to a reply here.\n" +
     "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
     autonomyBlock(ws) +
-    contextBlock(ws, kind) +
+    contextBlock(ws, kind, roleOverride) +
     // Learn the user's voice from drafts they've hand-edited (this kind first).
     replyPersonalization(ws, kind)
   );

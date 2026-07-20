@@ -152,7 +152,10 @@ export async function executeTask(
   // orphans it as "running").
   const timeout = setTimeout(() => controller.abort(), 110_000);
   try {
-    let system = runnerSystem(ws, task.kind);
+    // A manual employee assignment (config.role) steers which per-employee
+    // documents this run reads; otherwise the kind decides.
+    const assignedRole = (task.config as { role?: string } | null)?.role ?? null;
+    let system = runnerSystem(ws, task.kind, assignedRole);
 
     // Tools available this run:
     //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses

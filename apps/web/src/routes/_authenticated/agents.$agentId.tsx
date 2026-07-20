@@ -37,7 +37,7 @@ import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { EmployeeAvatar } from "@/features/employees/EmployeeAvatar";
-import { employeeMeta, roleOfTask } from "@/features/employees/roles";
+import { EMPLOYEES, employeeMeta, roleOfTask } from "@/features/employees/roles";
 import { localScheduleLabel } from "@/features/employees/WorkTab";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
@@ -303,6 +303,8 @@ function AgentDetailPage() {
               <CardTitle className="text-base">Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
+              <EmployeeEditor agent={agent} />
+              <Separator />
               <ScheduleEditor agent={agent} />
               <Row label="Last run" value={formatWhen(agent.last_run_at)} />
               <Separator />
@@ -805,6 +807,41 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Which employee owns this skill. Changing it moves the skill (and its work,
+ * stats, and document access) to that employee immediately.
+ */
+function EmployeeEditor({ agent }: { agent: Task }) {
+  const update = useUpdateTaskConfig();
+  const current = roleOfTask(agent);
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">Assigned to</span>
+      <Select
+        value={current}
+        disabled={update.isPending}
+        onValueChange={(role) =>
+          update.mutate({
+            id: agent.id,
+            config: { ...(agent.config as Record<string, unknown> | null), role },
+          })
+        }
+      >
+        <SelectTrigger size="sm" className="w-auto min-w-[11.5rem] font-medium">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {EMPLOYEES.filter((e) => !e.comingSoon).map((e) => (
+            <SelectItem key={e.role} value={e.role}>
+              {e.name} · {e.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
