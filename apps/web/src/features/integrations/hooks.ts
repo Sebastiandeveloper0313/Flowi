@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useActiveTeamId } from "@/features/workspace/active";
 import { supabase } from "@/integrations/supabase/client";
+import { readFunctionError } from "@/integrations/supabase/functions";
 
 export interface ToolkitStatus {
   slug: string;
@@ -11,7 +12,10 @@ export interface ToolkitStatus {
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("integrations", { body });
-  if (error) throw error;
+  // Surface the function's real reason ("the application password was
+  // rejected", "couldn't reach the site"), never supabase-js's generic
+  // "non-2xx status code" line.
+  if (error) throw new Error(await readFunctionError(error));
   if (data && typeof data === "object" && "error" in data) {
     throw new Error(String((data as { error: unknown }).error));
   }
