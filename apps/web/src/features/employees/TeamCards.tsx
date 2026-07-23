@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { ArrowRight, Plus } from "lucide-react";
 
@@ -66,13 +66,31 @@ export function TeamCards() {
 /**
  * New agents are born in chat, like everything else: describe the job and
  * Sentrive proposes either a skill for an existing agent or a brand-new one.
- * This card is just the door there.
+ * This card jumps you into the composer, focused and ready to type, whether
+ * you're already on the dashboard or coming from the Agents page.
  */
 function NewAgentCard() {
+  const navigate = useNavigate();
+
+  function openComposer() {
+    void navigate({ to: "/dashboard", search: { c: undefined } });
+    let tries = 0;
+    const focus = () => {
+      const el = document.getElementById("chat-composer") as HTMLTextAreaElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus({ preventScroll: true });
+      } else if (tries++ < 20) {
+        setTimeout(focus, 50);
+      }
+    };
+    focus();
+  }
+
   return (
-    <Link
-      to="/dashboard"
-      search={{ c: undefined }}
+    <button
+      type="button"
+      onClick={openComposer}
       className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
     >
       <Plus className="size-5" />
@@ -80,7 +98,7 @@ function NewAgentCard() {
       <span className="text-muted-foreground text-xs font-normal">
         Describe the job in chat and Sentrive sets it up
       </span>
-    </Link>
+    </button>
   );
 }
 

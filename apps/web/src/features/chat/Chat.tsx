@@ -889,6 +889,7 @@ export function Chat({
         }}
         onPaste={onPaste}
         rows={1}
+        id="chat-composer"
         placeholder={
           placeholder ??
           "Tell Sentrive what to do…  e.g. “every morning, find Reddit posts asking about what we sell and draft replies for me to approve”"
