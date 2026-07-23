@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 
-// Explains the employee model, so it only needs to be seen ONCE per person.
-// v2: re-shown once to everyone after the team redesign, since the product's
-// mental model changed (agents became employees you hire and talk to).
-const WELCOME_SEEN_KEY = "sentrive.welcome.seen.v2";
+// Explains the product's mental model, so it only needs to be seen ONCE.
+// v3: re-shown after the two-level redesign (agents do jobs, employees own
+// areas), since the model it teaches changed.
+const WELCOME_SEEN_KEY = "sentrive.welcome.seen.v3";
 
 function hasSeenWelcome(): boolean {
   try {
@@ -77,27 +77,28 @@ export function WelcomeTour() {
             alt="Sentrive"
             className="mb-5 size-11 rounded-xl shadow-lg shadow-[#1566e6]/25"
           />
-          <DialogTitle className="text-xl font-bold tracking-tight">Your team is ready</DialogTitle>
+          <DialogTitle className="text-xl font-bold tracking-tight">
+            Two ideas run everything here
+          </DialogTitle>
           <p className="text-muted-foreground mt-1.5 text-sm">
-            We read {company}'s website. Hire employees who own whole areas, or spin up single
-            agents in chat; everything is briefed on what you sell.
+            We read {company}'s website, so everything you create already knows your business.
           </p>
 
           <div className="mt-6 space-y-4">
             <IntroRow
-              icon={<Users className="size-4" />}
-              title="Hire ready-made employees"
-              text="Each one owns an area (leads, socials, content, inbox) and comes with working agents."
+              icon={<MessageSquare className="size-4" />}
+              title="Agents do jobs"
+              text="Each agent runs one job on a schedule: find leads, write posts, answer email. Describe a job in chat and it exists."
             />
             <IntroRow
-              icon={<MessageSquare className="size-4" />}
-              title="Talk to them like teammates"
-              text="Every employee has their own chat. Assign work, add agents, ask what got done."
+              icon={<Users className="size-4" />}
+              title="Employees own areas"
+              text="Think folders for agents: one area of work, shared documents, one chat, one report. Hire one ready-made or build your own."
             />
             <IntroRow
               icon={<ShieldCheck className="size-4" />}
               title="You approve everything"
-              text="Nothing is posted or sent without your OK, and they report back every day."
+              text="Nothing is posted or sent without your OK, and everything reports back."
             />
           </div>
 

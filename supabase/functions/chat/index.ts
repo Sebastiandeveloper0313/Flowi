@@ -518,7 +518,7 @@ Deno.serve(async (req: Request) => {
             `- ${c.name}, ${c.title} (role: ${c.id}), created by the user${c.duties ? `: ${c.duties.slice(0, 160)}` : ""}\n`,
         )
         .join("") +
-      'These are EMPLOYEES: they own agents and report on their area. Agents can also run independently with no owner. How to decide: if the user says "hire" or "employee", or wants someone to OWN a whole area, use propose_new_agent (a new employee with their first agent). If the work clearly belongs to a hired employee or the user names one, propose_agent with their role. If they just want a task automated ("set up an agent that..."), propose_agent with NO role: an independent agent.';
+      'These are EMPLOYEES: they own agents and report on their area (think: agents are files, employees are folders). Agents can also run independently with no owner. How to decide: if the user says "hire" or "employee", or wants someone to OWN a whole area, use propose_new_agent (a new employee with their first agent). If the work clearly belongs to a hired employee or the user names one, propose_agent with their role. If they just want a task automated ("set up an agent that..."), propose_agent with NO role, and mention in your reply that it runs on its own and can be handed to an employee anytime.';
 
     const system = chatSystem(ws) + existingAgentsBlock(agents) + rosterBlock;
     let mode = autonomyMode(ws);
