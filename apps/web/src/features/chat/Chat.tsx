@@ -260,11 +260,14 @@ function ProposalCard({
   proposal,
   chatId,
   assignRole,
+  ownerName,
 }: {
   proposal: AgentProposal;
   chatId?: string;
   /** Pin the created skill to this named agent (employee chats). */
   assignRole?: string;
+  /** Whose desk it lands on, when created inside an employee's chat. */
+  ownerName?: string;
 }) {
   const teamId = useActiveTeamId();
   const { data: tasks } = useTasks();
@@ -344,13 +347,35 @@ function ProposalCard({
             </div>
           </div>
         </div>
-        <div className="bg-muted/30 border-t px-4 py-2.5">
+        <div className="bg-muted/30 flex items-center justify-center gap-3 border-t px-4 py-2.5">
+          {/* Created inside an employee's chat: land back on THEIR desk, where
+              the agent now lives, instead of a standalone page that reads like
+              the agent left the folder. */}
+          {assignRole && ownerName && (
+            <Link
+              to="/team/$role"
+              params={{ role: assignRole }}
+              className="text-primary flex items-center gap-1.5 text-xs font-medium"
+            >
+              <CheckCircle2 className="size-3.5" /> Added to {ownerName}'s agents
+            </Link>
+          )}
           <Link
             to="/agents/$agentId"
             params={{ agentId: done.id }}
-            className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
+            className={`flex items-center justify-center gap-1.5 text-xs font-medium ${
+              assignRole && ownerName
+                ? "text-muted-foreground hover:text-foreground"
+                : "text-primary"
+            }`}
           >
-            <CheckCircle2 className="size-3.5" /> Agent created, open it
+            {assignRole && ownerName ? (
+              "Open its settings"
+            ) : (
+              <>
+                <CheckCircle2 className="size-3.5" /> Agent created, open it
+              </>
+            )}
           </Link>
         </div>
       </div>
@@ -1082,6 +1107,7 @@ export function Chat({
                           proposal={p}
                           chatId={chatId ?? ownedRef.current ?? undefined}
                           assignRole={assignRole}
+                          ownerName={speakingAs?.name}
                         />
                       ))}
                       {m.newAgents?.map((na) => (
