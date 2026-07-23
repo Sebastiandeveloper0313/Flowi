@@ -139,23 +139,38 @@ function AgentDetailPage() {
 
   const owner = roleOfTask(agent, customIds);
   const customRow = (customs ?? []).find((c) => c.id === owner);
-  const meta = customRow ? customAgentMeta(customRow) : employeeMeta(owner as EmployeeRole);
+  const meta = owner
+    ? customRow
+      ? customAgentMeta(customRow)
+      : employeeMeta(owner as EmployeeRole)
+    : null;
 
   return (
     <div className="flowy-page">
-      <Link
-        to="/team/$role"
-        params={{ role: meta.role }}
-        className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-sm"
-      >
-        <ArrowLeft className="size-4" /> Back to {meta.name}
-      </Link>
+      {meta ? (
+        <Link
+          to="/team/$role"
+          params={{ role: meta.role }}
+          className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-sm"
+        >
+          <ArrowLeft className="size-4" /> Back to {meta.name}
+        </Link>
+      ) : (
+        <Link
+          to="/agents"
+          className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-sm"
+        >
+          <ArrowLeft className="size-4" /> All agents
+        </Link>
+      )}
 
       <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-4">
-          <EmployeeAvatar meta={meta} className="mt-0.5 size-12 rounded-xl text-xl" />
+          {meta && <EmployeeAvatar meta={meta} className="mt-0.5 size-12 rounded-xl text-xl" />}
           <div>
-            <p className="text-muted-foreground text-xs font-medium">One of {meta.name}'s skills</p>
+            <p className="text-muted-foreground text-xs font-medium">
+              {meta ? `One of ${meta.name}'s agents` : "Independent agent"}
+            </p>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight">{agent.title}</h1>
               <TaskStatusBadge status={agent.status} />
@@ -205,7 +220,10 @@ function AgentDetailPage() {
               });
               if (ok)
                 remove.mutate(agent.id, {
-                  onSuccess: () => navigate({ to: "/team/$role", params: { role: meta.role } }),
+                  onSuccess: () =>
+                    meta
+                      ? navigate({ to: "/team/$role", params: { role: meta.role } })
+                      : navigate({ to: "/agents" }),
                 });
             }}
           >
@@ -823,17 +841,20 @@ function Row({ label, value }: { label: string; value: string }) {
 function EmployeeEditor({ agent }: { agent: Task }) {
   const update = useUpdateTaskConfig();
   const { data: customs } = useCustomAgents();
-  const current = roleOfTask(agent, new Set((customs ?? []).map((c) => c.id)));
+  const current = roleOfTask(agent, new Set((customs ?? []).map((c) => c.id))) ?? "none";
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-muted-foreground">Assigned to</span>
+      <span className="text-muted-foreground">Owned by</span>
       <Select
         value={current}
         disabled={update.isPending}
         onValueChange={(role) =>
           update.mutate({
             id: agent.id,
-            config: { ...(agent.config as Record<string, unknown> | null), role },
+            config: {
+              ...(agent.config as Record<string, unknown> | null),
+              role: role === "none" ? null : role,
+            },
           })
         }
       >
@@ -841,6 +862,7 @@ function EmployeeEditor({ agent }: { agent: Task }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent align="end">
+          <SelectItem value="none">Independent (no owner)</SelectItem>
           {EMPLOYEES.filter((e) => !e.comingSoon).map((e) => (
             <SelectItem key={e.role} value={e.role}>
               {e.name} · {e.title}

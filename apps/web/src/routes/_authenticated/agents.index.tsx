@@ -15,6 +15,8 @@ import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { PageHeader } from "@/features/dashboard/ui";
+import { useCustomAgents } from "@/features/employees/customAgents";
+import { employeeMeta, roleOfTask, type EmployeeRole } from "@/features/employees/roles";
 import { formatWhen, scheduleLabel, useBulkDeleteTasks, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { DeliveryChip, TaskStatusBadge } from "@/features/tasks/ui";
@@ -25,10 +27,13 @@ export const Route = createFileRoute("/_authenticated/agents/")({
 
 function AgentRow({
   agent,
+  ownerName,
   selected,
   onToggle,
 }: {
   agent: Task;
+  /** Who owns this agent on the Team page, or null when it runs standalone. */
+  ownerName: string | null;
   selected: boolean;
   onToggle: (id: string) => void;
 }) {
@@ -48,6 +53,9 @@ function AgentRow({
         <div className="flex items-center gap-2.5">
           <h3 className="truncate font-semibold">{agent.title}</h3>
           <TaskStatusBadge status={agent.status} />
+          <span className="text-muted-foreground shrink-0 text-xs">
+            {ownerName ? `${ownerName}'s` : "Independent"}
+          </span>
         </div>
         <p className="text-muted-foreground mt-1.5 line-clamp-1 text-sm">{agent.instructions}</p>
         <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
@@ -67,10 +75,19 @@ function AgentRow({
 
 function AgentsPage() {
   const { data: tasks, isLoading } = useTasks();
+  const { data: customs } = useCustomAgents();
   const bulkDelete = useBulkDeleteTasks();
   const { confirm, dialog } = useConfirm();
   const [filter, setFilter] = useState<"active" | "paused">("active");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+  const customNameById = new Map((customs ?? []).map((c) => [c.id, c.name]));
+  function ownerName(t: Task): string | null {
+    const r = roleOfTask(t, customIds);
+    if (!r) return null;
+    return customNameById.get(r) ?? employeeMeta(r as EmployeeRole).name;
+  }
 
   const all = tasks ?? [];
   const counts = {
@@ -215,7 +232,13 @@ function AgentsPage() {
           ) : (
             <div className="grid gap-3">
               {shown.map((t) => (
-                <AgentRow key={t.id} agent={t} selected={selected.has(t.id)} onToggle={toggle} />
+                <AgentRow
+                  key={t.id}
+                  agent={t}
+                  ownerName={ownerName(t)}
+                  selected={selected.has(t.id)}
+                  onToggle={toggle}
+                />
               ))}
             </div>
           )}

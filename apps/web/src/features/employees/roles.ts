@@ -143,18 +143,6 @@ const CATEGORY_ROLE: Record<string, EmployeeRole> = {
   "Inbox & replies": "support",
 };
 
-const KIND_ROLE: Record<string, EmployeeRole> = {
-  reddit_monitor: "growth",
-  reddit_post: "social",
-  linkedin_post: "social",
-  facebook_post: "social",
-  tiktok_slideshow: "social",
-  seo_blog: "content",
-  content: "content",
-  email_responder: "support",
-  facebook_dm: "support",
-};
-
 const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
 
 /**
@@ -163,23 +151,29 @@ const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
  * everything else maps by kind, and unknown/custom kinds land with Maya so
  * nothing ever falls off the team page.
  */
+/**
+ * Who OWNS this agent, or null when it runs independently. Ownership is
+ * explicit (config.role, stamped by hire flows, employee chats, and the main
+ * chat's pick): an agent nobody claimed is a first-class Independent agent,
+ * not force-sorted onto someone's desk. Legacy tasks created before the
+ * ownership stamp keep their old derived owner so nothing moves on upgrade.
+ */
 export function roleOfTask(
   task: Pick<Task, "kind" | "config">,
   customIds?: Set<string>,
-): RosterRole {
+): RosterRole | null {
   const cfg = task.config as { role?: string; proposal_id?: string } | null;
-  // A manual assignment from the skill page beats the derived mapping. A
-  // custom-agent assignment only counts while that agent still exists;
-  // otherwise the skill falls back to the derived owner below.
   if (
     cfg?.role &&
     (HIREABLE_ROLES.includes(cfg.role as EmployeeRole) || customIds?.has(cfg.role))
   ) {
     return cfg.role;
   }
+  // Pre-stamp tasks (hired starters, template adds) still sort by template
+  // category so existing teams don't see their employees emptied.
   const template = cfg?.proposal_id ? TEMPLATE_BY_ID.get(cfg.proposal_id) : undefined;
-  if (template) return CATEGORY_ROLE[template.category] ?? "growth";
-  return KIND_ROLE[task.kind ?? ""] ?? "growth";
+  if (template) return CATEGORY_ROLE[template.category] ?? null;
+  return null;
 }
 
 export function tasksOfRole<T extends Pick<Task, "kind" | "config">>(
@@ -188,6 +182,14 @@ export function tasksOfRole<T extends Pick<Task, "kind" | "config">>(
   customIds?: Set<string>,
 ): T[] {
   return tasks.filter((t) => roleOfTask(t, customIds) === role);
+}
+
+/** Agents nobody owns: they run standalone and live on the Agents page. */
+export function independentTasks<T extends Pick<Task, "kind" | "config">>(
+  tasks: T[],
+  customIds?: Set<string>,
+): T[] {
+  return tasks.filter((t) => roleOfTask(t, customIds) === null);
 }
 
 export function employeeMeta(role: EmployeeRole): EmployeeMeta {

@@ -62,6 +62,7 @@ export function SkillLibraryDialog({
             <SkillRow
               key={t.id}
               template={t}
+              owner={meta.role}
               added={addedIds.has(t.id) || addedTitles.has(t.name)}
             />
           ))}
@@ -96,14 +97,23 @@ export function SkillLibraryDialog({
   );
 }
 
-function SkillRow({ template: t, added }: { template: AgentTemplate; added: boolean }) {
+function SkillRow({
+  template: t,
+  owner,
+  added,
+}: {
+  template: AgentTemplate;
+  /** The employee this library belongs to; added agents become theirs. */
+  owner: string;
+  added: boolean;
+}) {
   const teamId = useActiveTeamId();
   const queryClient = useQueryClient();
   const [created, setCreated] = useState(false);
   const Icon = t.icon;
 
   const add = useMutation({
-    mutationFn: () => createAgentFromProposal(teamId!, templateToProposal(t)),
+    mutationFn: () => createAgentFromProposal(teamId!, { ...templateToProposal(t), role: owner }),
     onSuccess: () => {
       setCreated(true);
       track("employee_skill_added", { template: t.id });

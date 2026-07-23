@@ -167,6 +167,7 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
       for (const t of templatesOfRole(meta.role).filter((t) => selected.has(t.id))) {
         const p = templateToProposal(t);
         p.instructions += note;
+        p.role = meta.role; // hired starters belong to this employee
         if ((t.kind === "reddit_monitor" || t.kind === "reddit_post") && subs.length)
           p.subreddits = subs;
         created.push(await createAgentFromProposal(ws!.id, p));
