@@ -14,7 +14,7 @@ import { ArrowRight, Loader2, Plus, Shuffle, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
-import { prefillChat } from "@/features/chat/Chat";
+import { DESK_DRAFT_KEY, prefillChat } from "@/features/chat/Chat";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
@@ -192,7 +192,26 @@ function NewEmployeeDialog({
         });
       }
       onOpenChange(false);
-      void navigate({ to: "/team/$role", params: { role: agent.id } });
+
+      // An employee with no agents does NOTHING, so never leave them empty
+      // holding a job description: hand the duties straight to their chat,
+      // which proposes the first real agent for one-click confirm.
+      const needsFirstAgent = selected.size === 0 && duties.trim().length > 0;
+      if (needsFirstAgent) {
+        try {
+          sessionStorage.setItem(
+            DESK_DRAFT_KEY,
+            `Set this up as my first recurring agent: ${duties.trim()}`,
+          );
+        } catch {
+          /* storage blocked: they land on an empty chat, nothing lost */
+        }
+      }
+      void navigate({
+        to: "/team/$role",
+        params: { role: agent.id },
+        search: needsFirstAgent ? { tab: "chat" } : undefined,
+      });
     } catch (e) {
       setError((e as Error).message || "Couldn't create the employee. Try again.");
     } finally {
@@ -286,9 +305,15 @@ function NewEmployeeDialog({
             value={duties}
             onChange={(e) => setDuties(e.target.value)}
             rows={3}
-            placeholder="What's their area? Context you write here guides everything they run."
+            placeholder="What's their area? e.g. find leads on Reddit and draft replies that win customers"
             className="resize-y text-sm"
           />
+          {duties.trim() && selected.size === 0 && (
+            <p className="text-muted-foreground -mt-1 text-xs">
+              An employee only runs the agents they own, so {name.trim() || "they"} will set this up
+              as their first agent with you right after this.
+            </p>
+          )}
 
           {(tasks ?? []).length > 0 && (
             <div className="rounded-xl border p-3">
@@ -361,13 +386,16 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
 
   const status = meta.comingSoon
     ? ({ label: "Coming soon", tone: "gray" } as const)
-    : !hired
-      ? ({ label: "Available", tone: "blue" } as const)
-      : loaded && missing.length > 0
-        ? ({ label: "Setup needed", tone: "amber" } as const)
-        : active.length > 0
-          ? ({ label: "Working", tone: "green" } as const)
-          : ({ label: "Paused", tone: "gray" } as const);
+    : // A created employee with no agents runs nothing: say so, don't imply idle calm.
+      meta.custom && !hired
+      ? ({ label: "No agents yet", tone: "amber" } as const)
+      : !hired
+        ? ({ label: "Available", tone: "blue" } as const)
+        : loaded && missing.length > 0
+          ? ({ label: "Setup needed", tone: "amber" } as const)
+          : active.length > 0
+            ? ({ label: "Working", tone: "green" } as const)
+            : ({ label: "Paused", tone: "gray" } as const);
 
   // One quiet line under the header; anything actionable gets its own accent
   // line, everything else stays out of the card.

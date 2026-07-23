@@ -329,6 +329,40 @@ export function WorkTab({
     run.mutate(taskId, { onSuccess: () => void refetchTasks() });
   }
 
+  // An employee with no agents runs nothing at all. Say that plainly and give
+  // the two ways to fix it, instead of a calm presence card that implies work
+  // is happening.
+  if (mine.length === 0) {
+    return (
+      <>
+        <div className="bg-card rounded-2xl border p-8 text-center shadow-xs">
+          <EmployeeAvatar meta={meta} className="mx-auto mb-4 size-16 rounded-2xl text-3xl" />
+          <p className="text-lg font-semibold">{meta.name} isn't doing anything yet</p>
+          <p className="text-muted-foreground mx-auto mt-1.5 max-w-md text-sm">
+            An employee is a folder: the work happens in the agents they own. Give {meta.name} an
+            agent and it starts on its schedule, with everything waiting for your OK.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <Button onClick={() => setLibraryOpen(true)}>
+              <Plus className="size-4" /> Add an agent
+            </Button>
+            <Button variant="outline" onClick={onOpenChat}>
+              Tell {meta.name} what to do
+            </Button>
+          </div>
+        </div>
+
+        <SkillLibraryDialog
+          meta={meta}
+          mine={mine}
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          onCustom={teachCustom}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       {/* The standup: the employee reports in, in their own words. */}
