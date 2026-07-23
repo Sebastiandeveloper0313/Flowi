@@ -14,10 +14,10 @@ import { EmployeeAvatar } from "./EmployeeAvatar";
 import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
 
 /**
- * The roster: every employee, always. Hired ones read like a person at work
- * (status, last worked, what's waiting); candidates are pre-briefed hires one
- * click away; coming-soon roles show where the team is headed. Ordered so the
- * working team leads and the future trails.
+ * The roster, in two layers: YOUR agents first (anything with skills, plus
+ * every agent you created), then the ready-made catalog underneath as an
+ * offer. A working agent reads like a person at work (status, last worked,
+ * what's waiting); catalog cards are pre-briefed hires one click away.
  */
 export function TeamCards() {
   const { data: tasks } = useTasks();
@@ -25,23 +25,40 @@ export function TeamCards() {
 
   const customIds = new Set((customs ?? []).map((c) => c.id));
   const roster = [...EMPLOYEES, ...(customs ?? []).map(customAgentMeta)];
-  const cards = roster
-    .map((meta) => ({
-      meta,
-      mine: tasksOfRole(tasks ?? [], meta.role, customIds),
-    }))
-    .sort((a, b) => {
-      const rank = (c: { meta: EmployeeMeta; mine: Task[] }) =>
-        c.meta.comingSoon ? 2 : c.mine.length > 0 ? 0 : 1;
-      return rank(a) - rank(b);
-    });
+  const cards = roster.map((meta) => ({
+    meta,
+    mine: tasksOfRole(tasks ?? [], meta.role, customIds),
+  }));
+
+  // YOUR agents: anything actually working for you (plus your own creations).
+  // The unhired ready-mades are a catalog below, offered, never imposed: a
+  // team that only wants its own agents never has ours in their roster.
+  const active = cards.filter((c) => c.mine.length > 0 || c.meta.custom);
+  const catalog = cards.filter((c) => !(c.mine.length > 0 || c.meta.custom));
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {cards.map(({ meta, mine }) => (
-        <EmployeeCard key={meta.role} meta={meta} mine={mine} />
-      ))}
-      <NewAgentCard />
+    <div className="space-y-10">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {active.map(({ meta, mine }) => (
+          <EmployeeCard key={meta.role} meta={meta} mine={mine} />
+        ))}
+        <NewAgentCard />
+      </div>
+
+      {catalog.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold">Ready-made agents</h3>
+          <p className="text-muted-foreground mb-4 text-sm">
+            Pre-briefed on your business. Add one and it works today, or ignore them and build your
+            own.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {catalog.map(({ meta, mine }) => (
+              <EmployeeCard key={meta.role} meta={meta} mine={mine} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
