@@ -10,8 +10,8 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowRight, Loader2, Plus } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, Loader2, Plus, Upload } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { prefillChat } from "@/features/chat/Chat";
@@ -20,8 +20,14 @@ import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
+import { useActiveTeamId } from "@/features/workspace/active";
 
-import { customAgentMeta, useCreateCustomAgent, useCustomAgents } from "./customAgents";
+import {
+  customAgentMeta,
+  uploadAgentAvatar,
+  useCreateCustomAgent,
+  useCustomAgents,
+} from "./customAgents";
 import { EmployeeAvatar } from "./EmployeeAvatar";
 import {
   EMPLOYEES,
@@ -108,7 +114,9 @@ function NewAgentCard() {
   );
 }
 
-const EMOJI_CHOICES = ["🧑‍💼", "🤖", "🔎", "🧮", "🛠️", "🌱"];
+// Optional shortcuts. The field takes any emoji, empty is a real choice (a
+// clean monogram tile), and a real picture beats all of it.
+const EMOJI_CHOICES = ["🧑‍💼", "📈", "✍️", "🎧", "🔎", "🛠️"];
 
 function NewEmployeeDialog({
   open,
@@ -122,14 +130,32 @@ function NewEmployeeDialog({
   const create = useCreateCustomAgent();
   const reassign = useUpdateTaskConfig();
   const navigate = useNavigate();
+  const teamId = useActiveTeamId();
 
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🧑‍💼");
+  const [emoji, setEmoji] = useState("");
   const [title, setTitle] = useState("");
   const [duties, setDuties] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onPickImage(file: File) {
+    if (!teamId) return;
+    setError(null);
+    setUploading(true);
+    try {
+      setAvatarUrl(await uploadAgentAvatar(teamId, file));
+      setEmoji("");
+    } catch (e) {
+      setError((e as Error).message || "Couldn't upload that image.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const customIds = new Set((customs ?? []).map((c) => c.id));
   const customNameById = new Map((customs ?? []).map((c) => [c.id, c.name]));
@@ -155,9 +181,10 @@ function NewEmployeeDialog({
     try {
       const agent = await create.mutateAsync({
         name: name.trim(),
-        emoji,
+        emoji: emoji.trim(),
         title: title.trim() || "Custom role",
         duties: duties.trim(),
+        avatarUrl,
       });
       for (const id of selected) {
         const t = (tasks ?? []).find((x) => x.id === id);
@@ -194,19 +221,85 @@ function NewEmployeeDialog({
         </DialogHeader>
 
         <div className="grid gap-3">
-          <div className="flex gap-2">
-            {EMOJI_CHOICES.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setEmoji(e)}
-                className={`grid size-10 place-items-center rounded-xl border text-lg transition ${
-                  emoji === e ? "border-primary bg-[#eef4fd]" : "bg-muted/30"
-                }`}
-              >
-                {e}
-              </button>
-            ))}
+          {/* Picture, emoji, or nothing: the live tile shows exactly what the
+              roster will render. */}
+          <div className="flex items-center gap-3">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="ring-border size-14 shrink-0 rounded-2xl bg-white object-cover ring-1"
+              />
+            ) : (
+              <span className="bg-muted/40 ring-border grid size-14 shrink-0 place-items-center rounded-2xl text-xl font-semibold ring-1">
+                {emoji.trim() || (name.trim()[0] ?? "?").toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void onPickImage(f);
+                  e.target.value = "";
+                }}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploading ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="size-3.5" />
+                  )}
+                  Upload picture
+                </Button>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setAvatarUrl(null)}
+                    className="text-muted-foreground hover:text-foreground text-xs font-medium"
+                  >
+                    Remove
+                  </button>
+                )}
+                {!avatarUrl && (
+                  <>
+                    <Input
+                      value={emoji}
+                      onChange={(e) => setEmoji(e.target.value.slice(0, 8))}
+                      placeholder="or an emoji"
+                      className="h-8 w-28 text-sm"
+                      aria-label="Emoji"
+                    />
+                    {EMOJI_CHOICES.map((e) => (
+                      <button
+                        key={e}
+                        type="button"
+                        onClick={() => setEmoji(emoji === e ? "" : e)}
+                        className={`grid size-8 place-items-center rounded-lg border text-base transition ${
+                          emoji === e
+                            ? "border-primary bg-[#eef4fd]"
+                            : "bg-muted/30 hover:bg-muted/60"
+                        }`}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+              <p className="text-muted-foreground mt-1.5 text-xs">
+                Optional. With no picture or emoji they get a clean initial.
+              </p>
+            </div>
           </div>
           <Input
             value={name}

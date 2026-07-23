@@ -32,9 +32,12 @@ export function EmployeeAvatar({
       </span>
     );
   }
+  // No portrait and no emoji: a clean monogram, so "pick nothing" is a real,
+  // good-looking choice rather than a blank tile.
+  const face = meta.emoji?.trim() || (meta.name.trim()[0] ?? "?").toUpperCase();
   return (
-    <span className={`grid shrink-0 place-items-center ${meta.tint} ${className}`}>
-      {meta.emoji}
+    <span className={`grid shrink-0 place-items-center font-semibold ${meta.tint} ${className}`}>
+      {face}
     </span>
   );
 }

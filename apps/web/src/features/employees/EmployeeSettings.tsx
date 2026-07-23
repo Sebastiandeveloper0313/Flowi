@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Input } from "@workspace/ui/components/input";
 import {
   ArrowUpRight,
   CalendarClock,
@@ -8,20 +9,27 @@ import {
   ChevronDown,
   ExternalLink,
   Loader2,
+  Upload,
   UserX,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { DocumentsCard } from "@/features/brain/DocumentsCard";
-import { useDeleteCustomAgent } from "@/features/employees/customAgents";
+import {
+  uploadAgentAvatar,
+  useDeleteCustomAgent,
+  useUpdateCustomAgent,
+} from "@/features/employees/customAgents";
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
 import { scheduleLabel, useBulkDeleteTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { TaskStatusBadge } from "@/features/tasks/ui";
+import { useActiveTeamId } from "@/features/workspace/active";
 import { track } from "@/integrations/posthog";
 
+import { EmployeeAvatar } from "./EmployeeAvatar";
 import type { EmployeeMeta } from "./roles";
 
 // Slugs the shared toolkit-name map doesn't know (they aren't Composio apps).
@@ -122,6 +130,12 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      {meta.custom && (
+        <div className="lg:col-span-2">
+          <AppearanceCard meta={meta} />
+        </div>
+      )}
+
       <Card className="self-start">
         <CardHeader>
           <CardTitle className="text-base">Connections</CardTitle>
@@ -230,5 +244,114 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
       </Card>
       {dialog}
     </div>
+  );
+}
+
+/**
+ * How a custom employee looks and is named: upload a real picture, use an
+ * emoji, or neither (a clean initial). Only shown for employees the user
+ * created; the ready-made cast keeps its illustrated characters.
+ */
+function AppearanceCard({ meta }: { meta: EmployeeMeta }) {
+  const teamId = useActiveTeamId();
+  const update = useUpdateCustomAgent();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState(meta.name);
+  const [title, setTitle] = useState(meta.title);
+  const [dirty, setDirty] = useState(false);
+
+  async function onPick(file: File) {
+    if (!teamId) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadAgentAvatar(teamId, file);
+      update.mutate({ id: meta.role, patch: { avatar_url: url, emoji: "" } });
+    } catch (e) {
+      setError((e as Error).message || "Couldn't upload that image.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Name and picture</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center gap-4">
+        <EmployeeAvatar meta={meta} className="size-14 rounded-2xl text-xl" />
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onPick(f);
+              e.target.value = "";
+            }}
+          />
+          <Input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setDirty(true);
+            }}
+            placeholder="Name"
+            className="h-9 w-36 text-sm"
+          />
+          <Input
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setDirty(true);
+            }}
+            placeholder="Role"
+            className="h-9 w-44 text-sm"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Upload className="size-3.5" />
+            )}
+            {meta.avatar ? "Replace picture" : "Upload picture"}
+          </Button>
+          {meta.avatar && (
+            <button
+              type="button"
+              onClick={() => update.mutate({ id: meta.role, patch: { avatar_url: null } })}
+              className="text-muted-foreground hover:text-foreground text-xs font-medium"
+            >
+              Remove picture
+            </button>
+          )}
+          {dirty && (
+            <Button
+              size="sm"
+              disabled={update.isPending || !name.trim()}
+              onClick={() =>
+                update.mutate(
+                  { id: meta.role, patch: { name: name.trim(), title: title.trim() } },
+                  { onSuccess: () => setDirty(false) },
+                )
+              }
+            >
+              <Check className="size-3.5" /> Save
+            </Button>
+          )}
+        </div>
+        {error && <p className="text-destructive w-full text-xs">{error}</p>}
+      </CardContent>
+    </Card>
   );
 }

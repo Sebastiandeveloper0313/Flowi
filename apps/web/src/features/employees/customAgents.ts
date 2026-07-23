@@ -28,6 +28,23 @@ export function useCustomAgents() {
   });
 }
 
+/**
+ * Upload a picture for a custom employee. Stored in the team-scoped
+ * agent-media bucket under "<team>/avatars/", public-read so the app can
+ * render it directly.
+ */
+export async function uploadAgentAvatar(teamId: string, file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Pick an image file.");
+  if (file.size > 4 * 1024 * 1024) throw new Error("Image must be 4MB or smaller.");
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  const path = `${teamId}/avatars/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("agent-media")
+    .upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  return supabase.storage.from("agent-media").getPublicUrl(path).data.publicUrl;
+}
+
 /** Adapt a custom agent row to the meta shape all the roster UI renders. */
 export function customAgentMeta(a: CustomAgent): EmployeeMeta {
   return {
@@ -35,7 +52,8 @@ export function customAgentMeta(a: CustomAgent): EmployeeMeta {
     // use a role slug (routes, config.role, document shelves).
     role: a.id as EmployeeMeta["role"],
     name: a.name,
-    emoji: a.emoji || "🤖",
+    emoji: a.emoji ?? "",
+    avatar: a.avatar_url ?? undefined,
     tint: "bg-slate-100 text-slate-600",
     title: a.title || "Custom agent",
     blurb: a.duties.split("\n")[0]?.slice(0, 80) || "Does the job you gave it.",
@@ -51,7 +69,13 @@ export function useCreateCustomAgent() {
   const teamId = useActiveTeamId();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { name: string; emoji: string; title: string; duties: string }) => {
+    mutationFn: async (input: {
+      name: string;
+      emoji: string;
+      title: string;
+      duties: string;
+      avatarUrl?: string | null;
+    }) => {
       const { data, error } = await supabase
         .from("team_agents")
         .insert({
@@ -60,11 +84,30 @@ export function useCreateCustomAgent() {
           emoji: input.emoji,
           title: input.title.slice(0, 60),
           duties: input.duties.slice(0, 2000),
+          avatar_url: input.avatarUrl ?? null,
         })
         .select()
         .single();
       if (error) throw error;
       return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
+/** Change a custom employee's picture, emoji, or name later. */
+export function useUpdateCustomAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { name?: string; emoji?: string; title?: string; avatar_url?: string | null };
+    }) => {
+      const { error } = await supabase.from("team_agents").update(patch).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all }),
   });

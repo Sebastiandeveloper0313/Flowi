@@ -683,6 +683,7 @@ export type Database = {
       }
       team_agents: {
         Row: {
+          avatar_url: string | null
           created_at: string
           created_by: string | null
           duties: string
@@ -693,6 +694,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           created_by?: string | null
           duties?: string
@@ -703,6 +705,7 @@ export type Database = {
           title?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           created_by?: string | null
           duties?: string
