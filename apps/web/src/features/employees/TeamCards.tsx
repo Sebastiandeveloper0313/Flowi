@@ -13,6 +13,7 @@ import { ArrowRight, Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
+import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
@@ -76,7 +77,24 @@ function NewAgentCard() {
       {
         onSuccess: (a) => {
           setOpen(false);
-          void navigate({ to: "/team/$role", params: { role: a.id } });
+          // The job description IS the first brief: hand it straight to the
+          // new agent's chat, which auto-sends it and proposes the real
+          // scheduled skill. Nobody should ever type the job twice.
+          if (duties.trim()) {
+            try {
+              sessionStorage.setItem(
+                DESK_DRAFT_KEY,
+                `Set this up as one of your recurring skills: ${duties.trim()}`,
+              );
+            } catch {
+              /* storage blocked: chat opens empty, nothing lost but the prefill */
+            }
+          }
+          void navigate({
+            to: "/team/$role",
+            params: { role: a.id },
+            search: duties.trim() ? { tab: "chat" } : undefined,
+          });
         },
       },
     );

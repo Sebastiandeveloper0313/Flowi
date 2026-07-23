@@ -53,8 +53,9 @@ export function SkillLibraryDialog({
           Teach {meta.name} a new skill
         </DialogTitle>
         <p className="text-muted-foreground -mt-2 text-sm">
-          Ready to run for your business. Add one and it starts on its schedule; you approve
-          anything before it goes out. Want something custom? Just tell {meta.name} in chat.
+          {templates.length > 0
+            ? `Ready to run for your business. Add one and it starts on its schedule; you approve anything before it goes out. Want something custom? Just tell ${meta.name} in chat.`
+            : `Describe the job and ${meta.name} sets it up with you in chat: what it does, how often, where results go.`}
         </p>
         <div className="grid gap-2">
           {templates.map((t) => (

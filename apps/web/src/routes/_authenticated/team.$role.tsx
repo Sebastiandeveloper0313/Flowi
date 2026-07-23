@@ -21,6 +21,9 @@ import { useTasks } from "@/features/tasks/hooks";
 export const Route = createFileRoute("/_authenticated/team/$role")({
   // Built-in role slugs are validated here; anything else might be a custom
   // agent's id, which only the component can check (it needs the query).
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({
+    tab: s.tab === "chat" || s.tab === "settings" || s.tab === "work" ? s.tab : undefined,
+  }),
   component: EmployeePage,
 });
 
@@ -41,7 +44,8 @@ const TABS: { id: Tab; label: string; icon: typeof Activity }[] = [
  */
 function EmployeePage() {
   const { role } = Route.useParams();
-  const [tab, setTab] = useState<Tab>("work");
+  const { tab: initialTab } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(initialTab ?? "work");
 
   const { data: tasks, isLoading: tasksLoading } = useTasks();
   const { data: approvals } = useApprovals();
