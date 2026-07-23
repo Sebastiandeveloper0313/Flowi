@@ -50,10 +50,10 @@ function TeamSection() {
     <section id="your-team">
       <header className="mb-5 flex items-end justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Your agents</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Your team</h2>
           {!hasStaff && (
             <p className="text-muted-foreground mt-1 text-sm">
-              Pre-briefed on your business. Start one and it works today.
+              Pre-briefed on your business. Hire one and they start today.
             </p>
           )}
         </div>

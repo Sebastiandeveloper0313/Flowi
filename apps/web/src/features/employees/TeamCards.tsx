@@ -47,10 +47,10 @@ export function TeamCards() {
 
       {catalog.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold">Ready-made agents</h3>
+          <h3 className="text-sm font-semibold">Ready-made employees</h3>
           <p className="text-muted-foreground mb-4 text-sm">
-            Pre-briefed on your business. Add one and it works today, or ignore them and build your
-            own.
+            Pre-briefed on your business. Hire one and they start today, or ignore them and build
+            your own.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {catalog.map(({ meta, mine }) => (
@@ -94,9 +94,9 @@ function NewAgentCard() {
       className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
     >
       <Plus className="size-5" />
-      New agent
+      New employee
       <span className="text-muted-foreground text-xs font-normal">
-        Describe the job in chat and Sentrive sets it up
+        Describe the role in chat and Sentrive builds them
       </span>
     </button>
   );
@@ -148,8 +148,8 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
     : !hired
       ? meta.blurb
       : lastRun
-        ? `${mine.length} skill${mine.length === 1 ? "" : "s"} · worked ${formatWhen(lastRun.created_at)}`
-        : `${mine.length} skill${mine.length === 1 ? "" : "s"} · no runs yet`;
+        ? `${mine.length} agent${mine.length === 1 ? "" : "s"} · worked ${formatWhen(lastRun.created_at)}`
+        : `${mine.length} agent${mine.length === 1 ? "" : "s"} · no runs yet`;
 
   const body = (
     <>
@@ -176,7 +176,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
         </div>
         {!meta.comingSoon && !hired && !meta.custom && (
           <Button size="sm" className="pointer-events-none shrink-0" tabIndex={-1}>
-            Add {meta.name}
+            Hire {meta.name}
           </Button>
         )}
       </div>

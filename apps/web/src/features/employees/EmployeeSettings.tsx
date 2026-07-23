@@ -57,8 +57,8 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
     const ok = await confirm({
       title: `Remove ${meta.name}?`,
       description: meta.custom
-        ? `${meta.name} is deleted along with all ${mine.length} skill${mine.length === 1 ? "" : "s"}. Everything already delivered stays.`
-        : `All of ${meta.name}'s skills stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can add ${meta.name} back anytime, with a fresh setup.`,
+        ? `${meta.name} is deleted along with all ${mine.length} agent${mine.length === 1 ? "" : "s"}. Everything already delivered stays.`
+        : `All of ${meta.name}'s agents stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can hire ${meta.name} again anytime, with a fresh setup.`,
       confirmLabel: `Remove ${meta.name}`,
       destructive: true,
     });
@@ -203,9 +203,9 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
           <div className="min-w-0">
             <p className="text-sm font-semibold">Remove {meta.name}</p>
             <p className="text-muted-foreground text-sm">
-              Stops and removes all {mine.length} of {meta.name}'s skill
-              {mine.length === 1 ? "" : "s"}. Delivered work stays. You can always add {meta.name}{" "}
-              back.
+              Stops and removes all {mine.length} of {meta.name}'s agent
+              {mine.length === 1 ? "" : "s"}. Delivered work stays. You can always hire {meta.name}{" "}
+              again.
             </p>
           </div>
           <Button

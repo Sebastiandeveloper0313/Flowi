@@ -77,24 +77,22 @@ export function WelcomeTour() {
             alt="Sentrive"
             className="mb-5 size-11 rounded-xl shadow-lg shadow-[#1566e6]/25"
           />
-          <DialogTitle className="text-xl font-bold tracking-tight">
-            Your agents are ready
-          </DialogTitle>
+          <DialogTitle className="text-xl font-bold tracking-tight">Your team is ready</DialogTitle>
           <p className="text-muted-foreground mt-1.5 text-sm">
-            We read {company}'s website. Every agent is already briefed on what you sell and who
-            buys it.
+            We read {company}'s website. Hire employees who own whole areas, or spin up single
+            agents in chat; everything is briefed on what you sell.
           </p>
 
           <div className="mt-6 space-y-4">
             <IntroRow
               icon={<Users className="size-4" />}
-              title="Start with a ready-made agent"
-              text="Open one, see the work it starts with, and put it on the job in one click."
+              title="Hire ready-made employees"
+              text="Each one owns an area (leads, socials, content, inbox) and comes with working agents."
             />
             <IntroRow
               icon={<MessageSquare className="size-4" />}
               title="Talk to them like teammates"
-              text="Every agent has its own chat. Assign work, teach it new skills, ask what got done."
+              text="Every employee has their own chat. Assign work, add agents, ask what got done."
             />
             <IntroRow
               icon={<ShieldCheck className="size-4" />}
@@ -112,7 +110,7 @@ export function WelcomeTour() {
               I'll look around
             </Button>
             <Button onClick={() => finish("completed")}>
-              Meet my agents <ArrowRight className="size-4" />
+              Meet my team <ArrowRight className="size-4" />
             </Button>
           </div>
         </div>

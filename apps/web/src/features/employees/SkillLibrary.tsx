@@ -50,7 +50,7 @@ export function SkillLibraryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogTitle className="text-lg font-bold tracking-tight">
-          Teach {meta.name} a new skill
+          Give {meta.name} a new agent
         </DialogTitle>
         <p className="text-muted-foreground -mt-2 text-sm">
           {templates.length > 0

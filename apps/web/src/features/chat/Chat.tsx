@@ -332,7 +332,7 @@ function ProposalCard({
             params={{ agentId: done.id }}
             className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
           >
-            <CheckCircle2 className="size-3.5" /> Skill created, open it
+            <CheckCircle2 className="size-3.5" /> Agent created, open it
           </Link>
         </div>
       </div>
@@ -1022,7 +1022,7 @@ export function Chat({
                           key={a.id}
                           className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
                         >
-                          <CheckCircle2 className="size-3.5" /> Skill created: {a.title}
+                          <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
                         </div>
                       ))}
                       {m.proposals?.map((p) => (

@@ -384,7 +384,7 @@ export function WorkTab({
                   : active.length > 0
                     ? "On call: start anything below whenever you like."
                     : mine.length === 0
-                      ? "No skills yet. Add one below, or describe the job in chat."
+                      ? "No agents yet. Add one below, or describe the job in chat."
                       : "Resume a skill to put them back to work."}
               </p>
             )}
@@ -487,14 +487,14 @@ export function WorkTab({
                 <CalendarClock className="size-4" /> {meta.name}'s schedule
               </span>
               <Button size="sm" variant="outline" onClick={() => setLibraryOpen(true)}>
-                <Plus className="size-3.5" /> Add a skill
+                <Plus className="size-3.5" /> Add an agent
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {mine.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
-                Nothing scheduled. Add a skill and it lands here.
+                Nothing scheduled. Add an agent and it lands here.
               </p>
             ) : (
               <div className="grid gap-2">

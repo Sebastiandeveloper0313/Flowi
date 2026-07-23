@@ -545,7 +545,7 @@ function ReviewStep({
         </Button>
         <Button className="flex-1" size="lg" disabled={hiring || count === 0} onClick={onHire}>
           {hiring ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-          {hiring ? "Starting…" : `Start ${meta.name} with ${count} skill${count === 1 ? "" : "s"}`}
+          {hiring ? "Hiring…" : `Hire ${meta.name} with ${count} agent${count === 1 ? "" : "s"}`}
         </Button>
       </div>
       <p className="text-muted-foreground mt-2 text-center text-xs">
