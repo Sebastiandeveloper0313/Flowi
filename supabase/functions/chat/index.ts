@@ -88,7 +88,7 @@ const TOOL = {
       role: {
         type: "string",
         description:
-          "Which named agent on the user's roster owns this skill. Use a built-in slug (growth = Maya the Lead Finder, social = Nova for social posts, content = Alex for SEO/articles, support = Sam for inboxes) or a custom agent's id from the roster list in your context. ALWAYS set this, and say in your reply whose skill it becomes (e.g. \"I'll add this to Maya's skills\").",
+          "Which EMPLOYEE owns this agent, if any. Use a built-in slug (growth = Maya the Growth Marketer, social = Nova the Social Media Manager, content = Alex the Content Writer, support = Sam in Customer Support) or a custom employee's id from the roster list. Set it when the user names an employee, when you're in an employee's own chat, or when the job clearly belongs to a HIRED employee's area; then say whose it becomes (\"I'll add this to Maya's agents\"). OMIT it when the user just wants a standalone automation (e.g. they said \"set up an agent that...\"): the agent then runs independently, which is a normal, first-class choice.",
       },
     },
     required: ["title", "instructions"],
@@ -101,7 +101,7 @@ const { role: _skillRole, ...SKILL_PROPS } = TOOL.input_schema.properties;
 const NEW_AGENT_TOOL = {
   name: "propose_new_agent",
   description:
-    "Propose creating a brand-new named agent on the user's roster, together with its first skill. The user sees a card and clicks Create; nothing exists until then. Use when NO existing agent (built-in or custom, see the roster list) fits the job, or when the user explicitly asks for a new agent. Otherwise prefer propose_agent with a role.",
+    "Propose hiring a brand-new named EMPLOYEE for the user's team, together with their first agent. The user sees a card and clicks to hire; nothing exists until then. Use when the user says hire/employee, wants someone to own a whole area, or no hired employee fits and a standalone agent would be too small for the job. For simple automations prefer propose_agent (with or without an owner).",
   input_schema: {
     type: "object",
     properties: {
@@ -518,7 +518,7 @@ Deno.serve(async (req: Request) => {
             `- ${c.name}, ${c.title} (role: ${c.id}), created by the user${c.duties ? `: ${c.duties.slice(0, 160)}` : ""}\n`,
         )
         .join("") +
-      "Prefer the custom agent whose duties match the request; otherwise pick the built-in whose trade fits. In the conversation of a specific agent, keep the work theirs unless the user says otherwise. If NOBODY on the roster fits the job, or the user asks for a new agent, use propose_new_agent to create one together with its first skill.";
+      'These are EMPLOYEES: they own agents and report on their area. Agents can also run independently with no owner. How to decide: if the user says "hire" or "employee", or wants someone to OWN a whole area, use propose_new_agent (a new employee with their first agent). If the work clearly belongs to a hired employee or the user names one, propose_agent with their role. If they just want a task automated ("set up an agent that..."), propose_agent with NO role: an independent agent.';
 
     const system = chatSystem(ws) + existingAgentsBlock(agents) + rosterBlock;
     let mode = autonomyMode(ws);

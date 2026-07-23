@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { prefillChat } from "@/features/chat/Chat";
 import { PageHeader } from "@/features/dashboard/ui";
 import { useCustomAgents } from "@/features/employees/customAgents";
 import { employeeMeta, roleOfTask, type EmployeeRole } from "@/features/employees/roles";
@@ -148,7 +149,11 @@ function AgentsPage() {
         subtitle="Every recurring agent you've set up. This is where your work runs."
         actions={
           <Button asChild>
-            <Link to="/dashboard" search={{ c: undefined }}>
+            <Link
+              to="/dashboard"
+              search={{ c: undefined }}
+              onClick={() => prefillChat("Set up an agent that ")}
+            >
               <MessageSquarePlus className="size-4" /> New agent
             </Link>
           </Button>
@@ -167,7 +172,11 @@ function AgentsPage() {
             Describe a recurring job in the chat and Sentrive sets it up for you.
           </p>
           <Button asChild className="mt-5">
-            <Link to="/dashboard" search={{ c: undefined }}>
+            <Link
+              to="/dashboard"
+              search={{ c: undefined }}
+              onClick={() => prefillChat("Set up an agent that ")}
+            >
               <MessageSquarePlus className="size-4" /> Start in chat
             </Link>
           </Button>

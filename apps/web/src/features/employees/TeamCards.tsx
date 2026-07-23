@@ -3,6 +3,7 @@ import { Button } from "@workspace/ui/components/button";
 import { ArrowRight, Plus } from "lucide-react";
 
 import { useApprovals } from "@/features/approvals/hooks";
+import { prefillChat } from "@/features/chat/Chat";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
@@ -73,6 +74,9 @@ function NewAgentCard() {
   const navigate = useNavigate();
 
   function openComposer() {
+    // The door announces what it creates: the composer starts mid-sentence
+    // and the user finishes it, so there's no mystery about the outcome.
+    prefillChat("Hire a new employee to handle ");
     void navigate({ to: "/dashboard", search: { c: undefined } });
     let tries = 0;
     const focus = () => {

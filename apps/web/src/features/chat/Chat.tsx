@@ -107,6 +107,23 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
 /** sessionStorage key other surfaces use to hand a message to a chat. */
 export const DESK_DRAFT_KEY = "sentrive.chat.draft";
 
+/**
+ * Prefill (NOT auto-send): the composer starts with this text so the user
+ * finishes the sentence. The "New employee" / "New agent" doors use it, which
+ * is how the product tells you what you're about to create.
+ */
+export const CHAT_PREFILL_KEY = "sentrive.chat.prefill";
+
+/** Prefill the chat composer from anywhere: works pre-mount and live. */
+export function prefillChat(text: string) {
+  try {
+    sessionStorage.setItem(CHAT_PREFILL_KEY, text);
+  } catch {
+    /* storage blocked: the live event below still works */
+  }
+  window.dispatchEvent(new CustomEvent("sentrive:chat-prefill", { detail: text }));
+}
+
 function fileToAttachment(file: File): Promise<Attachment> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -208,13 +225,13 @@ function NewAgentProposalCard({ na, chatId }: { na: NewAgentProposal; chatId?: s
           <p className="text-sm font-semibold">
             {na.name} <span className="text-muted-foreground font-normal">· {na.agentTitle}</span>
           </p>
-          <p className="text-muted-foreground truncate text-xs">New agent for your roster</p>
+          <p className="text-muted-foreground truncate text-xs">New employee for your team</p>
         </div>
       </div>
       <div className="bg-muted/30 mt-3 rounded-xl border px-3.5 py-2.5">
         <p className="text-sm font-medium">{na.skill.title}</p>
         <p className="text-muted-foreground text-xs">
-          {scheduleLabel(na.skill.schedule_cron)} · first skill, you approve the work
+          {scheduleLabel(na.skill.schedule_cron)} · their first agent, you approve the work
         </p>
       </div>
       {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
@@ -225,12 +242,12 @@ function NewAgentProposalCard({ na, chatId }: { na: NewAgentProposal; chatId?: s
             params={{ role: doneId }}
             className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
           >
-            <CheckCircle2 className="size-3.5" /> {na.name} joined your roster, say hi
+            <CheckCircle2 className="size-3.5" /> {na.name} joined your team, say hi
           </Link>
         ) : (
           <Button size="sm" disabled={busy} onClick={() => void onCreate()}>
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            Create {na.name}
+            Hire {na.name}
           </Button>
         )}
       </div>
@@ -581,7 +598,36 @@ export function Chat({
   const activeTeamId = useActiveTeamId();
   const { data: user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(() => {
+    try {
+      const v = sessionStorage.getItem(CHAT_PREFILL_KEY);
+      if (v) {
+        sessionStorage.removeItem(CHAT_PREFILL_KEY);
+        return v;
+      }
+    } catch {
+      /* storage blocked */
+    }
+    return "";
+  });
+
+  // Live prefill from the "New employee"/"New agent" doors while already
+  // mounted (e.g. the team section on this same page).
+  useEffect(() => {
+    function onPrefill(e: Event) {
+      const text = (e as CustomEvent<string>).detail;
+      if (typeof text === "string") {
+        setInput(text);
+        try {
+          sessionStorage.removeItem(CHAT_PREFILL_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    window.addEventListener("sentrive:chat-prefill", onPrefill);
+    return () => window.removeEventListener("sentrive:chat-prefill", onPrefill);
+  }, []);
   const [status, setStatus] = useState("Thinking");
   // when a new reply arrives, reveal it character by character; null once fully shown
   const [typing, setTyping] = useState<number | null>(null);
