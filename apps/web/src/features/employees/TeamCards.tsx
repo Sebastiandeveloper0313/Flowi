@@ -1,18 +1,36 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { ArrowRight, Plus } from "lucide-react";
+import { Checkbox } from "@workspace/ui/components/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog";
+import { Input } from "@workspace/ui/components/input";
+import { Textarea } from "@workspace/ui/components/textarea";
+import { ArrowRight, Loader2, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { prefillChat } from "@/features/chat/Chat";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
-import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
+import { formatWhen, useRuns, useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 
-import { customAgentMeta, useCustomAgents } from "./customAgents";
+import { customAgentMeta, useCreateCustomAgent, useCustomAgents } from "./customAgents";
 import { EmployeeAvatar } from "./EmployeeAvatar";
-import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
+import {
+  EMPLOYEES,
+  employeeMeta,
+  roleOfTask,
+  tasksOfRole,
+  type EmployeeMeta,
+  type EmployeeRole,
+} from "./roles";
 
 /**
  * The roster, in two layers: YOUR agents first (anything with skills, plus
@@ -65,44 +83,188 @@ export function TeamCards() {
 }
 
 /**
- * New agents are born in chat, like everything else: describe the job and
- * Sentrive proposes either a skill for an existing agent or a brand-new one.
- * This card jumps you into the composer, focused and ready to type, whether
- * you're already on the dashboard or coming from the Agents page.
+ * Creating an employee is a structural act, so it's a form, not a chat: name
+ * them, describe the area, and check off which of your existing agents they
+ * take over (their docs and reports then cover those agents). Chat stays one
+ * click away for people who'd rather describe the role in words.
  */
 function NewAgentCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
+      >
+        <Plus className="size-5" />
+        New employee
+        <span className="text-muted-foreground text-xs font-normal">
+          A folder for your agents: shared docs, one chat, one report
+        </span>
+      </button>
+      {open && <NewEmployeeDialog open={open} onOpenChange={setOpen} />}
+    </>
+  );
+}
+
+const EMOJI_CHOICES = ["🧑‍💼", "🤖", "🔎", "🧮", "🛠️", "🌱"];
+
+function NewEmployeeDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: tasks } = useTasks();
+  const { data: customs } = useCustomAgents();
+  const create = useCreateCustomAgent();
+  const reassign = useUpdateTaskConfig();
   const navigate = useNavigate();
 
-  function openComposer() {
-    // The door announces what it creates: the composer starts mid-sentence
-    // and the user finishes it, so there's no mystery about the outcome.
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("🧑‍💼");
+  const [title, setTitle] = useState("");
+  const [duties, setDuties] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+  const customNameById = new Map((customs ?? []).map((c) => [c.id, c.name]));
+  function ownerLabel(t: Task): string {
+    const r = roleOfTask(t, customIds);
+    if (!r) return "Independent";
+    return customNameById.get(r) ?? employeeMeta(r as EmployeeRole).name;
+  }
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function onCreate() {
+    if (!name.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const agent = await create.mutateAsync({
+        name: name.trim(),
+        emoji,
+        title: title.trim() || "Custom role",
+        duties: duties.trim(),
+      });
+      for (const id of selected) {
+        const t = (tasks ?? []).find((x) => x.id === id);
+        if (!t) continue;
+        await reassign.mutateAsync({
+          id,
+          config: { ...(t.config as Record<string, unknown> | null), role: agent.id },
+        });
+      }
+      onOpenChange(false);
+      void navigate({ to: "/team/$role", params: { role: agent.id } });
+    } catch (e) {
+      setError((e as Error).message || "Couldn't create the employee. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function describeInChat() {
+    onOpenChange(false);
     prefillChat("Hire a new employee to handle ");
     void navigate({ to: "/dashboard", search: { c: undefined } });
-    let tries = 0;
-    const focus = () => {
-      const el = document.getElementById("chat-composer") as HTMLTextAreaElement | null;
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.focus({ preventScroll: true });
-      } else if (tries++ < 20) {
-        setTimeout(focus, 50);
-      }
-    };
-    focus();
   }
 
   return (
-    <button
-      type="button"
-      onClick={openComposer}
-      className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
-    >
-      <Plus className="size-5" />
-      New employee
-      <span className="text-muted-foreground text-xs font-normal">
-        Describe the role in chat and Sentrive builds them
-      </span>
-    </button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New employee</DialogTitle>
+          <DialogDescription>
+            An employee owns an area: agents you assign them, shared documents, one chat, one
+            report.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3">
+          <div className="flex gap-2">
+            {EMOJI_CHOICES.map((e) => (
+              <button
+                key={e}
+                type="button"
+                onClick={() => setEmoji(e)}
+                className={`grid size-10 place-items-center rounded-xl border text-lg transition ${
+                  emoji === e ? "border-primary bg-[#eef4fd]" : "bg-muted/30"
+                }`}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name, e.g. Kim"
+            className="text-sm"
+          />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Role, e.g. Ads Manager"
+            className="text-sm"
+          />
+          <Textarea
+            value={duties}
+            onChange={(e) => setDuties(e.target.value)}
+            rows={3}
+            placeholder="What's their area? Context you write here guides everything they run."
+            className="resize-y text-sm"
+          />
+
+          {(tasks ?? []).length > 0 && (
+            <div className="rounded-xl border p-3">
+              <p className="text-sm font-medium">Assign existing agents</p>
+              <p className="text-muted-foreground mb-2 text-xs">
+                Check the agents this employee takes over. They keep running exactly as before.
+              </p>
+              <div className="max-h-44 space-y-1 overflow-y-auto">
+                {(tasks ?? []).map((t) => (
+                  <label
+                    key={t.id}
+                    className="hover:bg-muted/40 flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5"
+                  >
+                    <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggle(t.id)} />
+                    <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
+                    <span className="text-muted-foreground shrink-0 text-xs">{ownerLabel(t)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-destructive text-xs">{error}</p>}
+          <Button disabled={!name.trim() || busy} onClick={() => void onCreate()}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+            Create {name.trim() || "employee"}
+            {selected.size > 0 && ` with ${selected.size} agent${selected.size === 1 ? "" : "s"}`}
+          </Button>
+          <button
+            type="button"
+            onClick={describeInChat}
+            className="text-muted-foreground hover:text-foreground text-center text-xs font-medium"
+          >
+            Prefer words? Describe the role in chat instead
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
