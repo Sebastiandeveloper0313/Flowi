@@ -14,6 +14,7 @@ import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
 import { DocumentsCard } from "@/features/brain/DocumentsCard";
+import { useDeleteCustomAgent } from "@/features/employees/customAgents";
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
 import { scheduleLabel, useBulkDeleteTasks } from "@/features/tasks/hooks";
@@ -48,13 +49,16 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
   const [showMore, setShowMore] = useState(false);
   const more = ALL_CONNECTABLE.filter((s) => !meta.relevantToolkits.includes(s));
   const fire = useBulkDeleteTasks();
+  const removeCustom = useDeleteCustomAgent();
   const { confirm, dialog } = useConfirm();
   const navigate = useNavigate();
 
   async function onFire() {
     const ok = await confirm({
       title: `Remove ${meta.name}?`,
-      description: `All of ${meta.name}'s skills stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can add ${meta.name} back anytime, with a fresh setup.`,
+      description: meta.custom
+        ? `${meta.name} is deleted along with all ${mine.length} skill${mine.length === 1 ? "" : "s"}. Everything already delivered stays.`
+        : `All of ${meta.name}'s skills stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can add ${meta.name} back anytime, with a fresh setup.`,
       confirmLabel: `Remove ${meta.name}`,
       destructive: true,
     });
@@ -63,7 +67,9 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
       mine.map((t) => t.id),
       {
         onSuccess: () => {
-          track("employee_fired", { role: meta.role, skills: mine.length });
+          // A custom agent IS its row; removing it retires the roster card too.
+          if (meta.custom) removeCustom.mutate(meta.role);
+          track("employee_fired", { role: meta.role, skills: mine.length, custom: !!meta.custom });
           void navigate({ to: "/team" });
         },
       },
@@ -205,7 +211,7 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
           <Button
             variant="outline"
             className="text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/30"
-            disabled={fire.isPending || mine.length === 0}
+            disabled={fire.isPending || (mine.length === 0 && !meta.custom)}
             onClick={() => void onFire()}
           >
             {fire.isPending ? (

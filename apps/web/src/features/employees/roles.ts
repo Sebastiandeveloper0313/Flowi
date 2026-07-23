@@ -33,6 +33,8 @@ export interface EmployeeMeta {
   starterTemplates: string[];
   /** On the roster but not hireable yet; sells the roadmap honestly. */
   comingSoon?: boolean;
+  /** User-created agent (a team_agents row); role holds its id. */
+  custom?: boolean;
 }
 
 export const EMPLOYEES: EmployeeMeta[] = [
@@ -127,6 +129,13 @@ export const EMPLOYEES: EmployeeMeta[] = [
 /** Roles a user can actually hire today (routable employee pages). */
 export const HIREABLE_ROLES = EMPLOYEES.filter((e) => !e.comingSoon).map((e) => e.role);
 
+/**
+ * Any roster address: a built-in role slug ("growth") or a custom agent's row
+ * id. Custom agents are addressed by uuid everywhere a built-in uses its slug
+ * (routes, config.role, document shelves).
+ */
+export type RosterRole = EmployeeRole | (string & {});
+
 const CATEGORY_ROLE: Record<string, EmployeeRole> = {
   "Leads & research": "growth",
   "Social media": "social",
@@ -154,11 +163,19 @@ const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
  * everything else maps by kind, and unknown/custom kinds land with Maya so
  * nothing ever falls off the team page.
  */
-export function roleOfTask(task: Pick<Task, "kind" | "config">): EmployeeRole {
+export function roleOfTask(
+  task: Pick<Task, "kind" | "config">,
+  customIds?: Set<string>,
+): RosterRole {
   const cfg = task.config as { role?: string; proposal_id?: string } | null;
-  // A manual assignment from the skill page beats the derived mapping.
-  if (cfg?.role && HIREABLE_ROLES.includes(cfg.role as EmployeeRole)) {
-    return cfg.role as EmployeeRole;
+  // A manual assignment from the skill page beats the derived mapping. A
+  // custom-agent assignment only counts while that agent still exists;
+  // otherwise the skill falls back to the derived owner below.
+  if (
+    cfg?.role &&
+    (HIREABLE_ROLES.includes(cfg.role as EmployeeRole) || customIds?.has(cfg.role))
+  ) {
+    return cfg.role;
   }
   const template = cfg?.proposal_id ? TEMPLATE_BY_ID.get(cfg.proposal_id) : undefined;
   if (template) return CATEGORY_ROLE[template.category] ?? "growth";
@@ -167,9 +184,10 @@ export function roleOfTask(task: Pick<Task, "kind" | "config">): EmployeeRole {
 
 export function tasksOfRole<T extends Pick<Task, "kind" | "config">>(
   tasks: T[],
-  role: EmployeeRole,
+  role: RosterRole,
+  customIds?: Set<string>,
 ): T[] {
-  return tasks.filter((t) => roleOfTask(t) === role);
+  return tasks.filter((t) => roleOfTask(t, customIds) === role);
 }
 
 export function employeeMeta(role: EmployeeRole): EmployeeMeta {

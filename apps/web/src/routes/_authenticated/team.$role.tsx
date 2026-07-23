@@ -1,8 +1,9 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, ArrowLeft, Loader2, MessageSquare, Settings2 } from "lucide-react";
 import { useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
+import { customAgentMeta, useCustomAgents } from "@/features/employees/customAgents";
 import { EmployeeAvatar } from "@/features/employees/EmployeeAvatar";
 import { EmployeeChat } from "@/features/employees/EmployeeChat";
 import { EmployeeSettings } from "@/features/employees/EmployeeSettings";
@@ -18,12 +19,8 @@ import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { useTasks } from "@/features/tasks/hooks";
 
 export const Route = createFileRoute("/_authenticated/team/$role")({
-  params: {
-    parse: (p) => {
-      if (!HIREABLE_ROLES.includes(p.role as EmployeeRole)) throw notFound();
-      return { role: p.role as EmployeeRole };
-    },
-  },
+  // Built-in role slugs are validated here; anything else might be a custom
+  // agent's id, which only the component can check (it needs the query).
   component: EmployeePage,
 });
 
@@ -44,14 +41,24 @@ const TABS: { id: Tab; label: string; icon: typeof Activity }[] = [
  */
 function EmployeePage() {
   const { role } = Route.useParams();
-  const meta = employeeMeta(role);
   const [tab, setTab] = useState<Tab>("work");
 
   const { data: tasks, isLoading: tasksLoading } = useTasks();
   const { data: approvals } = useApprovals();
   const { data: leadGroups } = usePendingLeadReplies();
+  const { data: customs, isLoading: customsLoading } = useCustomAgents();
 
-  const mine = tasksOfRole(tasks ?? [], role);
+  const isBuiltIn = HIREABLE_ROLES.includes(role as EmployeeRole);
+  const customRow = (customs ?? []).find((c) => c.id === role);
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+
+  const meta = isBuiltIn
+    ? employeeMeta(role as EmployeeRole)
+    : customRow
+      ? customAgentMeta(customRow)
+      : null;
+
+  const mine = tasksOfRole(tasks ?? [], role, customIds);
   const mineIds = new Set(mine.map((t) => t.id));
 
   const waiting =
@@ -59,7 +66,29 @@ function EmployeePage() {
       .length +
     (leadGroups ?? []).filter((g) => mineIds.has(g.taskId)).reduce((s, g) => s + g.count, 0);
 
-  const hired = !tasksLoading && mine.length > 0;
+  if (!meta) {
+    if (!isBuiltIn && customsLoading) {
+      return (
+        <div className="flowy-page">
+          <div className="text-muted-foreground flex items-center gap-2 py-12 text-sm">
+            <Loader2 className="size-4 animate-spin" /> Loading agent…
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="flowy-page">
+        <p className="text-muted-foreground">This agent doesn't exist or was removed.</p>
+        <Link to="/team" className="text-primary mt-3 inline-flex items-center gap-1.5 text-sm">
+          <ArrowLeft className="size-4" /> Your agents
+        </Link>
+      </div>
+    );
+  }
+
+  // Custom agents skip the interview: the create dialog already collected the
+  // brief, so their page opens straight into work.
+  const hired = meta.custom ? true : !tasksLoading && mine.length > 0;
 
   return (
     <div className="flowy-page">

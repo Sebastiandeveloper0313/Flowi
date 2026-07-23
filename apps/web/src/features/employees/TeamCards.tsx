@@ -1,6 +1,16 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { ArrowRight } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog";
+import { Input } from "@workspace/ui/components/input";
+import { Textarea } from "@workspace/ui/components/textarea";
+import { ArrowRight, Loader2, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { useMissingToolkits } from "@/features/integrations/hooks";
@@ -9,6 +19,7 @@ import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 
+import { customAgentMeta, useCreateCustomAgent, useCustomAgents } from "./customAgents";
 import { EmployeeAvatar } from "./EmployeeAvatar";
 import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
 
@@ -20,22 +31,122 @@ import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
  */
 export function TeamCards() {
   const { data: tasks } = useTasks();
+  const { data: customs } = useCustomAgents();
 
-  const cards = EMPLOYEES.map((meta) => ({
-    meta,
-    mine: tasksOfRole(tasks ?? [], meta.role),
-  })).sort((a, b) => {
-    const rank = (c: { meta: EmployeeMeta; mine: Task[] }) =>
-      c.meta.comingSoon ? 2 : c.mine.length > 0 ? 0 : 1;
-    return rank(a) - rank(b);
-  });
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+  const roster = [...EMPLOYEES, ...(customs ?? []).map(customAgentMeta)];
+  const cards = roster
+    .map((meta) => ({
+      meta,
+      mine: tasksOfRole(tasks ?? [], meta.role, customIds),
+    }))
+    .sort((a, b) => {
+      const rank = (c: { meta: EmployeeMeta; mine: Task[] }) =>
+        c.meta.comingSoon ? 2 : c.mine.length > 0 ? 0 : 1;
+      return rank(a) - rank(b);
+    });
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map(({ meta, mine }) => (
         <EmployeeCard key={meta.role} meta={meta} mine={mine} />
       ))}
+      <NewAgentCard />
     </div>
+  );
+}
+
+/**
+ * Create your own agent: name it, say what it does, and it joins the roster
+ * next to the ready-made ones. Skills get taught afterwards on its page.
+ */
+function NewAgentCard() {
+  const create = useCreateCustomAgent();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("🤖");
+  const [title, setTitle] = useState("");
+  const [duties, setDuties] = useState("");
+
+  function onCreate() {
+    if (!name.trim()) return;
+    create.mutate(
+      { name: name.trim(), emoji, title: title.trim() || "Custom agent", duties: duties.trim() },
+      {
+        onSuccess: (a) => {
+          setOpen(false);
+          void navigate({ to: "/team/$role", params: { role: a.id } });
+        },
+      },
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
+      >
+        <Plus className="size-5" />
+        New agent
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create your own agent</DialogTitle>
+            <DialogDescription>
+              Name it and describe the job. It reads your Brain like everyone else; you teach it
+              skills on its page or in its chat.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="flex gap-2">
+              {["🤖", "🦾", "🔎", "🧮", "🛠️", "🌱"].map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setEmoji(e)}
+                  className={`grid size-10 place-items-center rounded-xl border text-lg transition ${
+                    emoji === e ? "border-primary bg-[#eef4fd]" : "bg-muted/30"
+                  }`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name, e.g. Kim"
+              className="text-sm"
+            />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What they do, e.g. Ads Watcher"
+              className="text-sm"
+            />
+            <Textarea
+              value={duties}
+              onChange={(e) => setDuties(e.target.value)}
+              rows={4}
+              placeholder="Describe the job in plain words, e.g. every morning, check our Google Ads spend and flag anything unusual"
+              className="resize-y text-sm"
+            />
+            {create.isError && (
+              <p className="text-destructive text-xs">{(create.error as Error).message}</p>
+            )}
+            <Button disabled={!name.trim() || create.isPending} onClick={onCreate}>
+              {create.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Create agent
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -111,7 +222,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
             <p className="text-primary mt-0.5 text-sm font-medium">{waiting} waiting for your OK</p>
           )}
         </div>
-        {!meta.comingSoon && !hired && (
+        {!meta.comingSoon && !hired && !meta.custom && (
           <Button size="sm" className="pointer-events-none shrink-0" tabIndex={-1}>
             Add {meta.name}
           </Button>

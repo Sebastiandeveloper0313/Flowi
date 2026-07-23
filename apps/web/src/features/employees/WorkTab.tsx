@@ -362,7 +362,9 @@ export function WorkTab({
                 ? `${meta.name} is working right now`
                 : active.length > 0
                   ? `${meta.name} is on duty`
-                  : `${meta.name} is paused`}
+                  : mine.length === 0
+                    ? `${meta.name} is ready`
+                    : `${meta.name} is paused`}
             </p>
             {runningRun ? (
               <p className="text-muted-foreground text-sm">
@@ -381,7 +383,9 @@ export function WorkTab({
                   ? `Next up: ${next.title} · ${clockLabel(next.next_run_at!)} (${inWords(next.next_run_at!)})`
                   : active.length > 0
                     ? "On call: start anything below whenever you like."
-                    : "Resume a skill to put them back to work."}
+                    : mine.length === 0
+                      ? "No skills yet. Add one below, or describe the job in chat."
+                      : "Resume a skill to put them back to work."}
               </p>
             )}
           </div>

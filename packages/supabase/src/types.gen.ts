@@ -681,6 +681,47 @@ export type Database = {
           },
         ]
       }
+      team_agents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duties: string
+          emoji: string
+          id: string
+          name: string
+          team_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duties?: string
+          emoji?: string
+          id?: string
+          name: string
+          team_id: string
+          title?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duties?: string
+          emoji?: string
+          id?: string
+          name?: string
+          team_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_agents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_documents: {
         Row: {
           content: string

@@ -36,8 +36,9 @@ import { useRef, useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { useAutonomy } from "@/features/autonomy/hooks";
 import { ChatMarkdown } from "@/features/chat/Markdown";
+import { customAgentMeta, useCustomAgents } from "@/features/employees/customAgents";
 import { EmployeeAvatar } from "@/features/employees/EmployeeAvatar";
-import { EMPLOYEES, employeeMeta, roleOfTask } from "@/features/employees/roles";
+import { EMPLOYEES, employeeMeta, roleOfTask, type EmployeeRole } from "@/features/employees/roles";
 import { localScheduleLabel } from "@/features/employees/WorkTab";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
@@ -75,6 +76,8 @@ function AgentDetailPage() {
   const { agentId } = Route.useParams();
   const navigate = useNavigate();
   const { data: tasks, isLoading } = useTasks();
+  const { data: customs } = useCustomAgents();
+  const customIds = new Set((customs ?? []).map((c) => c.id));
   const { data: runs } = useTaskRuns(agentId);
   const run = useRunTask();
   const setStatus = useSetTaskStatus();
@@ -134,7 +137,9 @@ function AgentDetailPage() {
   // "Open chat" returns to it instead of starting a blank one.
   const agentChatId = (agent.config as { chat_id?: string } | null)?.chat_id;
 
-  const meta = employeeMeta(roleOfTask(agent));
+  const owner = roleOfTask(agent, customIds);
+  const customRow = (customs ?? []).find((c) => c.id === owner);
+  const meta = customRow ? customAgentMeta(customRow) : employeeMeta(owner as EmployeeRole);
 
   return (
     <div className="flowy-page">
@@ -817,7 +822,8 @@ function Row({ label, value }: { label: string; value: string }) {
  */
 function EmployeeEditor({ agent }: { agent: Task }) {
   const update = useUpdateTaskConfig();
-  const current = roleOfTask(agent);
+  const { data: customs } = useCustomAgents();
+  const current = roleOfTask(agent, new Set((customs ?? []).map((c) => c.id)));
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-muted-foreground">Assigned to</span>
@@ -838,6 +844,11 @@ function EmployeeEditor({ agent }: { agent: Task }) {
           {EMPLOYEES.filter((e) => !e.comingSoon).map((e) => (
             <SelectItem key={e.role} value={e.role}>
               {e.name} · {e.title}
+            </SelectItem>
+          ))}
+          {(customs ?? []).map((c) => (
+            <SelectItem key={c.id} value={c.id}>
+              {c.name} · {c.title}
             </SelectItem>
           ))}
         </SelectContent>
