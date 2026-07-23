@@ -146,7 +146,7 @@ function AgentsPage() {
     <div className="flowy-page">
       <PageHeader
         title="Agents"
-        subtitle="Every job that runs: on its own, or owned by an employee on your Team page."
+        subtitle="Every job that runs, and where you tune them. Work an employee owns shows on their desk under Team."
         actions={
           <Button asChild>
             <Link
