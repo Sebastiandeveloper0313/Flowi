@@ -969,11 +969,10 @@ export function Chat({
         </div>
       );
     }
-    // Top-aligned (not vertically centered) so what's under the chat, waiting
-    // approvals and the agents, peeks above the fold instead of hiding below
-    // a full-viewport hero.
+    // Centered in the viewport like a proper front desk; the agents section
+    // lives below the fold, a scroll away instead of crowding the hero.
     return (
-      <div className="flex flex-col items-center px-2 pt-20 pb-12 sm:pt-24">
+      <div className="flex min-h-[calc(100dvh-8rem)] flex-col items-center justify-center px-2 pb-10">
         <div className="w-full max-w-2xl">
           {emptyHero ?? <MorningBrief />}
           {composer}
