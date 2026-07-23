@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ExternalLink,
   Loader2,
+  Shuffle,
   Upload,
   UserX,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { useRef, useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { DocumentsCard } from "@/features/brain/DocumentsCard";
 import {
+  randomCharacterAvatar,
   uploadAgentAvatar,
   useDeleteCustomAgent,
   useUpdateCustomAgent,
@@ -316,6 +318,18 @@ function AppearanceCard({ meta }: { meta: EmployeeMeta }) {
           <Button
             size="sm"
             variant="outline"
+            onClick={() =>
+              update.mutate({
+                id: meta.role,
+                patch: { avatar_url: randomCharacterAvatar(meta.avatar), emoji: "" },
+              })
+            }
+          >
+            <Shuffle className="size-3.5" /> Shuffle
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
           >
@@ -324,17 +338,8 @@ function AppearanceCard({ meta }: { meta: EmployeeMeta }) {
             ) : (
               <Upload className="size-3.5" />
             )}
-            {meta.avatar ? "Replace picture" : "Upload picture"}
+            Upload your own
           </Button>
-          {meta.avatar && (
-            <button
-              type="button"
-              onClick={() => update.mutate({ id: meta.role, patch: { avatar_url: null } })}
-              className="text-muted-foreground hover:text-foreground text-xs font-medium"
-            >
-              Remove picture
-            </button>
-          )}
           {dirty && (
             <Button
               size="sm"

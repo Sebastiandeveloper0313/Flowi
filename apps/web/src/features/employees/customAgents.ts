@@ -29,6 +29,25 @@ export function useCustomAgents() {
 }
 
 /**
+ * The character portraits shipped with the app. A new custom employee gets
+ * one at random so they look like part of the same cast from second one;
+ * uploading a picture replaces it.
+ */
+export const CHARACTER_AVATARS = [
+  "/employees/maya.png",
+  "/employees/nova.png",
+  "/employees/alex.png",
+  "/employees/sam.png",
+  "/employees/riley.png",
+  "/employees/quinn.png",
+];
+
+export function randomCharacterAvatar(exclude?: string | null): string {
+  const pool = CHARACTER_AVATARS.filter((a) => a !== exclude);
+  return pool[Math.floor(Math.random() * pool.length)] ?? CHARACTER_AVATARS[0];
+}
+
+/**
  * Upload a picture for a custom employee. Stored in the team-scoped
  * agent-media bucket under "<team>/avatars/", public-read so the app can
  * render it directly.

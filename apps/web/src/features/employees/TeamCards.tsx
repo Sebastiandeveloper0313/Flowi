@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowRight, Loader2, Plus, Upload } from "lucide-react";
+import { ArrowRight, Loader2, Plus, Shuffle, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
@@ -24,6 +24,7 @@ import { useActiveTeamId } from "@/features/workspace/active";
 
 import {
   customAgentMeta,
+  randomCharacterAvatar,
   uploadAgentAvatar,
   useCreateCustomAgent,
   useCustomAgents,
@@ -114,10 +115,6 @@ function NewAgentCard() {
   );
 }
 
-// Optional shortcuts. The field takes any emoji, empty is a real choice (a
-// clean monogram tile), and a real picture beats all of it.
-const EMOJI_CHOICES = ["🧑‍💼", "📈", "✍️", "🎧", "🔎", "🛠️"];
-
 function NewEmployeeDialog({
   open,
   onOpenChange,
@@ -133,13 +130,14 @@ function NewEmployeeDialog({
   const teamId = useActiveTeamId();
 
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("");
   const [title, setTitle] = useState("");
   const [duties, setDuties] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // They start with one of the shipped characters, so a new employee looks
+  // like part of the cast immediately; shuffle or upload to change it.
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => randomCharacterAvatar());
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -149,7 +147,6 @@ function NewEmployeeDialog({
     setUploading(true);
     try {
       setAvatarUrl(await uploadAgentAvatar(teamId, file));
-      setEmoji("");
     } catch (e) {
       setError((e as Error).message || "Couldn't upload that image.");
     } finally {
@@ -181,7 +178,7 @@ function NewEmployeeDialog({
     try {
       const agent = await create.mutateAsync({
         name: name.trim(),
-        emoji: emoji.trim(),
+        emoji: "",
         title: title.trim() || "Custom role",
         duties: duties.trim(),
         avatarUrl,
@@ -221,8 +218,7 @@ function NewEmployeeDialog({
         </DialogHeader>
 
         <div className="grid gap-3">
-          {/* Picture, emoji, or nothing: the live tile shows exactly what the
-              roster will render. */}
+          {/* The live tile: exactly what the roster will render. */}
           <div className="flex items-center gap-3">
             {avatarUrl ? (
               <img
@@ -232,7 +228,7 @@ function NewEmployeeDialog({
               />
             ) : (
               <span className="bg-muted/40 ring-border grid size-14 shrink-0 place-items-center rounded-2xl text-xl font-semibold ring-1">
-                {emoji.trim() || (name.trim()[0] ?? "?").toUpperCase()}
+                {(name.trim()[0] ?? "?").toUpperCase()}
               </span>
             )}
             <div className="min-w-0 flex-1">
@@ -251,6 +247,13 @@ function NewEmployeeDialog({
                 <Button
                   size="sm"
                   variant="outline"
+                  onClick={() => setAvatarUrl(randomCharacterAvatar(avatarUrl))}
+                >
+                  <Shuffle className="size-3.5" /> Shuffle
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   disabled={uploading}
                   onClick={() => fileRef.current?.click()}
                 >
@@ -259,45 +262,11 @@ function NewEmployeeDialog({
                   ) : (
                     <Upload className="size-3.5" />
                   )}
-                  Upload picture
+                  Upload your own
                 </Button>
-                {avatarUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setAvatarUrl(null)}
-                    className="text-muted-foreground hover:text-foreground text-xs font-medium"
-                  >
-                    Remove
-                  </button>
-                )}
-                {!avatarUrl && (
-                  <>
-                    <Input
-                      value={emoji}
-                      onChange={(e) => setEmoji(e.target.value.slice(0, 8))}
-                      placeholder="or an emoji"
-                      className="h-8 w-28 text-sm"
-                      aria-label="Emoji"
-                    />
-                    {EMOJI_CHOICES.map((e) => (
-                      <button
-                        key={e}
-                        type="button"
-                        onClick={() => setEmoji(emoji === e ? "" : e)}
-                        className={`grid size-8 place-items-center rounded-lg border text-base transition ${
-                          emoji === e
-                            ? "border-primary bg-[#eef4fd]"
-                            : "bg-muted/30 hover:bg-muted/60"
-                        }`}
-                      >
-                        {e}
-                      </button>
-                    ))}
-                  </>
-                )}
               </div>
               <p className="text-muted-foreground mt-1.5 text-xs">
-                Optional. With no picture or emoji they get a clean initial.
+                Shuffle through the character set, or upload your own picture.
               </p>
             </div>
           </div>
