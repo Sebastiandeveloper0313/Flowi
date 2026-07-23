@@ -85,6 +85,11 @@ const TOOL = {
         description:
           "For reddit_monitor: optional subreddits to focus on (names without 'r/'), omit to search all of Reddit. For reddit_post: the subreddit(s) to post to (names without 'r/').",
       },
+      role: {
+        type: "string",
+        description:
+          "Which named agent on the user's roster owns this skill. Use a built-in slug (growth = Maya the Lead Finder, social = Nova for social posts, content = Alex for SEO/articles, support = Sam for inboxes) or a custom agent's id from the roster list in your context. ALWAYS set this, and say in your reply whose skill it becomes (e.g. \"I'll add this to Maya's skills\").",
+      },
     },
     required: ["title", "instructions"],
   },
@@ -320,6 +325,8 @@ interface AgentProposal {
     | "tiktok_slideshow";
   keywords: string[];
   subreddits: string[];
+  /** Roster owner: built-in slug or a custom agent's id; the skill is pinned to them. */
+  role?: string;
 }
 
 /** A proposed change to an existing agent the user confirms on a card. */
@@ -458,7 +465,28 @@ Deno.serve(async (req: Request) => {
     const agents = (agentRows ?? []) as ExistingAgent[];
     const agentsById = new Map(agents.map((a) => [a.id, a]));
 
-    const system = chatSystem(ws) + existingAgentsBlock(agents);
+    // The named roster, so proposals get assigned to the right agent and the
+    // chat talks about the team the user actually sees on the Agents page.
+    const { data: customAgents } = await userClient
+      .from("team_agents")
+      .select("id, name, title, duties")
+      .eq("team_id", teamId)
+      .order("created_at");
+    const rosterBlock =
+      "\n\nTHE USER'S NAMED AGENTS (every skill you propose belongs to one; set `role` and name them in your reply):\n" +
+      "- Maya, Lead Finder (role: growth): finds leads, watches Reddit and competitors\n" +
+      "- Nova, Social Media (role: social): LinkedIn/Reddit/Facebook posts, TikTok slideshows\n" +
+      "- Alex, SEO & Content (role: content): articles, blogs, written deliverables\n" +
+      "- Sam, Inbox Replies (role: support): Gmail and Messenger replies\n" +
+      (customAgents ?? [])
+        .map(
+          (c) =>
+            `- ${c.name}, ${c.title} (role: ${c.id}), created by the user${c.duties ? `: ${c.duties.slice(0, 160)}` : ""}\n`,
+        )
+        .join("") +
+      "Prefer the custom agent whose duties match the request; otherwise pick the built-in whose trade fits. In the conversation of a specific agent, keep the work theirs unless the user says otherwise.";
+
+    const system = chatSystem(ws) + existingAgentsBlock(agents) + rosterBlock;
     let mode = autonomyMode(ws);
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
@@ -624,6 +652,8 @@ Deno.serve(async (req: Request) => {
                       kind === "reddit_monitor" && Array.isArray(inp.subreddits)
                         ? inp.subreddits.map(String)
                         : [],
+                    role:
+                      typeof inp.role === "string" && inp.role.trim() ? inp.role.trim() : undefined,
                   };
                   proposals.push(proposal);
                   toolResults.push({

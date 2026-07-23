@@ -33,6 +33,8 @@ export interface AgentProposal {
     | "tiktok_slideshow";
   keywords: string[];
   subreddits: string[];
+  /** Roster owner the chat picked: built-in slug or a custom agent's id. */
+  role?: string;
 }
 
 /** A proposed change to an existing agent, confirmed on a card. */

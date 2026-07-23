@@ -215,7 +215,8 @@ function ProposalCard({
           subreddits: isReddit ? toList(subreddits) : [],
           proposalId: proposal.id,
           chatId,
-          role: assignRole,
+          // An employee chat pins to its owner; otherwise the chat's pick wins.
+          role: assignRole ?? proposal.role,
         },
       },
       { onSuccess: (data) => setCreated(data) },
