@@ -55,6 +55,7 @@ import {
   type NewAgentProposal,
   saveMessage,
   type ChatMessage,
+  type SpeakingAs,
   useChat,
 } from "./hooks";
 import { ChatMarkdown } from "./Markdown";
@@ -579,6 +580,7 @@ export function Chat({
   placeholder,
   avatar,
   assignRole,
+  speakingAs,
 }: {
   chatId?: string;
   /** Fill the parent's height instead of the viewport (employee chat tab). */
@@ -591,6 +593,8 @@ export function Chat({
   avatar?: React.ReactNode;
   /** Skills created in this chat get pinned to this named agent. */
   assignRole?: string;
+  /** In an employee's own chat, the assistant IS that employee. */
+  speakingAs?: SpeakingAs | null;
 }) {
   const chat = useChat();
   const navigate = useNavigate();
@@ -813,6 +817,7 @@ export function Chat({
         onStatus: setStatus,
         attachments: files,
         persist: convoId && teamId ? { convoId, teamId } : undefined,
+        speakingAs,
       },
       {
         onSuccess: (data) => {

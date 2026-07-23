@@ -5,6 +5,7 @@ import { Textarea } from "@workspace/ui/components/textarea";
 import { CalendarClock, Check, Loader2, MessageSquare, Plus } from "lucide-react";
 import { useState } from "react";
 
+import { useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
 import { createAgentFromProposal } from "@/features/tasks/mutations";
 import { taskKeys } from "@/features/tasks/queries";
 import type { Task } from "@/features/tasks/queries";
@@ -12,7 +13,14 @@ import { templateToProposal, type AgentTemplate } from "@/features/tasks/templat
 import { useActiveTeamId } from "@/features/workspace/active";
 import { track } from "@/integrations/posthog";
 
-import { templatesOfRole, type EmployeeMeta } from "./roles";
+import { useCustomAgents } from "./customAgents";
+import {
+  employeeMeta,
+  roleOfTask,
+  templatesOfRole,
+  type EmployeeMeta,
+  type EmployeeRole,
+} from "./roles";
 
 /**
  * The employee's skill library: ready-made skills this role can take on, one
@@ -36,6 +44,29 @@ export function SkillLibraryDialog({
   const templates = templatesOfRole(meta.role);
   const [custom, setCustom] = useState("");
 
+  // Agents that exist but aren't this employee's yet: hand any of them over
+  // without recreating anything.
+  const { data: allTasks } = useTasks();
+  const { data: customs } = useCustomAgents();
+  const reassign = useUpdateTaskConfig();
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+  const customNameById = new Map((customs ?? []).map((c) => [c.id, c.name]));
+  const mineIds = new Set(mine.map((t) => t.id));
+  const takeable = (allTasks ?? []).filter((t) => !mineIds.has(t.id));
+
+  function ownerLabel(t: Task): string {
+    const r = roleOfTask(t, customIds);
+    if (!r) return "Independent";
+    return customNameById.get(r) ?? employeeMeta(r as EmployeeRole).name;
+  }
+
+  function takeOver(t: Task) {
+    reassign.mutate({
+      id: t.id,
+      config: { ...(t.config as Record<string, unknown> | null), role: meta.role },
+    });
+  }
+
   // A template counts as added when an agent was created from it (proposal_id
   // stamp) or shares its exact title (pre-stamp agents).
   const addedIds = new Set(
@@ -53,10 +84,44 @@ export function SkillLibraryDialog({
           Give {meta.name} a new agent
         </DialogTitle>
         <p className="text-muted-foreground -mt-2 text-sm">
-          {templates.length > 0
-            ? `Ready to run for your business. Add one and it starts on its schedule; you approve anything before it goes out. Want something custom? Just tell ${meta.name} in chat.`
-            : `Describe the job and ${meta.name} sets it up with you in chat: what it does, how often, where results go.`}
+          Hand {meta.name} an agent you already have, pick a ready-made one, or describe a new job
+          in chat.
         </p>
+
+        {takeable.length > 0 && (
+          <div className="rounded-xl border p-3">
+            <p className="text-sm font-medium">Agents you already have</p>
+            <p className="text-muted-foreground mb-2 text-xs">
+              Move one to {meta.name}. It keeps running exactly as before.
+            </p>
+            <div className="max-h-44 space-y-1 overflow-y-auto">
+              {takeable.map((t) => (
+                <div
+                  key={t.id}
+                  className="hover:bg-muted/40 flex items-center gap-2.5 rounded-lg px-2 py-1.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{t.title}</p>
+                    <p className="text-muted-foreground text-xs">{ownerLabel(t)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0"
+                    disabled={reassign.isPending}
+                    onClick={() => takeOver(t)}
+                  >
+                    Give to {meta.name}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {templates.length > 0 && (
+          <p className="text-sm font-medium">Ready-made agents for this role</p>
+        )}
         <div className="grid gap-2">
           {templates.map((t) => (
             <SkillRow

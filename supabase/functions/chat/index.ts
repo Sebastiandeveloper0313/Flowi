@@ -445,7 +445,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   try {
-    const { messages, attachments, team_id } = await req.json().catch(() => ({}));
+    const { messages, attachments, team_id, speaking_as } = await req.json().catch(() => ({}));
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "messages array is required" }, 400);
     }
@@ -520,7 +520,20 @@ Deno.serve(async (req: Request) => {
         .join("") +
       'These are EMPLOYEES: they own agents and report on their area (think: agents are files, employees are folders). Agents can also run independently with no owner. How to decide: if the user says "hire" or "employee", or wants someone to OWN a whole area, use propose_new_agent (a new employee with their first agent). If the work clearly belongs to a hired employee or the user names one, propose_agent with their role. If they just want a task automated ("set up an agent that..."), propose_agent with NO role, and mention in your reply that it runs on its own and can be handed to an employee anytime.';
 
-    const system = chatSystem(ws) + existingAgentsBlock(agents) + rosterBlock;
+    // In an employee's own chat the assistant IS that employee: same brain and
+    // tools, but they speak in the first person about their own area instead
+    // of introducing themselves as Sentrive.
+    const speaker =
+      speaking_as && typeof speaking_as === "object"
+        ? (speaking_as as { name?: string; title?: string; duties?: string; role?: string })
+        : null;
+    const identityBlock = speaker?.name
+      ? `\n\nWHO YOU ARE IN THIS CONVERSATION: you are ${speaker.name}, the ${speaker.title ?? "team member"} on this user's team${
+          speaker.duties ? `. Your area: ${speaker.duties}` : ""
+        }. Speak as ${speaker.name} in the first person ("I watch Reddit for...", "I posted this morning"). Never introduce yourself as Sentrive or as an assistant, and never describe your teammates' work as your own: if the user asks for something outside your area, say plainly that it belongs to a teammate (or offer to set it up for them) instead of pretending it is yours. Work you set up here becomes YOUR agent.`
+      : "";
+
+    const system = chatSystem(ws) + identityBlock + existingAgentsBlock(agents) + rosterBlock;
     let mode = autonomyMode(ws);
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,

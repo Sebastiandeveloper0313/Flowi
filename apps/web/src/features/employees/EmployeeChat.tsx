@@ -41,6 +41,12 @@ export function EmployeeChat({ meta }: { meta: EmployeeMeta }) {
           chatId={existing.id}
           embedded
           assignRole={meta.role}
+          speakingAs={{
+            name: meta.name,
+            title: meta.title,
+            duties: meta.hirePitch,
+            role: meta.role,
+          }}
           avatar={<EmployeeAvatar meta={meta} className="size-7 shrink-0 rounded-lg text-sm" />}
           placeholder={`Tell ${meta.name} what you need…  e.g. “write an article about our new feature” or “watch r/startups too”`}
           emptyHero={

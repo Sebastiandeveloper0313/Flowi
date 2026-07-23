@@ -123,12 +123,21 @@ interface StreamEvent {
  * status events (onStatus) while it works, then resolves with the final reply.
  * Uses fetch (not functions.invoke) so it can stream and be aborted.
  */
+/** Who the assistant is speaking as: an employee's own chat, or Sentrive. */
+export interface SpeakingAs {
+  name: string;
+  title: string;
+  duties?: string;
+  role: string;
+}
+
 export async function sendChat(
   messages: { role: string; content: string }[],
   signal?: AbortSignal,
   onStatus?: (text: string) => void,
   attachments?: Attachment[],
   teamId?: string | null,
+  speakingAs?: SpeakingAs | null,
 ): Promise<ChatResponse> {
   const {
     data: { session },
@@ -145,7 +154,12 @@ export async function sendChat(
       apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session?.access_token ?? env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, attachments: files, team_id: teamId ?? undefined }),
+    body: JSON.stringify({
+      messages,
+      attachments: files,
+      team_id: teamId ?? undefined,
+      speaking_as: speakingAs ?? undefined,
+    }),
     signal,
   });
 
@@ -226,14 +240,17 @@ export function useChat() {
       onStatus,
       attachments,
       persist,
+      speakingAs,
     }: {
       messages: { role: string; content: string }[];
       signal?: AbortSignal;
       onStatus?: (text: string) => void;
       attachments?: Attachment[];
       persist?: { convoId: string; teamId: string };
+      /** In an employee's own chat, they answer as themselves. */
+      speakingAs?: SpeakingAs | null;
     }) => {
-      const data = await sendChat(messages, signal, onStatus, attachments, teamId);
+      const data = await sendChat(messages, signal, onStatus, attachments, teamId, speakingAs);
       // Persist the assistant reply here, inside the mutation, so it survives the
       // user navigating away mid-request. The component's onSuccess won't run once
       // Chat unmounts, so saving there would silently drop the reply.
