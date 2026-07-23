@@ -95,6 +95,31 @@ const TOOL = {
   },
 };
 
+// A brand-new roster member plus its first skill, born from one description.
+// Shares the skill fields with propose_agent (minus role: the new agent owns it).
+const { role: _skillRole, ...SKILL_PROPS } = TOOL.input_schema.properties;
+const NEW_AGENT_TOOL = {
+  name: "propose_new_agent",
+  description:
+    "Propose creating a brand-new named agent on the user's roster, together with its first skill. The user sees a card and clicks Create; nothing exists until then. Use when NO existing agent (built-in or custom, see the roster list) fits the job, or when the user explicitly asks for a new agent. Otherwise prefer propose_agent with a role.",
+  input_schema: {
+    type: "object",
+    properties: {
+      agent_name: {
+        type: "string",
+        description: "Short given name for the new agent, e.g. 'Kim'. Not a sentence.",
+      },
+      agent_emoji: { type: "string", description: "One emoji avatar, e.g. '🛠️'." },
+      agent_title: {
+        type: "string",
+        description: "What they do in 2-4 words, e.g. 'Ads Watcher'.",
+      },
+      ...SKILL_PROPS,
+    },
+    required: ["agent_name", "agent_title", "title", "instructions"],
+  },
+};
+
 const UPDATE_TOOL = {
   name: "update_agent",
   description:
@@ -329,6 +354,15 @@ interface AgentProposal {
   role?: string;
 }
 
+/** A brand-new roster agent plus its first skill, confirmed on a card. */
+interface NewAgentProposal {
+  id: string; // tool_use id, the card key
+  name: string;
+  emoji: string;
+  agentTitle: string;
+  skill: Omit<AgentProposal, "id" | "role">;
+}
+
 /** A proposed change to an existing agent the user confirms on a card. */
 interface AgentUpdate {
   id: string; // tool_use id, used as the card key
@@ -484,7 +518,7 @@ Deno.serve(async (req: Request) => {
             `- ${c.name}, ${c.title} (role: ${c.id}), created by the user${c.duties ? `: ${c.duties.slice(0, 160)}` : ""}\n`,
         )
         .join("") +
-      "Prefer the custom agent whose duties match the request; otherwise pick the built-in whose trade fits. In the conversation of a specific agent, keep the work theirs unless the user says otherwise.";
+      "Prefer the custom agent whose duties match the request; otherwise pick the built-in whose trade fits. In the conversation of a specific agent, keep the work theirs unless the user says otherwise. If NOBODY on the roster fits the job, or the user asks for a new agent, use propose_new_agent to create one together with its first skill.";
 
     const system = chatSystem(ws) + existingAgentsBlock(agents) + rosterBlock;
     let mode = autonomyMode(ws);
@@ -552,6 +586,7 @@ Deno.serve(async (req: Request) => {
         const working: Msg[] = [...convo];
         const created: Array<{ id: string; title: string }> = [];
         const proposals: AgentProposal[] = [];
+        const newAgents: NewAgentProposal[] = [];
         const updates: AgentUpdate[] = [];
         let contextUpdated = false;
         let reply = "";
@@ -571,6 +606,7 @@ Deno.serve(async (req: Request) => {
                 system,
                 tools: [
                   TOOL,
+                  NEW_AGENT_TOOL,
                   UPDATE_TOOL,
                   ANALYZE_TOOL,
                   SET_AUTONOMY_TOOL,
@@ -663,6 +699,62 @@ Deno.serve(async (req: Request) => {
                       `Proposed the agent "${proposal.title}" to the user. They now see a card and ` +
                       `click Create to set it up. Do not say it is created, active, or running; it ` +
                       `is only a proposal until they create it. Keep your reply to a short line.`,
+                  });
+                } else if (block.name === "propose_new_agent") {
+                  send({ type: "status", text: "Designing a new agent" });
+                  const inp = block.input ?? {};
+                  let cron: string | null =
+                    typeof inp.schedule_cron === "string" && inp.schedule_cron.trim()
+                      ? inp.schedule_cron.trim()
+                      : null;
+                  if (cron) {
+                    try {
+                      new Cron(cron);
+                    } catch {
+                      cron = null;
+                    }
+                  }
+                  const KINDS = [
+                    "content",
+                    "reddit_monitor",
+                    "linkedin_post",
+                    "seo_blog",
+                    "reddit_post",
+                    "facebook_post",
+                    "facebook_dm",
+                    "email_responder",
+                    "tiktok_slideshow",
+                  ] as const;
+                  const kind = (KINDS as readonly string[]).includes(String(inp.kind))
+                    ? (String(inp.kind) as (typeof KINDS)[number])
+                    : "content";
+                  const na: NewAgentProposal = {
+                    id: block.id,
+                    name: String(inp.agent_name ?? "New agent").slice(0, 40),
+                    emoji: String(inp.agent_emoji ?? "🤖").slice(0, 8),
+                    agentTitle: String(inp.agent_title ?? "Custom agent").slice(0, 60),
+                    skill: {
+                      title: String(inp.title ?? "Untitled skill").slice(0, 200),
+                      instructions: String(inp.instructions ?? ""),
+                      channel: typeof inp.channel === "string" ? inp.channel : "dashboard",
+                      schedule_cron: cron,
+                      timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
+                      kind,
+                      keywords:
+                        kind === "reddit_monitor" && Array.isArray(inp.keywords)
+                          ? inp.keywords.map(String)
+                          : [],
+                      subreddits: Array.isArray(inp.subreddits) ? inp.subreddits.map(String) : [],
+                    },
+                  };
+                  newAgents.push(na);
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content:
+                      `Proposed the new agent "${na.name}" (${na.agentTitle}) with the skill ` +
+                      `"${na.skill.title}". The user sees a card and clicks Create to add them to ` +
+                      `the roster. Do not say they exist yet. Keep your reply to a short line.`,
                   });
                 } else if (block.name === "update_agent") {
                   send({ type: "status", text: "Updating the agent" });
@@ -896,6 +988,7 @@ Deno.serve(async (req: Request) => {
             reply: reply || "Done.",
             created,
             proposals,
+            newAgents,
             updates,
             contextUpdated,
           });

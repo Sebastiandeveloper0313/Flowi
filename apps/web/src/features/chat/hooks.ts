@@ -62,11 +62,21 @@ export interface AgentUpdate {
   };
 }
 
+/** A brand-new roster agent plus its first skill, confirmed on a card. */
+export interface NewAgentProposal {
+  id: string;
+  name: string;
+  emoji: string;
+  agentTitle: string;
+  skill: Omit<AgentProposal, "id" | "role">;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
+  newAgents?: NewAgentProposal[];
   updates?: AgentUpdate[];
 }
 
@@ -74,6 +84,7 @@ export interface ChatResponse {
   reply: string;
   created: CreatedAgent[];
   proposals: AgentProposal[];
+  newAgents: NewAgentProposal[];
   updates: AgentUpdate[];
   /** True when the turn re-analyzed the website and updated the business context. */
   contextUpdated: boolean;
@@ -101,6 +112,7 @@ interface StreamEvent {
   reply?: string;
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
+  newAgents?: NewAgentProposal[];
   updates?: AgentUpdate[];
   contextUpdated?: boolean;
   error?: string;
@@ -162,6 +174,7 @@ export async function sendChat(
       reply: data.reply ?? "Done.",
       created: data.created ?? [],
       proposals: [],
+      newAgents: [],
       updates: [],
       contextUpdated: false,
     };
@@ -192,6 +205,7 @@ export async function sendChat(
           reply: evt.reply ?? "Done.",
           created: evt.created ?? [],
           proposals: evt.proposals ?? [],
+          newAgents: evt.newAgents ?? [],
           updates: evt.updates ?? [],
           contextUpdated: evt.contextUpdated ?? false,
         };
@@ -229,6 +243,7 @@ export function useChat() {
           content: data.reply,
           created: data.created,
           proposals: data.proposals,
+          newAgents: data.newAgents,
           updates: data.updates,
         };
         try {

@@ -34,6 +34,7 @@ import { createPortal } from "react-dom";
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
 import { MorningBrief } from "@/features/dashboard/MorningBrief";
+import { useCreateCustomAgent, useCustomAgents } from "@/features/employees/customAgents";
 import {
   CHANNELS,
   channelLabel,
@@ -51,6 +52,7 @@ import {
   chatKeys,
   createChat,
   fetchChatMessages,
+  type NewAgentProposal,
   saveMessage,
   type ChatMessage,
   useChat,
@@ -159,7 +161,83 @@ function toList(s: string): string[] {
     .filter(Boolean);
 }
 
-/** A proposed agent shown in chat: fine-tune every field, then create it. */
+/**
+ * A brand-new agent proposed by the chat: one card creates the roster entry
+ * AND its first skill. Matching by name+title lets the created state survive
+ * a reload, mirroring ProposalCard's proposal_id trick.
+ */
+function NewAgentProposalCard({ na, chatId }: { na: NewAgentProposal; chatId?: string }) {
+  const teamId = useActiveTeamId();
+  const createAgent = useCreateCustomAgent();
+  const createSkill = useCreateAgentFromProposal();
+  const { data: customs } = useCustomAgents();
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const existing = customs?.find((c) => c.name === na.name && c.title === na.agentTitle);
+  const doneId = createdId ?? existing?.id ?? null;
+  const busy = createAgent.isPending || createSkill.isPending;
+
+  async function onCreate() {
+    if (!teamId) return;
+    setError(null);
+    try {
+      const agent = await createAgent.mutateAsync({
+        name: na.name,
+        emoji: na.emoji,
+        title: na.agentTitle,
+        duties: na.skill.instructions,
+      });
+      await createSkill.mutateAsync({
+        teamId,
+        proposal: { ...na.skill, proposalId: na.id, chatId, role: agent.id },
+      });
+      setCreatedId(agent.id);
+    } catch (e) {
+      setError((e as Error).message || "Couldn't create the agent. Try again.");
+    }
+  }
+
+  return (
+    <div className="bg-card max-w-md rounded-2xl border p-4 shadow-xs">
+      <div className="flex items-center gap-3">
+        <span className="bg-muted grid size-10 shrink-0 place-items-center rounded-xl text-lg">
+          {na.emoji}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">
+            {na.name} <span className="text-muted-foreground font-normal">· {na.agentTitle}</span>
+          </p>
+          <p className="text-muted-foreground truncate text-xs">New agent for your roster</p>
+        </div>
+      </div>
+      <div className="bg-muted/30 mt-3 rounded-xl border px-3.5 py-2.5">
+        <p className="text-sm font-medium">{na.skill.title}</p>
+        <p className="text-muted-foreground text-xs">
+          {scheduleLabel(na.skill.schedule_cron)} · first skill, you approve the work
+        </p>
+      </div>
+      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      <div className="mt-3">
+        {doneId ? (
+          <Link
+            to="/team/$role"
+            params={{ role: doneId }}
+            className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+          >
+            <CheckCircle2 className="size-3.5" /> {na.name} joined your roster, say hi
+          </Link>
+        ) : (
+          <Button size="sm" disabled={busy} onClick={() => void onCreate()}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            Create {na.name}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProposalCard({
   proposal,
   chatId,
@@ -699,6 +777,7 @@ export function Chat({
             content: data.reply,
             created: data.created,
             proposals: data.proposals,
+            newAgents: data.newAgents,
             updates: data.updates,
           };
           setMessages((m) => [...m, reply]);
@@ -952,6 +1031,13 @@ export function Chat({
                           proposal={p}
                           chatId={chatId ?? ownedRef.current ?? undefined}
                           assignRole={assignRole}
+                        />
+                      ))}
+                      {m.newAgents?.map((na) => (
+                        <NewAgentProposalCard
+                          key={na.id}
+                          na={na}
+                          chatId={chatId ?? ownedRef.current ?? undefined}
                         />
                       ))}
                       {m.updates?.map((u) => (

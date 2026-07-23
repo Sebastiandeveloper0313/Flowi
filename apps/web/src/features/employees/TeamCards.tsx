@@ -1,26 +1,15 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
-import { Input } from "@workspace/ui/components/input";
-import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowRight, Loader2, Plus } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, Plus } from "lucide-react";
 
 import { useApprovals } from "@/features/approvals/hooks";
-import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 
-import { customAgentMeta, useCreateCustomAgent, useCustomAgents } from "./customAgents";
+import { customAgentMeta, useCustomAgents } from "./customAgents";
 import { EmployeeAvatar } from "./EmployeeAvatar";
 import { EMPLOYEES, tasksOfRole, type EmployeeMeta } from "./roles";
 
@@ -58,113 +47,23 @@ export function TeamCards() {
 }
 
 /**
- * Create your own agent: name it, say what it does, and it joins the roster
- * next to the ready-made ones. Skills get taught afterwards on its page.
+ * New agents are born in chat, like everything else: describe the job and
+ * Sentrive proposes either a skill for an existing agent or a brand-new one.
+ * This card is just the door there.
  */
 function NewAgentCard() {
-  const create = useCreateCustomAgent();
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🤖");
-  const [title, setTitle] = useState("");
-  const [duties, setDuties] = useState("");
-
-  function onCreate() {
-    if (!name.trim()) return;
-    create.mutate(
-      { name: name.trim(), emoji, title: title.trim() || "Custom agent", duties: duties.trim() },
-      {
-        onSuccess: (a) => {
-          setOpen(false);
-          // The job description IS the first brief: hand it straight to the
-          // new agent's chat, which auto-sends it and proposes the real
-          // scheduled skill. Nobody should ever type the job twice.
-          if (duties.trim()) {
-            try {
-              sessionStorage.setItem(
-                DESK_DRAFT_KEY,
-                `Set this up as one of your recurring skills: ${duties.trim()}`,
-              );
-            } catch {
-              /* storage blocked: chat opens empty, nothing lost but the prefill */
-            }
-          }
-          void navigate({
-            to: "/team/$role",
-            params: { role: a.id },
-            search: duties.trim() ? { tab: "chat" } : undefined,
-          });
-        },
-      },
-    );
-  }
-
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
-      >
-        <Plus className="size-5" />
-        New agent
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create your own agent</DialogTitle>
-            <DialogDescription>
-              Name it and describe the job. It reads your Brain like everyone else; you teach it
-              skills on its page or in its chat.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div className="flex gap-2">
-              {["🤖", "🦾", "🔎", "🧮", "🛠️", "🌱"].map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setEmoji(e)}
-                  className={`grid size-10 place-items-center rounded-xl border text-lg transition ${
-                    emoji === e ? "border-primary bg-[#eef4fd]" : "bg-muted/30"
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name, e.g. Kim"
-              className="text-sm"
-            />
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="What they do, e.g. Ads Watcher"
-              className="text-sm"
-            />
-            <Textarea
-              value={duties}
-              onChange={(e) => setDuties(e.target.value)}
-              rows={4}
-              placeholder="Describe the job in plain words, e.g. every morning, check our Google Ads spend and flag anything unusual"
-              className="resize-y text-sm"
-            />
-            {create.isError && (
-              <p className="text-destructive text-xs">{(create.error as Error).message}</p>
-            )}
-            <Button disabled={!name.trim() || create.isPending} onClick={onCreate}>
-              {create.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Create agent
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Link
+      to="/dashboard"
+      search={{ c: undefined }}
+      className="text-muted-foreground hover:border-primary/40 hover:text-foreground flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-6 text-sm font-medium transition"
+    >
+      <Plus className="size-5" />
+      New agent
+      <span className="text-muted-foreground text-xs font-normal">
+        Describe the job in chat and Sentrive sets it up
+      </span>
+    </Link>
   );
 }
 
