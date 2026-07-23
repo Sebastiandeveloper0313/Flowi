@@ -2,9 +2,10 @@ import type { Task } from "@/features/tasks/queries";
 import { AGENT_TEMPLATES, type AgentTemplate } from "@/features/tasks/templates";
 
 /**
- * The employee layer. Every agent (task) belongs to one employee. Roles mirror
- * the template library's real capability areas, so every hireable employee is
- * backed by skills that actually work today: no vaporware personas.
+ * The agent layer. Every task (skill) belongs to one named agent. Roles mirror
+ * the template library's real capability areas, so every ready-made agent is
+ * backed by skills that actually work today: no vaporware personas. The
+ * "employee" naming in identifiers is historical; user-facing copy says agent.
  */
 export type EmployeeRole = "growth" | "social" | "content" | "support" | "sales" | "analyst";
 
@@ -41,7 +42,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     emoji: "🚀",
     avatar: "/employees/maya.png",
     tint: "bg-[#eef4fd] text-[#1566e6]",
-    title: "Growth Marketer",
+    title: "Lead Finder",
     blurb: "Finds the people already looking for you.",
     hirePitch:
       "Watches Reddit for buyer-intent posts in your space and drafts natural replies, and keeps an eye on your competitors. You approve everything.",
@@ -55,7 +56,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     emoji: "📣",
     avatar: "/employees/nova.png",
     tint: "bg-pink-50 text-pink-600",
-    title: "Social Media Manager",
+    title: "Social Media",
     blurb: "Keeps your socials alive with on-brand posts.",
     hirePitch:
       "Writes and schedules posts for LinkedIn, Reddit, Facebook, and TikTok slideshows, in your voice, on a steady cadence you set once.",
@@ -69,7 +70,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     emoji: "✍️",
     avatar: "/employees/alex.png",
     tint: "bg-amber-50 text-amber-700",
-    title: "Content Writer",
+    title: "SEO & Content",
     blurb: "Writes SEO articles straight to your blog.",
     hirePitch:
       "Publishes a complete, search-optimized article to your blog every week (WordPress or any custom site), plus fresh content angles when you need them.",
@@ -83,7 +84,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     emoji: "🎧",
     avatar: "/employees/sam.png",
     tint: "bg-emerald-50 text-emerald-600",
-    title: "Customer Support",
+    title: "Inbox Replies",
     blurb: "Answers your inbox with on-brand replies.",
     hirePitch:
       "Reads incoming Gmail and Messenger and drafts replies in your voice for you to approve, so no customer waits on you being busy.",
@@ -97,7 +98,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     emoji: "📞",
     avatar: "/employees/riley.png",
     tint: "bg-violet-50 text-violet-600",
-    title: "Sales Development",
+    title: "Sales Outreach",
     blurb: "Finds prospects and drafts your outreach.",
     hirePitch:
       "Researches companies that match your ideal customer and drafts personalized outreach for your approval.",
@@ -112,7 +113,7 @@ export const EMPLOYEES: EmployeeMeta[] = [
     emoji: "📊",
     avatar: "/employees/quinn.png",
     tint: "bg-sky-50 text-sky-600",
-    title: "Data Analyst",
+    title: "Reports & Analytics",
     blurb: "Turns your numbers into a weekly report.",
     hirePitch:
       "Pulls your marketing results together every week and tells you what changed and what to double down on.",

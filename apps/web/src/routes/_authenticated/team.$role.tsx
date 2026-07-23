@@ -70,7 +70,7 @@ function EmployeePage() {
           to="/team"
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 justify-self-start text-sm"
         >
-          <ArrowLeft className="size-4" /> Your team
+          <ArrowLeft className="size-4" /> Your agents
         </Link>
 
         <div className="bg-card flex items-center gap-1 rounded-full border p-1 shadow-xs">

@@ -16,8 +16,8 @@ function TeamPage() {
   return (
     <div className="flowy-page">
       <PageHeader
-        title="Your team"
-        subtitle={`The AI employees working for ${company}. Open one to see their work, or hire for a role.`}
+        title="Your agents"
+        subtitle={`The AI agents working for ${company}. Open one to see its work, or start one for a new job.`}
       />
       <TeamCards />
     </div>

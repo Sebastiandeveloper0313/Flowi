@@ -100,7 +100,7 @@ function AgentDetailPage() {
         <p className="text-muted-foreground">This skill doesn't exist or was deleted.</p>
         <Button asChild variant="outline" className="mt-4">
           <Link to="/team">
-            <ArrowLeft className="size-4" /> Your team
+            <ArrowLeft className="size-4" /> Your agents
           </Link>
         </Button>
       </div>

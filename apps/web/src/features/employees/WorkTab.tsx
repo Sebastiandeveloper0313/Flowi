@@ -480,17 +480,17 @@ export function WorkTab({
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2">
-                <CalendarClock className="size-4" /> {meta.name}'s shift plan
+                <CalendarClock className="size-4" /> {meta.name}'s schedule
               </span>
               <Button size="sm" variant="outline" onClick={() => setLibraryOpen(true)}>
-                <Plus className="size-3.5" /> Teach a skill
+                <Plus className="size-3.5" /> Add a skill
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {mine.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
-                Nothing scheduled. Teach {meta.name} a skill and it lands here.
+                Nothing scheduled. Add a skill and it lands here.
               </p>
             ) : (
               <div className="grid gap-2">

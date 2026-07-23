@@ -128,7 +128,7 @@ export function DocumentsCard({ owner }: { owner?: DocOwner }) {
   async function onDelete(id: string, docName: string) {
     const ok = await confirm({
       title: "Remove this document?",
-      description: `${owner?.name ?? "Your team"} will stop using “${docName}” from the next run.`,
+      description: `${owner?.name ?? "Your agents"} will stop using “${docName}” from the next run.`,
       confirmLabel: "Remove",
       destructive: true,
     });
@@ -179,7 +179,7 @@ export function DocumentsCard({ owner }: { owner?: DocOwner }) {
         <p className="text-muted-foreground text-sm">
           {owner
             ? `Material only ${owner.name} uses: playbooks, examples, guidelines for their kind of work. Everything on the Brain page they read too.`
-            : "Whatever you'd hand a new hire on day one: pitch notes, FAQs, product sheets, pricing. Plain text files or pasted text; the whole team uses it from their next run."}
+            : "The material you'd hand a new teammate: pitch notes, FAQs, product sheets, pricing. Plain text files or pasted text; every agent uses it from its next run."}
         </p>
 
         {pasting && (
@@ -229,7 +229,7 @@ export function DocumentsCard({ owner }: { owner?: DocOwner }) {
           <p className="text-muted-foreground py-4 text-center text-sm">
             {owner
               ? `Nothing here yet. Give ${owner.name} a playbook and it shows in their next run.`
-              : "Nothing here yet. The first upload instantly makes every employee smarter about you."}
+              : "Nothing here yet. The first upload instantly makes every agent smarter about you."}
           </p>
         ) : (
           <div className="grid gap-2">

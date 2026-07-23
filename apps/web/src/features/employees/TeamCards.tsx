@@ -113,7 +113,7 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
         </div>
         {!meta.comingSoon && !hired && (
           <Button size="sm" className="pointer-events-none shrink-0" tabIndex={-1}>
-            Hire {meta.name}
+            Add {meta.name}
           </Button>
         )}
       </div>

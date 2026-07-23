@@ -50,7 +50,7 @@ function BrainPage() {
     <div className="flowy-page">
       <PageHeader
         title="Brain"
-        subtitle="Everything your team knows about your business. Every employee works from this page."
+        subtitle="Everything your agents know about your business. Every one of them works from this page."
       />
 
       <div className="space-y-5">
@@ -60,9 +60,9 @@ function BrainPage() {
               <Brain className="size-5" />
             </span>
             <div>
-              <p className="font-semibold">One brain, shared by the whole team.</p>
+              <p className="font-semibold">One brain, shared by all your agents.</p>
               <p className="text-muted-foreground text-sm">
-                Whatever you add here, every employee knows instantly: no briefing, no repeating
+                Whatever you add here, every agent knows instantly: no briefing, no repeating
                 yourself.
               </p>
             </div>

@@ -191,7 +191,7 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
         <div className="flex items-center gap-3 border-b pb-6">
           <EmployeeAvatar meta={meta} className="size-12 rounded-xl text-xl shadow-xs" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Hiring {meta.name}</p>
+            <p className="text-sm font-semibold">Setting up {meta.name}</p>
             <p className="text-muted-foreground text-xs">
               {meta.title} · getting to know your business
             </p>
@@ -544,7 +544,7 @@ function ReviewStep({
         </Button>
         <Button className="flex-1" size="lg" disabled={hiring || count === 0} onClick={onHire}>
           {hiring ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-          {hiring ? "Starting…" : `Hire ${meta.name} with ${count} skill${count === 1 ? "" : "s"}`}
+          {hiring ? "Starting…" : `Start ${meta.name} with ${count} skill${count === 1 ? "" : "s"}`}
         </Button>
       </div>
       <p className="text-muted-foreground mt-2 text-center text-xs">

@@ -51,6 +51,7 @@ export interface AgentProposalInput {
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent
   chatId?: string; // the conversation that created this agent, so "Open chat" returns to it
+  role?: string; // pin the skill to a named agent (e.g. taught in Maya's own chat)
 }
 
 /** Create a real agent from a chat proposal (the "Create agent" button). */
@@ -73,6 +74,7 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
 
   const config: Record<string, unknown> = p.proposalId ? { proposal_id: p.proposalId } : {};
   if (p.chatId) config.chat_id = p.chatId;
+  if (p.role) config.role = p.role;
   if (p.kind === "reddit_monitor") {
     config.keywords = p.keywords;
     config.subreddits = p.subreddits;

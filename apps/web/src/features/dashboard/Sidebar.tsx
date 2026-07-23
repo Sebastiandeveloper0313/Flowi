@@ -35,7 +35,7 @@ import { SentriveLogo } from "./brand";
 // knows about the business lives in Brain.
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
-  { to: "/team", label: "Team", icon: Users },
+  { to: "/team", label: "Agents", icon: Users },
   { to: "/brain", label: "Brain", icon: Brain },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },

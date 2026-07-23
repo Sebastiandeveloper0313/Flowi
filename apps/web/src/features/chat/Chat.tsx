@@ -160,7 +160,16 @@ function toList(s: string): string[] {
 }
 
 /** A proposed agent shown in chat: fine-tune every field, then create it. */
-function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: string }) {
+function ProposalCard({
+  proposal,
+  chatId,
+  assignRole,
+}: {
+  proposal: AgentProposal;
+  chatId?: string;
+  /** Pin the created skill to this named agent (employee chats). */
+  assignRole?: string;
+}) {
   const teamId = useActiveTeamId();
   const { data: tasks } = useTasks();
   const create = useCreateAgentFromProposal();
@@ -206,6 +215,7 @@ function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: 
           subreddits: isReddit ? toList(subreddits) : [],
           proposalId: proposal.id,
           chatId,
+          role: assignRole,
         },
       },
       { onSuccess: (data) => setCreated(data) },
@@ -243,7 +253,7 @@ function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: 
             params={{ agentId: done.id }}
             className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
           >
-            <CheckCircle2 className="size-3.5" /> Agent created, open it
+            <CheckCircle2 className="size-3.5" /> Skill created, open it
           </Link>
         </div>
       </div>
@@ -472,6 +482,7 @@ export function Chat({
   emptyHero,
   placeholder,
   avatar,
+  assignRole,
 }: {
   chatId?: string;
   /** Fill the parent's height instead of the viewport (employee chat tab). */
@@ -482,6 +493,8 @@ export function Chat({
   placeholder?: string;
   /** Who is speaking: replaces the Sentrive logo on replies (employee chats). */
   avatar?: React.ReactNode;
+  /** Skills created in this chat get pinned to this named agent. */
+  assignRole?: string;
 }) {
   const chat = useChat();
   const navigate = useNavigate();
@@ -929,7 +942,7 @@ export function Chat({
                           key={a.id}
                           className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
                         >
-                          <CheckCircle2 className="size-3.5" /> Agent created: {a.title}
+                          <CheckCircle2 className="size-3.5" /> Skill created: {a.title}
                         </div>
                       ))}
                       {m.proposals?.map((p) => (
@@ -937,6 +950,7 @@ export function Chat({
                           key={p.id}
                           proposal={p}
                           chatId={chatId ?? ownedRef.current ?? undefined}
+                          assignRole={assignRole}
                         />
                       ))}
                       {m.updates?.map((u) => (

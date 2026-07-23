@@ -53,9 +53,9 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
 
   async function onFire() {
     const ok = await confirm({
-      title: `Fire ${meta.name}?`,
-      description: `All of ${meta.name}'s skills stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can hire ${meta.name} again anytime, with a fresh interview.`,
-      confirmLabel: `Fire ${meta.name}`,
+      title: `Remove ${meta.name}?`,
+      description: `All of ${meta.name}'s skills stop and are deleted. Everything already delivered (leads, posts, run history) stays. You can add ${meta.name} back anytime, with a fresh setup.`,
+      confirmLabel: `Remove ${meta.name}`,
       destructive: true,
     });
     if (!ok) return;
@@ -195,11 +195,11 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
       <Card className="self-start lg:col-span-2">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Fire {meta.name}</p>
+            <p className="text-sm font-semibold">Remove {meta.name}</p>
             <p className="text-muted-foreground text-sm">
               Stops and removes all {mine.length} of {meta.name}'s skill
-              {mine.length === 1 ? "" : "s"}. Delivered work stays. You can always hire {meta.name}{" "}
-              again.
+              {mine.length === 1 ? "" : "s"}. Delivered work stays. You can always add {meta.name}{" "}
+              back.
             </p>
           </div>
           <Button
@@ -213,7 +213,7 @@ export function EmployeeSettings({ meta, mine }: { meta: EmployeeMeta; mine: Tas
             ) : (
               <UserX className="size-4" />
             )}
-            Fire {meta.name}
+            Remove {meta.name}
           </Button>
           {fire.isError && (
             <p className="text-destructive w-full text-xs">
