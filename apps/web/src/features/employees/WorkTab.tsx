@@ -16,6 +16,7 @@ import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
 import {
+  nextFireLocal,
   SCHEDULES,
   scheduleLabel,
   useRunTask,
@@ -148,6 +149,17 @@ function standupLine(c: {
     return `${head} ${c.waiting === 1 ? "One thing is" : `${c.waiting} things are`} waiting on your OK.`;
   if (c.nextAt) return `${head} Back on it at ${c.nextAt}.`;
   return head;
+}
+
+/**
+ * When this agent next runs. The scheduler arms next_run_at on its own sweep,
+ * so until it does, project the cadence locally instead of calling a scheduled
+ * agent "on demand".
+ */
+export function nextRunOf(t: Task): string | null {
+  if (t.next_run_at) return t.next_run_at;
+  if (t.status !== "active") return null;
+  return nextFireLocal(t.schedule_cron)?.toISOString() ?? null;
 }
 
 /** "8:00 AM" today, "Mon 7:00 AM" otherwise. */
@@ -306,9 +318,9 @@ export function WorkTab({
 
   // The shift plan: every scheduled run, soonest first; on-demand skills last.
   const scheduled = active
-    .filter((t) => t.next_run_at)
-    .sort((a, b) => new Date(a.next_run_at!).getTime() - new Date(b.next_run_at!).getTime());
-  const onDemand = active.filter((t) => !t.next_run_at);
+    .filter((t) => nextRunOf(t))
+    .sort((a, b) => new Date(nextRunOf(a)!).getTime() - new Date(nextRunOf(b)!).getTime());
+  const onDemand = active.filter((t) => !nextRunOf(t));
   const pausedTasks = mine.filter((t) => t.status === "paused");
   const next = scheduled[0];
 
@@ -319,7 +331,7 @@ export function WorkTab({
     articles24,
     done24,
     waiting,
-    nextAt: next?.next_run_at ? clockLabel(next.next_run_at) : undefined,
+    nextAt: next && nextRunOf(next) ? clockLabel(nextRunOf(next)!) : undefined,
   });
 
   const neededToolkits = [...new Set(active.flatMap((t) => requiredToolkits(t)))];
@@ -415,7 +427,7 @@ export function WorkTab({
             ) : (
               <p className="text-muted-foreground text-sm">
                 {next
-                  ? `Next up: ${next.title} · ${clockLabel(next.next_run_at!)} (${inWords(next.next_run_at!)})`
+                  ? `Next up: ${next.title} · ${clockLabel(nextRunOf(next)!)} (${inWords(nextRunOf(next)!)})`
                   : active.length > 0
                     ? "On call: start anything below whenever you like."
                     : mine.length === 0
@@ -479,7 +491,7 @@ export function WorkTab({
 
       {/* The trade's own workspace: a calendar for social, a pipeline for
           growth, a shelf for content. Filled by their agents, not by hand. */}
-      <RoleWorkspace meta={meta} mine={mine} deliverables={deliverables} />
+      <RoleWorkspace meta={meta} mine={mine} deliverables={deliverables} onOpenChat={onOpenChat} />
 
       {/* One column, the boss's questions in order: what needs me, the
           schedule (with its dials, and where new skills get taught), then the
@@ -620,6 +632,7 @@ function ShiftRow({
   const scheduleOptions = [currentOption, ...SCHEDULES.filter((s) => s.value !== cron)];
 
   const perDay = ws?.auto_post_per_day ?? 10;
+  const nextAt = nextRunOf(t);
 
   return (
     <div className={`bg-muted/30 rounded-xl border px-3.5 py-3 ${paused ? "opacity-70" : ""}`}>
@@ -627,10 +640,10 @@ function ShiftRow({
         <div className="w-24 shrink-0">
           {paused ? (
             <p className="text-muted-foreground text-xs font-medium">Paused</p>
-          ) : t.next_run_at ? (
+          ) : nextAt ? (
             <>
-              <p className="text-sm font-semibold tabular-nums">{clockLabel(t.next_run_at)}</p>
-              <p className="text-muted-foreground text-xs">{inWords(t.next_run_at)}</p>
+              <p className="text-sm font-semibold tabular-nums">{clockLabel(nextAt)}</p>
+              <p className="text-muted-foreground text-xs">{inWords(nextAt)}</p>
             </>
           ) : (
             <p className="text-muted-foreground text-xs font-medium">On demand</p>
