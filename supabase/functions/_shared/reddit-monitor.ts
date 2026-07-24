@@ -399,10 +399,13 @@ export async function runRedditMonitor(
   admin: SupabaseClient,
   task: TaskRow,
   ws: WorkspaceContext | null,
-): Promise<{ summary: string; output: string; error?: string }> {
+): Promise<{ summary: string; output: string; error?: string; blocked?: boolean }> {
   const connected = await connectedToolkits(task.team_id).catch(() => [] as string[]);
   if (!connected.includes("reddit")) {
     return {
+      // Not a real run: the prerequisite is missing, so it must not count as
+      // work done. `blocked` tells the runner to record this as skipped.
+      blocked: true,
       summary: "Reddit isn't connected yet",
       output:
         "This agent needs your Reddit account connected. Open Integrations and connect Reddit, " +
@@ -414,6 +417,7 @@ export async function runRedditMonitor(
   const { keywords, subreddits, patch } = await resolveQueries(task, ws, cfg);
   if (!keywords.length && !subreddits.length) {
     return {
+      blocked: true,
       summary: "No search terms yet",
       output:
         "This agent could not derive who to look for. Connect your website in onboarding so it knows " +

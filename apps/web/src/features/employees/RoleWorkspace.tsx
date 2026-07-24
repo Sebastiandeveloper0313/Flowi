@@ -65,7 +65,13 @@ export function RoleWorkspace({
 }) {
   if (meta.role === "social")
     return (
-      <SocialCalendar meta={meta} mine={mine} deliverables={deliverables} onOpenChat={onOpenChat} />
+      <SocialCalendar
+        meta={meta}
+        mine={mine}
+        deliverables={deliverables}
+        runs={runs}
+        onOpenChat={onOpenChat}
+      />
     );
   if (meta.role === "growth") return <GrowthPipeline deliverables={deliverables} />;
   if (meta.role === "content") return <ContentShelf meta={meta} mine={mine} runs={runs} />;
@@ -218,11 +224,13 @@ function SocialCalendar({
   meta,
   mine,
   deliverables,
+  runs,
   onOpenChat,
 }: {
   meta: EmployeeMeta;
   mine: Task[];
   deliverables?: Deliverables;
+  runs?: TaskRun[];
   onOpenChat?: () => void;
 }) {
   const [view, setView] = useState<"week" | "month">("week");
@@ -266,8 +274,12 @@ function SocialCalendar({
         });
       }
     } else {
-      const at = d.scheduled_at ?? (d.status === "posted" ? d.updated_at : null);
-      if (!at || d.status === "dismissed") continue;
+      if (d.status === "dismissed") continue;
+      // A written-but-unscheduled post has no time of its own, so it would
+      // vanish from the calendar. Land it on the day it was written as a draft
+      // chip, so "it wrote a post" is actually visible here, not only in the
+      // waiting list.
+      const at = d.scheduled_at ?? (d.status === "posted" ? d.updated_at : d.created_at);
       items.push({
         key: d.id,
         at: new Date(at),
@@ -279,6 +291,25 @@ function SocialCalendar({
         move: d.status === "posted" ? undefined : { type: "draft", draftId: d.id },
       });
     }
+  }
+
+  // LinkedIn and Facebook posts don't live in post_drafts: the agent's output IS
+  // the post (publishing is disabled upstream, so every one is a draft to copy).
+  // Surface those succeeded runs as draft chips on the day they were written, so
+  // the calendar shows every post the employee made, not only the Reddit ones.
+  const RUN_POST_KINDS = new Set(["linkedin_post", "facebook_post"]);
+  for (const r of runs ?? []) {
+    const kind = kindByTask.get(r.task_id) ?? "";
+    if (!RUN_POST_KINDS.has(kind) || r.status !== "succeeded" || !(r.output ?? "").trim()) continue;
+    items.push({
+      key: `run-post:${r.id}`,
+      at: new Date(r.created_at),
+      title: pieceTitle(r.output ?? ""),
+      body: r.output ?? undefined,
+      platform: KIND_TOOLKIT[kind],
+      status: "draft",
+      taskId: r.task_id,
+    });
   }
 
   // The recurring plan, drawn out across the whole view: every time each agent
@@ -443,6 +474,7 @@ function SocialCalendar({
           <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-4 text-xs">
             <Legend tone="posted" />
             <Legend tone="queued" />
+            <Legend tone="draft" />
             <Legend tone="planned" />
             <span className="ml-auto">Drag anything that hasn't gone out yet to move it.</span>
           </div>

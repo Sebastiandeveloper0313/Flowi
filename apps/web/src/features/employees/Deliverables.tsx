@@ -173,6 +173,9 @@ export function buildWorkItems(input: {
 
   for (const r of input.runs) {
     if (r.status === "running" || r.status === "queued") continue;
+    // A skipped run did no work (a prerequisite was missing), so it is not a
+    // deliverable and never belongs in the portfolio feed.
+    if (r.status === "skipped") continue;
     const kind = kindById.get(r.task_id) ?? "";
     if (r.status === "succeeded" && (kind === "reddit_monitor" || kind === "reddit_post")) {
       continue; // its output is already in the feed as leads / drafts

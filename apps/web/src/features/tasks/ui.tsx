@@ -31,7 +31,9 @@ export function RunDot({ status }: { status: string }) {
         ? "bg-destructive"
         : status === "running"
           ? "bg-amber-500 animate-pulse"
-          : "bg-slate-300";
+          : status === "skipped"
+            ? "bg-amber-400"
+            : "bg-slate-300";
   return <span className={`inline-block size-2 shrink-0 rounded-full ${cls}`} />;
 }
 
@@ -42,7 +44,9 @@ export function runStatusLabel(status: string): string {
       ? "Failed"
       : status === "running"
         ? "Running"
-        : "Queued";
+        : status === "skipped"
+          ? "Skipped"
+          : "Queued";
 }
 
 /** Strip inline markdown so a one-line summary reads clean (no **stars**, `ticks`, #, >). */
