@@ -36,6 +36,7 @@ const KIND_ROLE: Record<string, string> = {
   content: "content",
   email_responder: "support",
   facebook_dm: "support",
+  ops_brief: "ops",
 };
 
 /** How much Sentrive may do on its own. 'ask' is the safe default. */
@@ -331,6 +332,7 @@ export function chatSystem(ws: WorkspaceContext | null): string {
     '- Facebook inbox replies: kind "facebook_dm". Each run reads the business\'s Facebook Page inbox and drafts a reply to every unanswered customer message, sending them (approval-gated). Use this when the user wants to auto-respond to their Facebook messages or handle their Page inbox. It needs Facebook connected. Replies wait for approval unless the workspace or agent is on auto.\n' +
     '- Email inbox replies: kind "email_responder". Each run reads the connected Gmail inbox and drafts a reply to every genuine email that needs one (customer questions, prospect inquiries), sending them in-thread (approval-gated), while skipping newsletters and automated mail. Use this when the user wants help answering their email or triaging their inbox. It needs Gmail connected. Replies wait for approval unless the workspace or agent is on auto.\n' +
     '- TikTok slideshows: kind "tiktok_slideshow". Each run writes a swipeable TikTok photo slideshow about the business (a scroll-stopping hook slide, a few short value slides, and a CTA slide) plus a caption. The user uploads their own images on the agent, and the app renders the text over them to download and post in TikTok photo mode. Use this when the user wants TikTok slideshows or short-form visual content. No connection needed.\n' +
+    '- Operations briefs: kind "ops_brief". Each run reports on the user\'s own Sentrive workspace: what their agents produced over a window, what is waiting on their approval, anything that failed or is paused, and what runs next. Set config window_days to 1 for a daily brief or 7 for a weekly report, and prefer delivering it by email. Use this whenever the user wants a daily brief, a weekly report, a summary of what their agents have been doing, or simply to be kept in the loop. No connection needed, and the numbers come from their real data, never from the web.\n' +
     "- Content work: anything else that produces a written deliverable to the dashboard or email uses the default kind.\n\n" +
     "When proposing an agent:\n" +
     '- Infer a sensible cron schedule (e.g. "every day at noon" -> "0 12 * * *", "weekdays 8am" -> "0 8 * * 1-5"). Omit only for a genuine one-off.\n' +

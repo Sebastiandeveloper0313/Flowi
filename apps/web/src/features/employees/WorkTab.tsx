@@ -497,7 +497,13 @@ export function WorkTab({
 
       {/* The trade's own workspace: a calendar for social, a pipeline for
           growth, a shelf for content. Filled by their agents, not by hand. */}
-      <RoleWorkspace meta={meta} mine={mine} deliverables={deliverables} onOpenChat={onOpenChat} />
+      <RoleWorkspace
+        meta={meta}
+        mine={mine}
+        deliverables={deliverables}
+        runs={myRuns}
+        onOpenChat={onOpenChat}
+      />
 
       {/* One column, the boss's questions in order: what needs me, the
           schedule (with its dials, and where new skills get taught), then the

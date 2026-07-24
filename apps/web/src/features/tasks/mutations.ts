@@ -46,7 +46,8 @@ export interface AgentProposalInput {
     | "facebook_post"
     | "facebook_dm"
     | "email_responder"
-    | "tiktok_slideshow";
+    | "tiktok_slideshow"
+    | "ops_brief";
   keywords: string[];
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent

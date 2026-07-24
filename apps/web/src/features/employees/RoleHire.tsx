@@ -117,6 +117,28 @@ const QUESTIONS: Record<EmployeeRole, HireQuestion[]> = {
       short: "Escalate to you",
     },
   ],
+  ops: [
+    {
+      id: "watch",
+      question: "What do you actually want to know each morning?",
+      hint: "I read everything your team did overnight. Tell me what matters and I lead with it.",
+      placeholder: "Describe it in your own words…",
+      options: [
+        "Anything waiting on my approval",
+        "New leads and replies",
+        "Only what broke or stalled",
+      ],
+      short: "Lead the brief with",
+    },
+    {
+      id: "quiet",
+      question: "How blunt should I be when it's a quiet week?",
+      hint: "I never pad the numbers. This just sets the tone when there is little to report.",
+      placeholder: "Describe it in your own words…",
+      options: ["Say it was quiet and why", "Keep it short and move on", "Tell me what to change"],
+      short: "On quiet weeks",
+    },
+  ],
   sales: [],
   analyst: [],
 };

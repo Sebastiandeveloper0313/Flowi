@@ -69,9 +69,10 @@ const TOOL = {
           "facebook_dm",
           "email_responder",
           "tiktok_slideshow",
+          "ops_brief",
         ],
         description:
-          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first. 'facebook_post' writes an on-brand post and publishes it to the business's Facebook Page each run, use this when the user wants recurring Facebook content or posts (needs Facebook connected; posts wait for approval unless on auto). 'facebook_dm' reads the business's Facebook Page inbox and drafts replies to unanswered customer messages, sending them (approval-gated), use this when the user wants to auto-respond to their Facebook messages (needs Facebook connected). 'email_responder' reads the connected Gmail inbox and drafts replies to genuine emails that need one (customer questions, prospect inquiries), sending them in-thread (approval-gated), use this when the user wants help answering their email or triaging their inbox (needs Gmail connected). 'tiktok_slideshow' writes a swipeable TikTok photo slideshow about the business (a hook slide, value slides, and a CTA) plus a caption; the user uploads their own images and downloads the rendered slides to post, use this when the user wants TikTok slideshows or short-form visual content (no connection needed).",
+          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first. 'facebook_post' writes an on-brand post and publishes it to the business's Facebook Page each run, use this when the user wants recurring Facebook content or posts (needs Facebook connected; posts wait for approval unless on auto). 'facebook_dm' reads the business's Facebook Page inbox and drafts replies to unanswered customer messages, sending them (approval-gated), use this when the user wants to auto-respond to their Facebook messages (needs Facebook connected). 'email_responder' reads the connected Gmail inbox and drafts replies to genuine emails that need one (customer questions, prospect inquiries), sending them in-thread (approval-gated), use this when the user wants help answering their email or triaging their inbox (needs Gmail connected). 'tiktok_slideshow' writes a swipeable TikTok photo slideshow about the business (a hook slide, value slides, and a CTA) plus a caption; the user uploads their own images and downloads the rendered slides to post, use this when the user wants TikTok slideshows or short-form visual content (no connection needed). 'ops_brief' reports on the user's own Sentrive workspace: what their agents did over a window, what is waiting on their approval, what failed, and what runs next, delivered to the dashboard or their inbox. Use this when the user wants a daily brief, a weekly report, a summary of what their agents have been doing, or to be kept in the loop (no connection needed; set config window_days 1 for a daily brief, 7 for a weekly report).",
       },
       keywords: {
         type: "array",
@@ -88,7 +89,7 @@ const TOOL = {
       role: {
         type: "string",
         description:
-          "Which EMPLOYEE owns this agent, if any. Use a built-in slug (growth = Maya the Growth Marketer, social = Nova the Social Media Manager, content = Alex the Content Writer, support = Sam in Customer Support) or a custom employee's id from the roster list. Set it when the user names an employee, when you're in an employee's own chat, or when the job clearly belongs to a HIRED employee's area; then say whose it becomes (\"I'll add this to Maya's agents\"). OMIT it when the user just wants a standalone automation (e.g. they said \"set up an agent that...\"): the agent then runs independently, which is a normal, first-class choice.",
+          "Which EMPLOYEE owns this agent. Every agent belongs to one, so always set this. Use a built-in slug (growth = Maya the Growth Marketer, social = Nova the Social Media Manager, content = Alex the Content Writer, support = Sam in Customer Support, ops = Theo the Operations Manager) or a custom employee's id from the roster list. Pick whoever the work belongs to: the employee the user names, the one whose chat you are in, or the one whose area it plainly is. Then say whose it becomes (\"I'll add this to Maya's agents\").",
       },
     },
     required: ["title", "instructions"],
@@ -347,7 +348,8 @@ interface AgentProposal {
     | "facebook_post"
     | "facebook_dm"
     | "email_responder"
-    | "tiktok_slideshow";
+    | "tiktok_slideshow"
+    | "ops_brief";
   keywords: string[];
   subreddits: string[];
   /** Roster owner: built-in slug or a custom agent's id; the skill is pinned to them. */
@@ -377,7 +379,8 @@ interface AgentUpdate {
     | "facebook_post"
     | "facebook_dm"
     | "email_responder"
-    | "tiktok_slideshow";
+    | "tiktok_slideshow"
+    | "ops_brief";
   changes: {
     title?: string;
     instructions?: string;
@@ -512,13 +515,14 @@ Deno.serve(async (req: Request) => {
       "- Nova, Social Media (role: social): LinkedIn/Reddit/Facebook posts, TikTok slideshows\n" +
       "- Alex, SEO & Content (role: content): articles, blogs, written deliverables\n" +
       "- Sam, Inbox Replies (role: support): Gmail and Messenger replies\n" +
+      "- Theo, Operations Manager (role: ops): daily briefs and weekly reports on how the whole team is running\n" +
       (customAgents ?? [])
         .map(
           (c) =>
             `- ${c.name}, ${c.title} (role: ${c.id}), created by the user${c.duties ? `: ${c.duties.slice(0, 160)}` : ""}\n`,
         )
         .join("") +
-      'These are EMPLOYEES: they own agents and report on their area (think: agents are files, employees are folders). Agents can also run independently with no owner. How to decide: if the user says "hire" or "employee", or wants someone to OWN a whole area, use propose_new_agent (a new employee with their first agent). If the work clearly belongs to a hired employee or the user names one, propose_agent with their role. If they just want a task automated ("set up an agent that..."), propose_agent with NO role, and mention in your reply that it runs on its own and can be handed to an employee anytime.';
+      'These are EMPLOYEES, the only layer the user sees. Every agent belongs to one of them: there are no ownerless agents. How to decide: if the user says "hire" or "employee", or wants someone to own a whole area no one covers, use propose_new_agent (a new employee with their first agent). Otherwise use propose_agent and ALWAYS set `role` to whoever the work belongs to, naming them in your reply ("I have added this to Nova\'s agents"). When the user names an employee, or you are speaking as one, that is the owner.';
 
     // In an employee's own chat the assistant IS that employee: same brain and
     // tools, but they speak in the first person about their own area instead
@@ -667,24 +671,27 @@ Deno.serve(async (req: Request) => {
                     | "facebook_post"
                     | "facebook_dm"
                     | "email_responder"
-                    | "tiktok_slideshow" =
-                    inp.kind === "reddit_monitor"
-                      ? "reddit_monitor"
-                      : inp.kind === "linkedin_post"
-                        ? "linkedin_post"
-                        : inp.kind === "seo_blog"
-                          ? "seo_blog"
-                          : inp.kind === "reddit_post"
-                            ? "reddit_post"
-                            : inp.kind === "facebook_post"
-                              ? "facebook_post"
-                              : inp.kind === "facebook_dm"
-                                ? "facebook_dm"
-                                : inp.kind === "email_responder"
-                                  ? "email_responder"
-                                  : inp.kind === "tiktok_slideshow"
-                                    ? "tiktok_slideshow"
-                                    : "content";
+                    | "tiktok_slideshow"
+                    | "ops_brief" =
+                    inp.kind === "ops_brief"
+                      ? "ops_brief"
+                      : inp.kind === "reddit_monitor"
+                        ? "reddit_monitor"
+                        : inp.kind === "linkedin_post"
+                          ? "linkedin_post"
+                          : inp.kind === "seo_blog"
+                            ? "seo_blog"
+                            : inp.kind === "reddit_post"
+                              ? "reddit_post"
+                              : inp.kind === "facebook_post"
+                                ? "facebook_post"
+                                : inp.kind === "facebook_dm"
+                                  ? "facebook_dm"
+                                  : inp.kind === "email_responder"
+                                    ? "email_responder"
+                                    : inp.kind === "tiktok_slideshow"
+                                      ? "tiktok_slideshow"
+                                      : "content";
                   const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),
@@ -737,6 +744,7 @@ Deno.serve(async (req: Request) => {
                     "facebook_dm",
                     "email_responder",
                     "tiktok_slideshow",
+                    "ops_brief",
                   ] as const;
                   const kind = (KINDS as readonly string[]).includes(String(inp.kind))
                     ? (String(inp.kind) as (typeof KINDS)[number])

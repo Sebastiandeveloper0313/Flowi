@@ -7,7 +7,14 @@ import { AGENT_TEMPLATES, type AgentTemplate } from "@/features/tasks/templates"
  * backed by skills that actually work today: no vaporware personas. The
  * "employee" naming in identifiers is historical; user-facing copy says agent.
  */
-export type EmployeeRole = "growth" | "social" | "content" | "support" | "sales" | "analyst";
+export type EmployeeRole =
+  | "growth"
+  | "social"
+  | "content"
+  | "support"
+  | "ops"
+  | "sales"
+  | "analyst";
 
 export interface EmployeeMeta {
   role: EmployeeRole;
@@ -95,6 +102,19 @@ export const EMPLOYEES: EmployeeMeta[] = [
     starterTemplates: ["email-responder"],
   },
   {
+    role: "ops",
+    name: "Theo",
+    emoji: "🗂️",
+    tint: "bg-slate-100 text-slate-700",
+    title: "Operations Manager",
+    blurb: "Keeps you on top of everything that ran.",
+    hirePitch:
+      "Briefs you every morning on what your team did, what is waiting on your approval, and anything that broke, then reports on the whole week each Monday. Nothing to connect: he reports on your own workspace.",
+    relevantToolkits: [],
+    trainedLine: "Works from day one: he reads your workspace, not the internet.",
+    starterTemplates: ["daily-brief", "weekly-report"],
+  },
+  {
     role: "sales",
     name: "Riley",
     emoji: "📞",
@@ -141,6 +161,7 @@ const CATEGORY_ROLE: Record<string, EmployeeRole> = {
   "Social media": "social",
   "SEO & content": "content",
   "Inbox & replies": "support",
+  Operations: "ops",
 };
 
 /** What kind of work belongs to which employee, when nothing else says. */
@@ -154,6 +175,7 @@ const KIND_ROLE: Record<string, EmployeeRole> = {
   content: "content",
   email_responder: "support",
   facebook_dm: "support",
+  ops_brief: "ops",
 };
 
 const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
@@ -304,6 +326,7 @@ const KIND_LINE: Record<string, string> = {
   content: "Drafts content from fresh research",
   email_responder: "Sweeps the inbox and drafts replies",
   facebook_dm: "Answers Messenger conversations",
+  ops_brief: "Reports on how the whole team is running",
 };
 
 export function kindLine(kind: string | null | undefined): string {

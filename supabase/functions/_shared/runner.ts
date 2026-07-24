@@ -20,6 +20,7 @@ import {
   taskAutonomy,
   type WorkspaceContext,
 } from "./marketing.ts";
+import { briefWindowDays, operationsDigest, opsBriefSystem } from "./ops-brief.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 import { createSlideshow, parseSlideshow } from "./slideshow.ts";
@@ -374,6 +375,21 @@ export async function executeTask(
         "domain or TLD. No hashtag spam, no em dashes, no markdown, no commentary outside the JSON.";
     }
 
+    // The operations brief reports on the workspace itself, so its ground truth
+    // is the database, not the web. Facts are gathered in code and the model
+    // only writes them up.
+    if (task.kind === "ops_brief") {
+      const days = briefWindowDays(task);
+      const facts = ctx?.client
+        ? await operationsDigest(ctx.client, task.team_id, days).catch(() => "")
+        : "";
+      system += facts
+        ? opsBriefSystem(days, facts)
+        : "\n\nThis agent writes the operations brief, but its data could not be read this run. Say " +
+          "plainly that the brief could not be assembled and that the next run will pick it up. Do " +
+          "not invent any numbers.";
+    }
+
     // Hide tools the model must never call: a reddit_post agent only DRAFTS (the
     // app publishes on the user's click), and LinkedIn publishing is disabled
     // upstream, so drop its posting tool too rather than let a run 426.
@@ -390,10 +406,12 @@ export async function executeTask(
         return false;
       return true;
     });
-    const tools: unknown[] = [
-      { type: "web_search_20260209", name: "web_search", max_uses: 5 },
-      ...usableTools,
-    ];
+    // The ops brief reports on facts we already gathered, so it gets no tools at
+    // all: nothing to search, nothing to send, and no way to wander off.
+    const tools: unknown[] =
+      task.kind === "ops_brief"
+        ? []
+        : [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }, ...usableTools];
 
     const messages: { role: string; content: unknown }[] = [
       { role: "user", content: task.instructions },

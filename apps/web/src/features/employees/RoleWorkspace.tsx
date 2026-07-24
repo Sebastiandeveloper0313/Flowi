@@ -9,6 +9,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Clock,
   Maximize2,
   Newspaper,
@@ -25,7 +26,7 @@ import { useIntegrations } from "@/features/integrations/hooks";
 import { useRescheduleDraft, useReschedulePost } from "@/features/posts/hooks";
 import { draftResults, type SubPostResult } from "@/features/posts/queries";
 import { occurrencesIn, useUpdateTaskSchedule } from "@/features/tasks/hooks";
-import type { Task } from "@/features/tasks/queries";
+import type { Task, TaskRun } from "@/features/tasks/queries";
 
 import { type EmployeeMeta } from "./roles";
 
@@ -47,11 +48,13 @@ export function RoleWorkspace({
   meta,
   mine,
   deliverables,
+  runs,
   onOpenChat,
 }: {
   meta: EmployeeMeta;
   mine: Task[];
   deliverables?: Deliverables;
+  runs?: TaskRun[];
   onOpenChat?: () => void;
 }) {
   if (meta.role === "social")
@@ -60,7 +63,54 @@ export function RoleWorkspace({
     );
   if (meta.role === "growth") return <GrowthPipeline deliverables={deliverables} />;
   if (meta.role === "content") return <ContentShelf mine={mine} deliverables={deliverables} />;
+  if (meta.role === "ops") return <OpsDesk meta={meta} mine={mine} runs={runs} />;
   return null;
+}
+
+/* --------------------------------------------------------------- operations */
+
+/**
+ * The operations manager's page is the brief itself. Anything else would be a
+ * dashboard about a report about the work, which is one layer too many.
+ */
+function OpsDesk({ meta, mine, runs }: { meta: EmployeeMeta; mine: Task[]; runs?: TaskRun[] }) {
+  const briefIds = new Set(mine.filter((t) => t.kind === "ops_brief").map((t) => t.id));
+  const latest = (runs ?? [])
+    .filter((r) => briefIds.has(r.task_id) && r.status === "succeeded" && (r.output ?? "").trim())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+  return (
+    <Card className="mb-5">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+          <span className="flex items-center gap-2">
+            <ClipboardList className="size-4" /> Latest brief
+          </span>
+          {latest && (
+            <span className="text-muted-foreground text-xs font-normal">
+              {new Date(latest.created_at).toLocaleString([], {
+                weekday: "long",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {latest ? (
+          <div className="text-sm leading-relaxed">
+            <ChatMarkdown>{latest.output ?? ""}</ChatMarkdown>
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            No brief yet. {meta.name} writes one from your own workspace data, so hit Start now on
+            his schedule below and the first one lands here.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 /* ------------------------------------------------------------------ social */
