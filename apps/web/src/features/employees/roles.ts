@@ -208,7 +208,22 @@ export function recommendEmployee(ws: {
     .join(" ")
     .toLowerCase();
 
-  const has = (...words: string[]) => words.some((w) => text.includes(w));
+  // Whole words only: "store" must not match "restore", "app" must not match
+  // "happy". Loose matching sent a marketing SaaS to the social manager.
+  const has = (...words: string[]) =>
+    words.some((w) =>
+      new RegExp(`(^|[^a-z])${w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`).test(text),
+    );
+
+  // Software and services sell by finding people with the problem, so the
+  // lead finder is the first hire even though they also need content later.
+  if (has("saas", "software", "b2b", "app", "platform", "agency", "consulting", "startup")) {
+    return {
+      role: "growth",
+      reason:
+        "You sell to people who are already describing your problem online, so Maya finding those conversations and drafting replies is the fastest first win.",
+    };
+  }
 
   // Shops and local businesses live or die on presence, not on forum replies.
   if (has("ecommerce", "e-commerce", "shopify", "store", "retail", "boutique", "apparel")) {

@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowRight, Loader2, Plus, Shuffle, Upload } from "lucide-react";
+import { ArrowRight, Bot, Loader2, Plus, Shuffle, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
@@ -434,15 +434,13 @@ function EmployeeCard({
 
   // One quiet line under the header; anything actionable gets its own accent
   // line, everything else stays out of the card.
-  // An unhired ready-made employee arrives WITH working agents: say which, so
-  // "what do I actually get?" is answered before the click.
+  // An unhired ready-made employee arrives WITH working agents; those get
+  // their own listed rows below, so this line stays the plain what-they-do.
   const starters = starterTemplatesOf(meta);
   const metaLine = meta.comingSoon
     ? meta.blurb
     : !hired
-      ? starters.length > 0
-        ? `Starts with ${starters.length} agent${starters.length === 1 ? "" : "s"}: ${starters.map((s) => s.name).join(", ")}`
-        : meta.blurb
+      ? meta.blurb
       : lastRun
         ? `${mine.length} agent${mine.length === 1 ? "" : "s"} · worked ${formatWhen(lastRun.created_at)}`
         : `${mine.length} agent${mine.length === 1 ? "" : "s"} · no runs yet`;
@@ -467,16 +465,35 @@ function EmployeeCard({
         )}
       </div>
 
-      <div className="flex min-h-8 items-center justify-between gap-3">
+      <div className="flex min-h-8 flex-col gap-3">
         <div className="min-w-0 flex-1">
-          {/* Never cut the "what you actually get" line mid-word. */}
-          <p className="text-muted-foreground line-clamp-2 text-sm">{metaLine}</p>
+          <p className="text-muted-foreground text-sm">{metaLine}</p>
           {hired && waiting > 0 && (
             <p className="text-primary mt-0.5 text-sm font-medium">{waiting} waiting for your OK</p>
           )}
         </div>
+
+        {/* Exactly what starts running the moment you hire them: every agent,
+            named, with what one run of it produces. Nothing truncated. */}
+        {!meta.comingSoon && !hired && !meta.custom && starters.length > 0 && (
+          <div className="space-y-1.5 border-t pt-3">
+            <p className="text-muted-foreground text-xs font-medium">
+              Comes with {starters.length} agent{starters.length === 1 ? "" : "s"}
+            </p>
+            {starters.map((s) => (
+              <div key={s.id} className="flex items-start gap-2">
+                <Bot className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
+                <p className="text-sm">
+                  <span className="font-medium">{s.name}</span>
+                  <span className="text-muted-foreground"> · {s.outcome}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {!meta.comingSoon && !hired && !meta.custom && (
-          <Button size="sm" className="pointer-events-none shrink-0" tabIndex={-1}>
+          <Button size="sm" className="pointer-events-none w-full" tabIndex={-1}>
             Hire {meta.name}
           </Button>
         )}
