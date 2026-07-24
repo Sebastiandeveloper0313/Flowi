@@ -6,6 +6,7 @@ import { CalendarClock, Check, ChevronDown, Loader2, Plug } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader } from "@/features/dashboard/ui";
+import { TeamCards } from "@/features/employees/TeamCards";
 import { toolkitName } from "@/features/integrations/ConnectCta";
 import { AgentCreatedJourney } from "@/features/tasks/AgentCreatedJourney";
 import { useTasks } from "@/features/tasks/hooks";
@@ -43,9 +44,24 @@ function LibraryPage() {
   return (
     <div className="flowy-page">
       <PageHeader
-        title="Agent Library"
-        subtitle={`Ready-made marketing agents for ${company}. Add any with one click, you approve everything before it ships.`}
+        title="Library"
+        subtitle={`Everything ready to run for ${company}: hire an employee to manage a whole area, or add single agents. You approve everything before it ships.`}
       />
+
+      {/* Employees first: hiring one brings its agents with it, so it's the
+          bigger, faster choice; single agents are the a la carte option. */}
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-bold tracking-tight">Ready-made employees</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Each one manages a group of agents for you and reports what got done.
+        </p>
+        <TeamCards />
+      </section>
+
+      <h2 className="mb-1 text-lg font-bold tracking-tight">Single agents</h2>
+      <p className="text-muted-foreground mb-4 text-sm">
+        One job each, on a schedule. Add any on its own, or hand it to an employee later.
+      </p>
 
       <div className="flex flex-col gap-8">
         {TEMPLATE_CATEGORIES.map((category) => {

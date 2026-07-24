@@ -9,6 +9,7 @@ import {
   Bot,
   Brain,
   CheckCheck,
+  LayoutGrid,
   MessageSquarePlus,
   MoreHorizontal,
   PanelLeftClose,
@@ -40,6 +41,7 @@ const NAV = [
   // you add once checking agents one by one gets old.
   { to: "/agents", label: "Agents", icon: Bot },
   { to: "/team", label: "Team", icon: Users },
+  { to: "/library", label: "Library", icon: LayoutGrid },
   { to: "/brain", label: "Brain", icon: Brain },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
