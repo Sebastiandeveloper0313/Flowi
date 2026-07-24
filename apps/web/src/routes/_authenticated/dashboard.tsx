@@ -50,10 +50,15 @@ function TeamSection() {
     <section id="your-team">
       <header className="mb-5 flex items-end justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Your team</h2>
+          {/* Nothing running yet: name the two ways to start, in order, so a
+              brand-new user always has one obvious next click. */}
+          <h2 className="text-2xl font-bold tracking-tight">
+            {hasStaff ? "Your team" : "Start here"}
+          </h2>
           {!hasStaff && (
-            <p className="text-muted-foreground mt-1 text-sm">
-              Pre-briefed on your business. Hire one and they start today.
+            <p className="text-muted-foreground mt-1 max-w-xl text-sm">
+              Hire an employee below and they start today with their agents already set up, or type
+              what you need in the box above and Sentrive builds it for you.
             </p>
           )}
         </div>

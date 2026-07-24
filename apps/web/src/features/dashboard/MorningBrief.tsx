@@ -41,10 +41,17 @@ export function MorningBrief() {
 
   const hasAgents = (tasks ?? []).length > 0;
   if (!hasAgents) {
+    // First run: one question, plus the honest alternative right under it, so
+    // nobody stares at an empty box wondering if typing is the only way in.
     return (
-      <h2 className="mb-8 text-center text-3xl font-bold tracking-tight sm:text-4xl">
-        What should Sentrive take care of?
-      </h2>
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          What should Sentrive take care of?
+        </h2>
+        <p className="text-muted-foreground mt-2 text-[15px]">
+          Describe any recurring job and it gets built, or hire a ready-made employee below.
+        </p>
+      </div>
     );
   }
 

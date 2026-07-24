@@ -34,6 +34,7 @@ import {
   EMPLOYEES,
   employeeMeta,
   roleOfTask,
+  starterTemplatesOf,
   tasksOfRole,
   type EmployeeMeta,
   type EmployeeRole,
@@ -399,10 +400,15 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
 
   // One quiet line under the header; anything actionable gets its own accent
   // line, everything else stays out of the card.
+  // An unhired ready-made employee arrives WITH working agents: say which, so
+  // "what do I actually get?" is answered before the click.
+  const starters = starterTemplatesOf(meta);
   const metaLine = meta.comingSoon
     ? meta.blurb
     : !hired
-      ? meta.blurb
+      ? starters.length > 0
+        ? `Starts with ${starters.length} agent${starters.length === 1 ? "" : "s"}: ${starters.map((s) => s.name).join(", ")}`
+        : meta.blurb
       : lastRun
         ? `${mine.length} agent${mine.length === 1 ? "" : "s"} · worked ${formatWhen(lastRun.created_at)}`
         : `${mine.length} agent${mine.length === 1 ? "" : "s"} · no runs yet`;
