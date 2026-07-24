@@ -9,7 +9,7 @@ import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
 import { useRunTask, useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
 import { createAgentFromProposal } from "@/features/tasks/mutations";
-import { taskKeys } from "@/features/tasks/queries";
+import { taskKeys, type Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 import { templateToProposal } from "@/features/tasks/templates";
 import { useWorkspace } from "@/features/workspace/hooks";
@@ -176,8 +176,9 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   const starters = starterTemplatesOf(meta);
   const questions = QUESTIONS[meta.role] ?? [];
 
-  // Agents that already exist and aren't theirs yet: the shortcut past the
-  // interview for someone who already built what they wanted.
+  // Agents that already exist and aren't theirs yet. These are offered on the
+  // last step alongside the new ones, as part of choosing the workload, rather
+  // than as a competing card before the user knows what they are choosing.
   const { data: allTasks } = useTasks();
   const { data: customs } = useCustomAgents();
   const handOver = useUpdateTaskConfig();
@@ -191,6 +192,8 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(starterTemplatesOf(meta).map((t) => t.id)),
   );
+  // Existing agents the user wants handed over. Opt-in: nothing moves silently.
+  const [taken, setTaken] = useState<Set<string>>(() => new Set());
   const toolsStep = questions.length;
   const reviewStep = questions.length + 1;
 
@@ -210,10 +213,17 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
           p.subreddits = subs;
         created.push(await createAgentFromProposal(ws!.id, p));
       }
+      // Handovers keep running exactly as they are; only their owner changes.
+      for (const t of takeable.filter((t) => taken.has(t.id))) {
+        await handOver.mutateAsync({
+          id: t.id,
+          config: { ...(t.config as Record<string, unknown> | null), role: meta.role },
+        });
+      }
       return created;
     },
     onSuccess: (created) => {
-      track("employee_hired", { role: meta.role, skills: created.length });
+      track("employee_hired", { role: meta.role, skills: created.length, taken: taken.size });
       void queryClient.invalidateQueries({ queryKey: taskKeys.all });
       for (const agent of created) {
         if (requiredToolkits(agent).length === 0) run.mutate(agent.id);
@@ -224,56 +234,19 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   if (!ws || starters.length === 0) return null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 pt-2 sm:pt-6">
-      {/* Already running agents? Skip the interview entirely and just hand
-          them over: someone who knows what they want shouldn't be questioned. */}
-      {takeable.length > 0 && (
-        <div className="bg-card rounded-2xl border p-5 shadow-xs">
-          <p className="text-sm font-semibold">
-            Already have agents? Put {meta.name} in charge of them
-          </p>
-          <p className="text-muted-foreground mt-0.5 mb-3 text-sm">
-            They keep running exactly as they are. {meta.name} manages them from then on, no setup
-            questions.
-          </p>
-          <div className="max-h-52 space-y-1 overflow-y-auto">
-            {takeable.map((t) => (
-              <div
-                key={t.id}
-                className="hover:bg-muted/40 flex items-center gap-2.5 rounded-lg px-2 py-1.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{t.title}</p>
-                  <p className="text-muted-foreground text-xs">{kindLine(t.kind)}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 shrink-0"
-                  disabled={handOver.isPending}
-                  onClick={() =>
-                    handOver.mutate({
-                      id: t.id,
-                      config: { ...(t.config as Record<string, unknown> | null), role: meta.role },
-                    })
-                  }
-                >
-                  Give to {meta.name}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="mx-auto max-w-2xl pt-2 sm:pt-6">
       <div className="bg-card rounded-3xl border p-7 shadow-[0_28px_60px_-44px_rgba(16,48,120,0.5)] sm:p-10">
         {/* the employee conducting their own interview */}
         <div className="flex items-center gap-3 border-b pb-6">
           <EmployeeAvatar meta={meta} className="size-12 rounded-xl text-xl shadow-xs" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Setting up {meta.name}</p>
+            {/* Say up front that existing agents are safe and get their turn at
+                the end, so nobody wonders whether this replaces what they run. */}
             <p className="text-muted-foreground text-xs">
-              {meta.title} · getting to know your business
+              {takeable.length > 0
+                ? `${meta.title} · your ${takeable.length} existing agent${takeable.length === 1 ? "" : "s"} keep running, hand them over at the end`
+                : `${meta.title} · getting to know your business`}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -317,6 +290,16 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
               selected={selected}
               onToggle={(id) =>
                 setSelected((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
+              takeable={takeable}
+              taken={taken}
+              onToggleTaken={(id) =>
+                setTaken((prev) => {
                   const next = new Set(prev);
                   if (next.has(id)) next.delete(id);
                   else next.add(id);
@@ -545,6 +528,9 @@ function ReviewStep({
   briefed,
   selected,
   onToggle,
+  takeable,
+  taken,
+  onToggleTaken,
   hiring,
   error,
   onBack,
@@ -555,6 +541,9 @@ function ReviewStep({
   briefed: boolean;
   selected: Set<string>;
   onToggle: (id: string) => void;
+  takeable: Task[];
+  taken: Set<string>;
+  onToggleTaken: (id: string) => void;
   hiring: boolean;
   error: string | null;
   onBack: () => void;
@@ -565,7 +554,7 @@ function ReviewStep({
   const templates = [...templatesOfRole(meta.role)].sort(
     (a, b) => Number(starterIds.has(b.id)) - Number(starterIds.has(a.id)),
   );
-  const count = selected.size;
+  const count = selected.size + taken.size;
 
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
@@ -619,6 +608,47 @@ function ReviewStep({
           );
         })}
       </div>
+
+      {/* Agents that already exist, offered the same way as the new ones, so
+          the whole workload is one decision instead of two competing cards. */}
+      {takeable.length > 0 && (
+        <div className="mt-7 border-t pt-6">
+          <p className="text-sm font-medium">Already running</p>
+          <p className="text-muted-foreground mt-0.5 text-sm">
+            Hand any of these to {meta.name} too. They keep running exactly as they are, she just
+            manages them from now on.
+          </p>
+          <div className="mt-3 grid gap-2">
+            {takeable.map((t) => {
+              const on = taken.has(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onToggleTaken(t.id)}
+                  className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition ${
+                    on
+                      ? "border-primary/50 bg-primary/5 ring-primary/15 ring-2"
+                      : "bg-muted/30 hover:border-primary/30"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{t.title}</p>
+                    <p className="text-muted-foreground truncate text-xs">{kindLine(t.kind)}</p>
+                  </div>
+                  <span
+                    className={`grid size-5 shrink-0 place-items-center rounded-full border transition-colors ${
+                      on ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+                    }`}
+                  >
+                    {on && <Check className="size-3" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 flex items-center gap-3">
         <Button
