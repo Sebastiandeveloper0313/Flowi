@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { Checkbox } from "@workspace/ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +9,7 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ArrowRight, Bot, Loader2, Plus, Shuffle, Upload } from "lucide-react";
+import { ArrowRight, Bot, Check, Loader2, Plus, Shuffle, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
@@ -34,6 +33,7 @@ import { EmployeeAvatar } from "./EmployeeAvatar";
 import {
   EMPLOYEES,
   employeeMeta,
+  kindLine,
   recommendEmployee,
   roleOfTask,
   starterTemplatesOf,
@@ -343,21 +343,43 @@ function NewEmployeeDialog({
 
           {(tasks ?? []).length > 0 && (
             <div className="rounded-xl border p-3">
-              <p className="text-sm font-medium">Assign existing agents</p>
-              <p className="text-muted-foreground mb-2 text-xs">
-                Check the agents this employee takes over. They keep running exactly as before.
+              <p className="text-sm font-medium">Pick what they take over</p>
+              <p className="text-muted-foreground mb-2.5 text-xs">
+                Your agents keep running exactly as they are; whoever you pick just manages them
+                from now on.
               </p>
-              <div className="max-h-44 space-y-1 overflow-y-auto">
-                {(tasks ?? []).map((t) => (
-                  <label
-                    key={t.id}
-                    className="hover:bg-muted/40 flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5"
-                  >
-                    <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggle(t.id)} />
-                    <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                    <span className="text-muted-foreground shrink-0 text-xs">{ownerLabel(t)}</span>
-                  </label>
-                ))}
+              {/* Same selectable cards as the ready-made hire flow, so picking
+                  agents feels identical wherever you do it. */}
+              <div className="max-h-60 space-y-2 overflow-y-auto">
+                {(tasks ?? []).map((t) => {
+                  const on = selected.has(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggle(t.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
+                        on
+                          ? "border-primary/50 bg-[#eef4fd]"
+                          : "bg-muted/20 hover:border-primary/30"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{t.title}</p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {kindLine(t.kind)} · {ownerLabel(t)}
+                        </p>
+                      </div>
+                      <span
+                        className={`grid size-5 shrink-0 place-items-center rounded-full border transition ${
+                          on ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+                        }`}
+                      >
+                        {on && <Check className="size-3" />}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
