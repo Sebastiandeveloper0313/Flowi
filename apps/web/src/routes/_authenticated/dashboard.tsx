@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { Chat } from "@/features/chat/Chat";
+import { Workplace } from "@/features/dashboard/Workplace";
 import { employeeMeta, recommendEmployee } from "@/features/employees/roles";
 import { TeamCards } from "@/features/employees/TeamCards";
 import { useTasks } from "@/features/tasks/hooks";
@@ -29,8 +30,12 @@ function ChatPage() {
         <Chat chatId={c} />
       </div>
       {!inConversation && (
-        <section className="mx-auto w-full max-w-5xl pb-20">
+        <section className="mx-auto w-full max-w-3xl pb-20">
           <WelcomeTour />
+          {/* The workplace: everything every agent did, and everything that
+              needs you, right under the composer. TeamSection only shows for
+              a workspace with nothing running yet (the start-here catalog). */}
+          <Workplace />
           <TeamSection />
         </section>
       )}
@@ -48,6 +53,8 @@ function TeamSection() {
   const { data: ws } = useWorkspace();
   if (isLoading) return null;
   const hasStaff = (tasks ?? []).length > 0;
+  // With work running, the Workplace above IS the page; no roster grid here.
+  if (hasStaff) return null;
 
   // Pick the first hire from what we learned about their business, and say why.
   const pick = recommendEmployee(ws ?? {});
