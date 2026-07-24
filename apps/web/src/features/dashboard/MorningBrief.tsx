@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { ArrowRight } from "lucide-react";
 import { Fragment } from "react";
 
 import { useUser } from "@/auth/hooks";
@@ -45,6 +46,7 @@ export function MorningBrief() {
     // nobody stares at an empty box wondering if typing is the only way in.
     return (
       <div className="mb-9 text-center">
+        <IntegrationsPill />
         <h2 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-[3.1rem]">
           What should Sentrive take care of?
         </h2>
@@ -95,11 +97,13 @@ export function MorningBrief() {
 
   return (
     <div className="mb-9 text-center">
+      <IntegrationsPill />
       <h2 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.03em] sm:text-[3.1rem]">
-        {greeting}
-        {name ? `, ${name}` : ""}.
+        What do you want done today?
       </h2>
       <p className="text-muted-foreground mt-3.5 text-[15px] leading-relaxed">
+        {greeting}
+        {name ? `, ${name}` : ""}.{" "}
         {bits.length > 0 ? (
           <>
             While you were away:{" "}
@@ -111,9 +115,38 @@ export function MorningBrief() {
             ))}
           </>
         ) : (
-          "All quiet in the last 24 hours. Your agents run on schedule."
+          "All quiet in the last 24 hours, your agents run on schedule."
         )}
       </p>
     </div>
+  );
+}
+
+/** Networks Sentrive can act through, for the connect pill. */
+const PILL_TOOLKITS = ["gmail", "slack", "notion", "linkedin", "reddit"];
+
+/**
+ * The "we plug into your tools" bubble above the hero, a quiet nudge that this
+ * isn't a walled garden. Links to Integrations; shows a few real logos.
+ */
+function IntegrationsPill() {
+  return (
+    <Link
+      to="/integrations"
+      className="bg-card/80 text-muted-foreground hover:border-primary/30 hover:text-foreground mx-auto mb-5 inline-flex items-center gap-2.5 rounded-full border py-1.5 pr-4 pl-2 text-sm font-medium shadow-xs backdrop-blur transition"
+    >
+      <span className="flex items-center -space-x-1.5">
+        {PILL_TOOLKITS.map((slug) => (
+          <img
+            key={slug}
+            src={`https://logos.composio.dev/api/${slug}`}
+            alt=""
+            className="ring-card size-5 rounded-full bg-white ring-2"
+          />
+        ))}
+      </span>
+      Connect Gmail, Slack, Notion and more
+      <ArrowRight className="size-3.5" />
+    </Link>
   );
 }

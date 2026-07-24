@@ -143,20 +143,28 @@
 }
 
 /* ---------------- sidebar ---------------- */
+/* A floating panel: detached from the window edges with a margin, a full
+   hairline border, rounded corners and a soft lift, so it reads as its own
+   surface sitting on the background rather than a wall stuck to the edge. */
 .flowy-sidebar {
   position: sticky;
-  top: 0;
+  top: 10px;
   z-index: 2;
   align-self: flex-start;
-  height: 100vh;
-  width: 256px;
+  height: calc(100vh - 20px);
+  width: 252px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.74);
-  backdrop-filter: blur(18px) saturate(140%);
-  border-right: 1px solid rgba(17, 24, 39, 0.05);
+  margin: 10px 4px 10px 10px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.04),
+    0 12px 32px -20px rgba(17, 24, 39, 0.2);
   padding: 0.85rem 0.7rem;
 }
 .flowy-top {

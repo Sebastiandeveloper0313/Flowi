@@ -61,29 +61,26 @@ function TeamSection() {
   const suggested = employeeMeta(pick.role);
 
   return (
-    <section id="your-team">
-      <header className="mb-5 flex items-end justify-between">
-        <div>
-          {/* Nothing running yet: the dashboard shows what the library offers,
-              led by the hire we'd actually recommend for this business. */}
-          <h2 className="text-2xl font-bold tracking-tight">
-            {hasStaff ? "Your team" : "Start here"}
-          </h2>
-          {!hasStaff && (
-            <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-              Not sure? Hire {suggested.name}. {pick.reason} Anything else: just type it in the box
-              above.
-            </p>
-          )}
-        </div>
-        <Link
-          to={hasStaff ? "/team" : "/library"}
-          className="text-primary text-sm font-medium hover:underline"
-        >
-          {hasStaff ? "See all" : "Browse the library"}
+    <section id="your-team" className="mt-14">
+      <div className="mb-6 text-center">
+        {/* Nothing running yet: the dashboard shows what the library offers,
+            led by the hire we'd actually recommend for this business. */}
+        <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          Ready-made employees
+        </p>
+        <h2 className="mt-1.5 text-[1.7rem] font-semibold tracking-[-0.02em]">
+          Assemble your starter team
+        </h2>
+        <p className="text-muted-foreground mx-auto mt-1.5 max-w-lg text-sm">
+          Hire a proven role in seconds. Not sure? Start with {suggested.name}: {pick.reason}
+        </p>
+      </div>
+      <TeamCards variant="catalog" />
+      <div className="mt-6 text-center">
+        <Link to="/library" className="text-primary text-sm font-medium hover:underline">
+          Browse the full library →
         </Link>
-      </header>
-      <TeamCards variant={hasStaff ? "team" : "catalog"} />
+      </div>
     </section>
   );
 }
