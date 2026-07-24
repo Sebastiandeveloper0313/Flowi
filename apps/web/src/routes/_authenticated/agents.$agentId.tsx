@@ -170,7 +170,7 @@ function AgentDetailPage() {
           {meta && <EmployeeAvatar meta={meta} className="mt-0.5 size-12 rounded-xl text-xl" />}
           <div>
             <p className="text-muted-foreground text-xs font-medium">
-              {meta ? `One of ${meta.name}'s agents` : "Independent agent"}
+              {meta ? `One of ${meta.name}'s agents` : "Agent"}
             </p>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight">{agent.title}</h1>
@@ -865,7 +865,6 @@ function EmployeeEditor({ agent }: { agent: Task }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent align="end">
-          <SelectItem value="none">Independent (no owner)</SelectItem>
           {EMPLOYEES.filter((e) => !e.comingSoon).map((e) => (
             <SelectItem key={e.role} value={e.role}>
               {e.name} · {e.title}

@@ -54,9 +54,7 @@ function AgentRow({
         <div className="flex items-center gap-2.5">
           <h3 className="truncate font-semibold">{agent.title}</h3>
           <TaskStatusBadge status={agent.status} />
-          <span className="text-muted-foreground shrink-0 text-xs">
-            {ownerName ? `${ownerName}'s` : "Independent"}
-          </span>
+          <span className="text-muted-foreground shrink-0 text-xs">{ownerName}'s</span>
         </div>
         <p className="text-muted-foreground mt-1.5 line-clamp-1 text-sm">{agent.instructions}</p>
         <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">

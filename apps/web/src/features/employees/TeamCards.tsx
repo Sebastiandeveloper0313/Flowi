@@ -196,7 +196,6 @@ function NewEmployeeDialog({
   const customNameById = new Map((customs ?? []).map((c) => [c.id, c.name]));
   function ownerLabel(t: Task): string {
     const r = roleOfTask(t, customIds);
-    if (!r) return "Independent";
     return customNameById.get(r) ?? employeeMeta(r as EmployeeRole).name;
   }
 

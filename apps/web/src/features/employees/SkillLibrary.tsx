@@ -56,7 +56,6 @@ export function SkillLibraryDialog({
 
   function ownerLabel(t: Task): string {
     const r = roleOfTask(t, customIds);
-    if (!r) return "Independent";
     return customNameById.get(r) ?? employeeMeta(r as EmployeeRole).name;
   }
 

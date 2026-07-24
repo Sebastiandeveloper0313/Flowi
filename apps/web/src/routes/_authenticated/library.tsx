@@ -6,6 +6,8 @@ import { CalendarClock, Check, ChevronDown, Loader2, Plug } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader } from "@/features/dashboard/ui";
+import { useCustomAgents } from "@/features/employees/customAgents";
+import { employeeMeta, roleOfTask, type EmployeeRole } from "@/features/employees/roles";
 import { TeamCards } from "@/features/employees/TeamCards";
 import { toolkitName } from "@/features/integrations/ConnectCta";
 import { AgentCreatedJourney } from "@/features/tasks/AgentCreatedJourney";
@@ -147,10 +149,17 @@ function TemplateCard({
   const Icon = t.icon;
   const needs = requiredToolkits({ kind: t.kind });
 
+  // Everything belongs to someone: an added agent goes to the employee whose
+  // trade it is, and the button says whose stack it joins.
+  const { data: customs } = useCustomAgents();
+  const owner = roleOfTask({ kind: t.kind, config: { proposal_id: t.id } });
+  const ownerRow = (customs ?? []).find((c) => c.id === owner);
+  const ownerName = ownerRow?.name ?? employeeMeta(owner as EmployeeRole).name;
+
   const create = useMutation({
     mutationFn: () => {
       if (!teamId) throw new Error("No workspace selected.");
-      return createAgentFromProposal(teamId, templateToProposal(t));
+      return createAgentFromProposal(teamId, { ...templateToProposal(t), role: owner });
     },
     onSuccess: (agent) => {
       setCreatedId(agent.id);
@@ -208,7 +217,7 @@ function TemplateCard({
                 onClick={() => create.mutate()}
               >
                 {create.isPending && <Loader2 className="size-4 animate-spin" />}
-                Add to my agents
+                Give to {ownerName}
               </Button>
               {create.isError && (
                 <p className="text-destructive mt-1.5 text-xs">

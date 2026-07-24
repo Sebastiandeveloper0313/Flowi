@@ -6,7 +6,6 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
-  Bot,
   Brain,
   CheckCheck,
   LayoutGrid,
@@ -31,15 +30,11 @@ import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
-// Six doors. Agents/Library/Activity still exist as routes (agent settings,
-// history, deep links) but daily life happens in Chat, Team, and Approvals:
-// agents live inside their employee's page on Team, and everything the team
-// knows about the business lives in Brain.
+// One visible layer: your team. Every agent lives inside the employee who
+// runs it (their page and chat), the library is where you get more, and Brain
+// is what they all know. /agents pages still exist for deep links and tuning.
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
-  // Agents first: that's the product. Team is the optional layer of managers
-  // you add once checking agents one by one gets old.
-  { to: "/agents", label: "Agents", icon: Bot },
   { to: "/team", label: "Team", icon: Users },
   { to: "/library", label: "Library", icon: LayoutGrid },
   { to: "/brain", label: "Brain", icon: Brain },

@@ -143,6 +143,19 @@ const CATEGORY_ROLE: Record<string, EmployeeRole> = {
   "Inbox & replies": "support",
 };
 
+/** What kind of work belongs to which employee, when nothing else says. */
+const KIND_ROLE: Record<string, EmployeeRole> = {
+  reddit_monitor: "growth",
+  reddit_post: "social",
+  linkedin_post: "social",
+  facebook_post: "social",
+  tiktok_slideshow: "social",
+  seo_blog: "content",
+  content: "content",
+  email_responder: "support",
+  facebook_dm: "support",
+};
+
 const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
 
 /**
@@ -161,7 +174,7 @@ const TEMPLATE_BY_ID = new Map(AGENT_TEMPLATES.map((t) => [t.id, t]));
 export function roleOfTask(
   task: Pick<Task, "kind" | "config">,
   customIds?: Set<string>,
-): RosterRole | null {
+): RosterRole {
   const cfg = task.config as { role?: string; proposal_id?: string } | null;
   if (
     cfg?.role &&
@@ -169,11 +182,12 @@ export function roleOfTask(
   ) {
     return cfg.role;
   }
-  // Pre-stamp tasks (hired starters, template adds) still sort by template
-  // category so existing teams don't see their employees emptied.
+  // Every agent belongs to someone: the product has one visible layer, so
+  // nothing is ever orphaned. Templates sort by category, everything else by
+  // what the work is, and anything unrecognised lands with the growth hire.
   const template = cfg?.proposal_id ? TEMPLATE_BY_ID.get(cfg.proposal_id) : undefined;
-  if (template) return CATEGORY_ROLE[template.category] ?? null;
-  return null;
+  if (template) return CATEGORY_ROLE[template.category] ?? "growth";
+  return KIND_ROLE[task.kind ?? ""] ?? "growth";
 }
 
 export function tasksOfRole<T extends Pick<Task, "kind" | "config">>(
@@ -261,14 +275,6 @@ export function recommendEmployee(ws: {
     reason:
       "She finds people already asking for what you sell and drafts replies for you to approve, which is the fastest path to a first customer.",
   };
-}
-
-/** Agents nobody owns: they run standalone and live on the Agents page. */
-export function independentTasks<T extends Pick<Task, "kind" | "config">>(
-  tasks: T[],
-  customIds?: Set<string>,
-): T[] {
-  return tasks.filter((t) => roleOfTask(t, customIds) === null);
 }
 
 export function employeeMeta(role: EmployeeRole): EmployeeMeta {
