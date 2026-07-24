@@ -465,35 +465,44 @@ function EmployeeCard({
         )}
       </div>
 
-      <div className="flex min-h-8 flex-col gap-3">
+      {/* Equal-height cards: the description block grows, the agent list is a
+          fixed-height strip, and the button always sits on the bottom edge. */}
+      <div className="flex flex-1 flex-col gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-muted-foreground text-sm">{metaLine}</p>
+          <p className="text-muted-foreground line-clamp-2 text-sm">{metaLine}</p>
           {hired && waiting > 0 && (
             <p className="text-primary mt-0.5 text-sm font-medium">{waiting} waiting for your OK</p>
           )}
         </div>
 
-        {/* Exactly what starts running the moment you hire them: every agent,
-            named, with what one run of it produces. Nothing truncated. */}
         {!meta.comingSoon && !hired && !meta.custom && starters.length > 0 && (
-          <div className="space-y-1.5 border-t pt-3">
-            <p className="text-muted-foreground text-xs font-medium">
+          <div className="border-t pt-3">
+            <p className="text-muted-foreground mb-1.5 text-xs font-medium">
               Comes with {starters.length} agent{starters.length === 1 ? "" : "s"}
             </p>
-            {starters.map((s) => (
-              <div key={s.id} className="flex items-start gap-2">
-                <Bot className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
-                <p className="text-sm">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-muted-foreground"> · {s.outcome}</span>
+            <div className="space-y-1">
+              {starters.slice(0, 2).map((s) => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <Bot className="text-muted-foreground size-3.5 shrink-0" />
+                  <p className="min-w-0 truncate text-sm">
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-muted-foreground"> · {s.outcome}</span>
+                  </p>
+                </div>
+              ))}
+              {/* Keep every card the same height even when one has fewer. */}
+              {starters.length < 2 && <div className="h-[22px]" aria-hidden="true" />}
+              {starters.length > 2 && (
+                <p className="text-muted-foreground pl-[22px] text-xs">
+                  + {starters.length - 2} more
                 </p>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         )}
 
         {!meta.comingSoon && !hired && !meta.custom && (
-          <Button size="sm" className="pointer-events-none w-full" tabIndex={-1}>
+          <Button size="sm" className="pointer-events-none mt-auto w-full" tabIndex={-1}>
             Hire {meta.name}
           </Button>
         )}
@@ -503,7 +512,7 @@ function EmployeeCard({
 
   if (meta.comingSoon) {
     return (
-      <div className="bg-card/60 flex flex-col gap-4 rounded-2xl border border-dashed p-6 opacity-80">
+      <div className="bg-card/60 flex h-full flex-col gap-4 rounded-2xl border border-dashed p-6 opacity-80">
         {body}
       </div>
     );
@@ -513,7 +522,7 @@ function EmployeeCard({
     <Link
       to="/team/$role"
       params={{ role: meta.role }}
-      className="bg-card hover:border-primary/40 group flex flex-col gap-4 rounded-2xl border p-6 shadow-xs transition"
+      className="bg-card hover:border-primary/40 group flex h-full flex-col gap-4 rounded-2xl border p-6 shadow-xs transition"
     >
       {body}
     </Link>
