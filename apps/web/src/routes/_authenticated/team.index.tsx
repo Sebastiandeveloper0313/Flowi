@@ -27,7 +27,7 @@ function TeamPage() {
         title="Your team"
         subtitle={
           hasTeam
-            ? "An employee manages a group of your agents: one chat, one report, one place to check instead of opening each agent."
+            ? "Each employee gives you one view across the agents they manage: everything they got done, in one chat and one report."
             : "Employees you hire show up here. Each one manages a group of agents and reports what got done."
         }
       />

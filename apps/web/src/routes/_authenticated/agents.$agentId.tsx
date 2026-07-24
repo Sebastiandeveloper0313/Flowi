@@ -175,21 +175,6 @@ function AgentDetailPage() {
               <h1 className="text-2xl font-bold tracking-tight">{agent.title}</h1>
               <TaskStatusBadge status={agent.status} />
             </div>
-            {/* One rule, said out loud: the employee's desk is where you
-                check the work; this page is where you tune the agent. */}
-            {meta && (
-              <p className="text-muted-foreground mt-1 text-xs">
-                This page is where you tune it. To see what it produced, check{" "}
-                <Link
-                  to="/team/$role"
-                  params={{ role: meta.role }}
-                  className="text-primary font-medium hover:underline"
-                >
-                  {meta.name}'s desk
-                </Link>
-                .
-              </p>
-            )}
             <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
               <span className="flex items-center gap-1.5">
                 <CalendarClock className="size-4" /> {localScheduleLabel(agent)}
