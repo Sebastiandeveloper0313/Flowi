@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
-import { useRunTask } from "@/features/tasks/hooks";
+import { useRunTask, useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
 import { createAgentFromProposal } from "@/features/tasks/mutations";
 import { taskKeys } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
@@ -15,8 +15,16 @@ import { templateToProposal } from "@/features/tasks/templates";
 import { useWorkspace } from "@/features/workspace/hooks";
 import { track } from "@/integrations/posthog";
 
+import { useCustomAgents } from "./customAgents";
 import { EmployeeAvatar } from "./EmployeeAvatar";
-import { starterTemplatesOf, templatesOfRole, type EmployeeMeta, type EmployeeRole } from "./roles";
+import {
+  kindLine,
+  roleOfTask,
+  starterTemplatesOf,
+  templatesOfRole,
+  type EmployeeMeta,
+  type EmployeeRole,
+} from "./roles";
 
 interface HireQuestion {
   id: string;
@@ -146,6 +154,14 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   const starters = starterTemplatesOf(meta);
   const questions = QUESTIONS[meta.role] ?? [];
 
+  // Agents that already exist and aren't theirs yet: the shortcut past the
+  // interview for someone who already built what they wanted.
+  const { data: allTasks } = useTasks();
+  const { data: customs } = useCustomAgents();
+  const handOver = useUpdateTaskConfig();
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+  const takeable = (allTasks ?? []).filter((t) => roleOfTask(t, customIds) !== meta.role);
+
   // steps: one per question, then tools, then review
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -186,7 +202,48 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
   if (!ws || starters.length === 0) return null;
 
   return (
-    <div className="mx-auto max-w-2xl pt-2 sm:pt-6">
+    <div className="mx-auto max-w-2xl space-y-4 pt-2 sm:pt-6">
+      {/* Already running agents? Skip the interview entirely and just hand
+          them over: someone who knows what they want shouldn't be questioned. */}
+      {takeable.length > 0 && (
+        <div className="bg-card rounded-2xl border p-5 shadow-xs">
+          <p className="text-sm font-semibold">
+            Already have agents? Put {meta.name} in charge of them
+          </p>
+          <p className="text-muted-foreground mt-0.5 mb-3 text-sm">
+            They keep running exactly as they are. {meta.name} manages them from then on, no setup
+            questions.
+          </p>
+          <div className="max-h-52 space-y-1 overflow-y-auto">
+            {takeable.map((t) => (
+              <div
+                key={t.id}
+                className="hover:bg-muted/40 flex items-center gap-2.5 rounded-lg px-2 py-1.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{t.title}</p>
+                  <p className="text-muted-foreground text-xs">{kindLine(t.kind)}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 shrink-0"
+                  disabled={handOver.isPending}
+                  onClick={() =>
+                    handOver.mutate({
+                      id: t.id,
+                      config: { ...(t.config as Record<string, unknown> | null), role: meta.role },
+                    })
+                  }
+                >
+                  Give to {meta.name}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-card rounded-3xl border p-7 shadow-[0_28px_60px_-44px_rgba(16,48,120,0.5)] sm:p-10">
         {/* the employee conducting their own interview */}
         <div className="flex items-center gap-3 border-b pb-6">
