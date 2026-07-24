@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { composioActionError, executeComposioTool } from "./composio.ts";
+import { isAskFirst } from "./marketing.ts";
 
 export interface ParsedPost {
   title: string;
@@ -61,6 +62,8 @@ export interface SubResult {
   url?: string;
   error?: string;
   at: string; // when it's scheduled (queued) or when it posted (posted/failed)
+  /** Queued by the agent in Auto, not by the user clicking Schedule. */
+  auto?: boolean;
 }
 
 // Auto mode staggers the chosen subreddits instead of bursting them: the first
@@ -315,7 +318,9 @@ export async function queueDraft(
   const entries: SubResult[] = clean.map((subreddit, i) => {
     // Stagger each subsequent post by the base gap +0-80% jitter.
     if (i > 0) t += Math.round(QUEUE_GAP_MIN * 60_000 * (1 + Math.random() * 0.8));
-    return { subreddit, status: "queued", at: new Date(t).toISOString() };
+    // Marked auto so that switching the agent back to Ask first pulls these
+    // back for review, while posts the user scheduled by hand still go out.
+    return { subreddit, status: "queued", at: new Date(t).toISOString(), auto: true };
   });
   await admin
     .from("post_drafts")
@@ -335,7 +340,7 @@ export async function dripQueuedPosts(
   const nowMs = Date.now();
   const { data: due } = await admin
     .from("post_drafts")
-    .select("id, team_id, title, body, posts")
+    .select("id, team_id, task_id, title, body, posts")
     .eq("status", "queued")
     .lte("scheduled_at", new Date(nowMs).toISOString())
     .order("scheduled_at", { ascending: true })
@@ -344,6 +349,7 @@ export async function dripQueuedPosts(
   const rows = (due ?? []) as {
     id: string;
     team_id: string;
+    task_id: string | null;
     title: string;
     body: string;
     posts: unknown;
@@ -359,6 +365,27 @@ export async function dripQueuedPosts(
       (e) => e.status === "queued" && e.at && new Date(e.at).getTime() <= nowMs,
     );
     if (idx < 0) continue;
+
+    // The agent may have been switched back to Ask first after queueing this.
+    // Ask first means ask, so pull the agent's own queue back for review and
+    // leave anything the user scheduled by hand alone.
+    if (entries[idx].auto && d.task_id && (await isAskFirst(admin, d.task_id, d.team_id))) {
+      const kept = entries.filter((e) => !(e.status === "queued" && e.auto));
+      const next = kept
+        .filter((e) => e.status === "queued")
+        .map((e) => e.at)
+        .filter(Boolean)
+        .sort()[0];
+      await admin
+        .from("post_drafts")
+        .update({
+          posts: kept,
+          scheduled_at: next ?? null,
+          status: next ? "queued" : kept.some((e) => e.status === "posted") ? "posted" : "draft",
+        })
+        .eq("id", d.id);
+      continue;
+    }
     usedTeams.add(d.team_id);
 
     entries[idx] = await publishRedditPost(d.team_id, entries[idx].subreddit, d.title, d.body);

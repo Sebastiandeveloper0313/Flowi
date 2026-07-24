@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useActiveTeamId } from "@/features/workspace/active";
+
 import {
   cancelQueuedDraft,
   publishPostDraft,
@@ -9,10 +11,20 @@ import {
   setPostDraftStatus,
   updatePostDraft,
 } from "./mutations";
-import { postDraftsByTaskQueryOptions, postKeys, type SubPostResult } from "./queries";
+import {
+  pendingPostDraftsQueryOptions,
+  postDraftsByTaskQueryOptions,
+  postKeys,
+  type SubPostResult,
+} from "./queries";
 
 export function useAgentPostDrafts(taskId: string) {
   return useQuery(postDraftsByTaskQueryOptions(taskId));
+}
+
+/** Everything an agent wrote that is still waiting on your yes. */
+export function usePendingPostDrafts() {
+  return useQuery(pendingPostDraftsQueryOptions(useActiveTeamId()));
 }
 
 export function useUpdatePostDraft() {

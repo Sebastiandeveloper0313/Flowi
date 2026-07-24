@@ -21,6 +21,8 @@ import type { Approval } from "@/features/approvals/queries";
 import { ChatMarkdown } from "@/features/chat/Markdown";
 import { PageHeader } from "@/features/dashboard/ui";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
+import { DraftApprovalCard } from "@/features/posts/DraftApprovalCard";
+import { usePendingPostDrafts } from "@/features/posts/hooks";
 import { formatWhen, useTasks } from "@/features/tasks/hooks";
 import { humanizeRunError } from "@/features/tasks/ui";
 
@@ -31,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/approvals")({
 function ApprovalsPage() {
   const { data: approvals, isLoading } = useApprovals();
   const { data: leadGroups } = usePendingLeadReplies();
+  const { data: postDrafts } = usePendingPostDrafts();
   const { data: tasks } = useTasks();
   const decide = useDecideApproval();
   const { confirm, dialog } = useConfirm();
@@ -59,7 +62,8 @@ function ApprovalsPage() {
   const decided = (approvals ?? []).filter((a) => a.status !== "pending").slice(0, 20);
   const replyGroups = leadGroups ?? [];
   const replyTotal = replyGroups.reduce((s, g) => s + g.count, 0);
-  const caughtUp = pending.length === 0 && replyTotal === 0;
+  const drafts = postDrafts ?? [];
+  const caughtUp = pending.length === 0 && replyTotal === 0 && drafts.length === 0;
 
   return (
     <div className="flowy-page">
@@ -99,6 +103,26 @@ function ApprovalsPage() {
                 </Link>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {/* Posts an agent wrote. Nothing publishes them but a click, so they are
+          an approval in everything but name. */}
+      {drafts.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+            Posts to review
+          </h2>
+          <div className="grid gap-3">
+            {drafts.map((d) => (
+              <DraftApprovalCard
+                key={d.id}
+                draft={d}
+                agentTitle={tasks?.find((t) => t.id === d.task_id)?.title}
+                compact
+              />
+            ))}
           </div>
         </section>
       )}

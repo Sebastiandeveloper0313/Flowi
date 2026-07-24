@@ -26,6 +26,7 @@ import { useConfirm } from "@/components/useConfirm";
 import { usePendingApprovalCount } from "@/features/approvals/hooks";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
+import { usePendingPostDrafts } from "@/features/posts/hooks";
 import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
@@ -50,7 +51,9 @@ export function Sidebar() {
   const { data: chats } = useChats();
   const { data: pendingApprovals } = usePendingApprovalCount();
   const { data: leadReplyGroups } = usePendingLeadReplies();
-  const pendingReplies = (leadReplyGroups ?? []).reduce((s, g) => s + g.count, 0);
+  const { data: pendingDrafts } = usePendingPostDrafts();
+  const pendingReplies =
+    (leadReplyGroups ?? []).reduce((s, g) => s + g.count, 0) + (pendingDrafts?.length ?? 0);
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {

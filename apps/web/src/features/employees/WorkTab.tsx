@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
+import { DraftApprovalCard } from "@/features/posts/DraftApprovalCard";
 import {
   nextFireLocal,
   SCHEDULES,
@@ -269,7 +270,12 @@ export function WorkTab({
   const pendingLeads = (deliverables?.leads ?? []).filter(
     (l) => l.status === "new" && (l.draft_reply ?? "").trim() !== "",
   );
-  const waiting = myPending.length + pendingLeads.length;
+  // Posts this employee wrote that nothing will publish without a click. On
+  // Ask first that is every post, so they belong in the same queue.
+  const pendingDrafts = (deliverables?.drafts ?? []).filter(
+    (d) => d.status !== "posted" && d.status !== "queued" && d.status !== "dismissed",
+  );
+  const waiting = myPending.length + pendingLeads.length + pendingDrafts.length;
 
   // The week in outcomes, not activity: what actually got made and shipped.
   const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -510,21 +516,32 @@ export function WorkTab({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {!allAuto && (
+                <p className="text-muted-foreground text-xs">
+                  {meta.name} is on Ask first, so none of this goes out until you say so.
+                </p>
+              )}
+              {pendingDrafts.slice(0, showAllWaiting ? undefined : 3).map((d) => (
+                <DraftApprovalCard
+                  key={d.id}
+                  draft={d}
+                  agentTitle={titleById.get(d.task_id ?? "")}
+                  compact
+                />
+              ))}
               {pendingLeads.slice(0, showAllWaiting ? undefined : 3).map((l) => (
                 <LeadReplyCard key={l.id} lead={l} />
               ))}
               {myPending.slice(0, showAllWaiting ? undefined : 3).map((a) => (
                 <InboxApprovalRow key={a.id} approval={a} />
               ))}
-              {(pendingLeads.length > 3 || myPending.length > 3) && (
+              {(pendingLeads.length > 3 || myPending.length > 3 || pendingDrafts.length > 3) && (
                 <button
                   type="button"
                   onClick={() => setShowAllWaiting((v) => !v)}
                   className="text-muted-foreground hover:text-foreground block w-full py-1 text-center text-sm font-medium"
                 >
-                  {showAllWaiting
-                    ? "Show fewer"
-                    : `Show all ${pendingLeads.length + myPending.length} waiting`}
+                  {showAllWaiting ? "Show fewer" : `Show all ${waiting} waiting`}
                 </button>
               )}
             </CardContent>

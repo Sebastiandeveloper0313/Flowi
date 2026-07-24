@@ -56,6 +56,24 @@ export function taskAutonomy(
 }
 
 /**
+ * Is this agent on Ask first right now? Read live from the database, because an
+ * auto-queued post fires minutes or hours after it was queued and the user may
+ * have flipped the switch in between. Anything unreadable counts as Ask: the
+ * safe side of a call that posts in public under the user's name.
+ */
+export async function isAskFirst(admin: any, taskId: string, teamId: string): Promise<boolean> {
+  const read = async (table: string, id: string) => {
+    const { data } = await admin.from(table).select("autonomy_mode").eq("id", id).maybeSingle();
+    return (data as { autonomy_mode?: string | null } | null)?.autonomy_mode ?? null;
+  };
+  const own = await read("tasks", taskId).catch(() => null);
+  if (own === "auto") return false;
+  if (own === "ask") return true;
+  const team = await read("teams", teamId).catch(() => null);
+  return team !== "auto";
+}
+
+/**
  * Instruction block describing the current autonomy mode and how to behave.
  * The hard gate is enforced in code; this tells the model how to act and phrase
  * things, and to respect explicit in-conversation instructions on top of the mode.
