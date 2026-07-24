@@ -17,7 +17,7 @@ function TeamPage() {
     <div className="flowy-page">
       <PageHeader
         title="Your team"
-        subtitle="Employees are folders for your agents. Open one to see the work that got done; tune each agent on its own page."
+        subtitle="An employee manages a group of your agents: one chat, one report, one place to check instead of opening each agent."
       />
       <TeamCards />
     </div>

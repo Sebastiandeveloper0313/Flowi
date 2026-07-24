@@ -337,10 +337,10 @@ export function WorkTab({
       <>
         <div className="bg-card rounded-2xl border p-8 text-center shadow-xs">
           <EmployeeAvatar meta={meta} className="mx-auto mb-4 size-16 rounded-2xl text-3xl" />
-          <p className="text-lg font-semibold">{meta.name} isn't doing anything yet</p>
+          <p className="text-lg font-semibold">{meta.name} has nothing to manage yet</p>
           <p className="text-muted-foreground mx-auto mt-1.5 max-w-md text-sm">
-            An employee is a folder: the work happens in the agents they own. Give {meta.name} an
-            agent and it starts on its schedule, with everything waiting for your OK.
+            The work happens in agents. Give {meta.name} one and they run it on its schedule, report
+            what got done, and answer for it here, so you never open it yourself.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
             <Button onClick={() => setLibraryOpen(true)}>

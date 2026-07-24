@@ -78,7 +78,7 @@ export function WelcomeTour() {
             className="mb-5 size-11 rounded-xl shadow-lg shadow-[#1566e6]/25"
           />
           <DialogTitle className="text-xl font-bold tracking-tight">
-            Two ideas run everything here
+            Here's how Sentrive works
           </DialogTitle>
           <p className="text-muted-foreground mt-1.5 text-sm">
             We read {company}'s website, so everything you create already knows your business.
@@ -87,13 +87,13 @@ export function WelcomeTour() {
           <div className="mt-6 space-y-4">
             <IntroRow
               icon={<MessageSquare className="size-4" />}
-              title="Agents do jobs"
-              text="Each agent runs one job on a schedule: find leads, write posts, answer email. Describe a job in chat and it exists."
+              title="Agents do the work"
+              text="Each one runs a job on a schedule: find leads, write posts, answer email. Describe it in chat and it exists."
             />
             <IntroRow
               icon={<Users className="size-4" />}
-              title="Employees own areas"
-              text="Think folders for agents: one area of work, shared documents, one chat, one report. Hire one ready-made or build your own."
+              title="Employees manage your agents"
+              text="Once you have a few, put an employee in charge: they report what got done and you chat with them, instead of checking every agent yourself."
             />
             <IntroRow
               icon={<ShieldCheck className="size-4" />}

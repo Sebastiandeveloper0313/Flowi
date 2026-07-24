@@ -57,8 +57,8 @@ function TeamSection() {
           </h2>
           {!hasStaff && (
             <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-              Hire an employee below and they start today with their agents already set up, or type
-              what you need in the box above and Sentrive builds it for you.
+              Type what you need in the box above and Sentrive builds the agent for you, or hire an
+              employee below: they arrive with agents ready to run and manage them for you.
             </p>
           )}
         </div>

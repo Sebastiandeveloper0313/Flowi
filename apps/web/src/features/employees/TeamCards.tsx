@@ -108,7 +108,7 @@ function NewAgentCard() {
         <Plus className="size-5" />
         New employee
         <span className="text-muted-foreground text-xs font-normal">
-          A folder for your agents: shared docs, one chat, one report
+          Put someone in charge of a group of agents
         </span>
       </button>
       {open && <NewEmployeeDialog open={open} onOpenChange={setOpen} />}
@@ -232,8 +232,8 @@ function NewEmployeeDialog({
         <DialogHeader>
           <DialogTitle>New employee</DialogTitle>
           <DialogDescription>
-            An employee owns an area: agents you assign them, shared documents, one chat, one
-            report.
+            They manage the agents you assign them: you check one desk and chat with one person
+            instead of opening every agent yourself.
           </DialogDescription>
         </DialogHeader>
 
