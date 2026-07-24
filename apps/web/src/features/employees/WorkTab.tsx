@@ -502,6 +502,7 @@ export function WorkTab({
         mine={mine}
         deliverables={deliverables}
         runs={myRuns}
+        approvals={approvals}
         onOpenChat={onOpenChat}
       />
 

@@ -11,6 +11,8 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
+  FileText,
+  Inbox,
   Maximize2,
   Newspaper,
   Plus,
@@ -19,14 +21,16 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import type { Approval } from "@/features/approvals/queries";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ChatMarkdown } from "@/features/chat/Markdown";
-import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
+import { ConnectButton, toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useIntegrations } from "@/features/integrations/hooks";
 import { useRescheduleDraft, useReschedulePost } from "@/features/posts/hooks";
 import { draftResults, type SubPostResult } from "@/features/posts/queries";
 import { occurrencesIn, useUpdateTaskSchedule } from "@/features/tasks/hooks";
 import type { Task, TaskRun } from "@/features/tasks/queries";
+import { RunResultActions } from "@/features/tasks/RunResultActions";
 
 import { type EmployeeMeta } from "./roles";
 
@@ -49,12 +53,14 @@ export function RoleWorkspace({
   mine,
   deliverables,
   runs,
+  approvals,
   onOpenChat,
 }: {
   meta: EmployeeMeta;
   mine: Task[];
   deliverables?: Deliverables;
   runs?: TaskRun[];
+  approvals?: Approval[];
   onOpenChat?: () => void;
 }) {
   if (meta.role === "social")
@@ -62,7 +68,9 @@ export function RoleWorkspace({
       <SocialCalendar meta={meta} mine={mine} deliverables={deliverables} onOpenChat={onOpenChat} />
     );
   if (meta.role === "growth") return <GrowthPipeline deliverables={deliverables} />;
-  if (meta.role === "content") return <ContentShelf mine={mine} deliverables={deliverables} />;
+  if (meta.role === "content") return <ContentShelf meta={meta} mine={mine} runs={runs} />;
+  if (meta.role === "support")
+    return <SupportDesk meta={meta} mine={mine} runs={runs} approvals={approvals} />;
   if (meta.role === "ops") return <OpsDesk meta={meta} mine={mine} runs={runs} />;
   return null;
 }
@@ -830,46 +838,275 @@ function Stage({
 
 /* ----------------------------------------------------------------- content */
 
-function ContentShelf({ mine, deliverables }: { mine: Task[]; deliverables?: Deliverables }) {
-  const drafts = (deliverables?.drafts ?? []).slice(0, 6);
+interface Piece {
+  runId: string;
+  taskId: string;
+  at: string;
+  title: string;
+  body: string;
+}
+
+/**
+ * A written piece's title. SEO articles are asked to lead with the title (a
+ * markdown heading or a "Title:" line), so pull that out; otherwise fall back
+ * to the first non-empty line, trimmed to something card-sized.
+ */
+function pieceTitle(output: string): string {
+  const lines = output.split("\n").map((l) => l.trim());
+  for (const l of lines) {
+    if (!l) continue;
+    const heading = l.match(/^#+\s+(.*)$/);
+    if (heading) return heading[1].trim().slice(0, 120);
+    const labelled = l.match(/^(?:\*\*)?title(?:\*\*)?\s*:?\s*(.+)$/i);
+    if (labelled) return labelled[1].replace(/\*+/g, "").trim().slice(0, 120);
+    return l.replace(/\*+/g, "").slice(0, 120);
+  }
+  return "Untitled piece";
+}
+
+/**
+ * Alex's shelf is what he actually wrote, read right here. Articles live in the
+ * run output (not a draft table), so this reads the succeeded runs of his
+ * content agents and opens the full piece in a reader, rather than making the
+ * user dig into a run row on the agent page.
+ */
+function ContentShelf({
+  meta,
+  mine,
+  runs,
+}: {
+  meta: EmployeeMeta;
+  mine: Task[];
+  runs?: TaskRun[];
+}) {
+  const [open, setOpen] = useState<Piece | null>(null);
+  const titleById = new Map(mine.map((t) => [t.id, t.title]));
+  const mineIds = new Set(mine.map((t) => t.id));
+
+  const pieces: Piece[] = (runs ?? [])
+    .filter((r) => mineIds.has(r.task_id) && r.status === "succeeded" && (r.output ?? "").trim())
+    .map((r) => ({
+      runId: r.id,
+      taskId: r.task_id,
+      at: r.created_at,
+      title: pieceTitle(r.output ?? ""),
+      body: r.output ?? "",
+    }));
+
   const next = mine
     .filter((t) => t.status === "active" && t.next_run_at)
     .sort((a, b) => new Date(a.next_run_at!).getTime() - new Date(b.next_run_at!).getTime())[0];
 
   return (
+    <>
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Newspaper className="size-4" /> The shelf
+            {pieces.length > 0 && (
+              <span className="text-muted-foreground text-xs font-normal">
+                {pieces.length} piece{pieces.length === 1 ? "" : "s"}
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pieces.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nothing written yet.
+              {next
+                ? ` The next piece is due ${new Date(next.next_run_at!).toLocaleDateString([], {
+                    weekday: "long",
+                  })}.`
+                : ` Hit Start now on ${meta.name}'s schedule below and his first piece lands here.`}
+            </p>
+          ) : (
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {pieces.map((p) => (
+                <button
+                  key={p.runId}
+                  type="button"
+                  onClick={() => setOpen(p)}
+                  className="hover:border-primary/40 bg-muted/20 flex h-full flex-col rounded-xl border p-3.5 text-left transition"
+                >
+                  <FileText className="text-primary/70 mb-2 size-4 shrink-0" />
+                  <p className="line-clamp-3 flex-1 text-sm font-medium">{p.title}</p>
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    {titleById.get(p.taskId) ?? "Content"} ·{" "}
+                    {new Date(p.at).toLocaleDateString([], { month: "short", day: "numeric" })}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
+        <DialogContent className="flex max-h-[88vh] flex-col sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="pr-8 text-left leading-snug">{open?.title}</DialogTitle>
+          </DialogHeader>
+          {open && (
+            <>
+              <div className="min-h-0 flex-1 overflow-auto text-sm leading-relaxed">
+                <ChatMarkdown>{open.body}</ChatMarkdown>
+              </div>
+              <div className="shrink-0 border-t pt-3">
+                <RunResultActions output={open.body} title={open.title} />
+                <Link
+                  to="/agents/$agentId"
+                  params={{ agentId: open.taskId }}
+                  className="text-muted-foreground hover:text-primary mt-2 inline-block text-xs font-medium"
+                >
+                  Open the agent that wrote this
+                </Link>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/* ----------------------------------------------------------------- support */
+
+/** Which channel a support approval went out on, from its tool slug. */
+function replyChannel(slug: string): string {
+  if (slug.startsWith("GMAIL")) return "email";
+  if (slug.startsWith("FACEBOOK")) return "facebook";
+  return "";
+}
+
+/**
+ * Sam's desk is the reply queue: what he has drafted and is waiting to send,
+ * and how many he has answered this week. We do not store the inbound inbox
+ * (the agent reads it live), so this is honestly about the replies, not a
+ * fake mailbox.
+ */
+function SupportDesk({
+  meta,
+  mine,
+  runs,
+  approvals,
+}: {
+  meta: EmployeeMeta;
+  mine: Task[];
+  runs?: TaskRun[];
+  approvals?: Approval[];
+}) {
+  const { data: integrations } = useIntegrations();
+  const mineIds = new Set(mine.map((t) => t.id));
+  const mineApprovals = (approvals ?? []).filter((a) => a.task_id && mineIds.has(a.task_id));
+
+  const week = Date.now() - 7 * DAY_MS;
+  const waiting = mineApprovals.filter((a) => a.status === "pending");
+  const sent = mineApprovals.filter(
+    (a) => a.status === "executed" && new Date(a.decided_at ?? a.created_at).getTime() >= week,
+  );
+  const lastRun = (runs ?? [])
+    .filter((r) => mineIds.has(r.task_id) && r.status === "succeeded")
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+  // Which inboxes this employee's agents actually work.
+  const slugs = [
+    ...new Set(
+      mine
+        .map((t) =>
+          t.kind === "email_responder" ? "gmail" : t.kind === "facebook_dm" ? "facebook" : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+
+  return (
     <Card className="mb-5">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Newspaper className="size-4" /> The shelf
+        <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+          <span className="flex items-center gap-2">
+            <Inbox className="size-4" /> Reply desk
+          </span>
+          {slugs.length > 0 && (
+            <span className="flex items-center gap-1">
+              {slugs.map((slug) => {
+                const connected = !!integrations?.find((t) => t.slug === slug)?.connected;
+                return connected ? (
+                  <span
+                    key={slug}
+                    title={`${toolkitName(slug)} connected`}
+                    className="bg-card grid size-7 place-items-center rounded-full border shadow-xs"
+                  >
+                    <img
+                      src={toolkitLogo(slug)}
+                      alt={toolkitName(slug)}
+                      className="size-4 rounded-sm"
+                    />
+                  </span>
+                ) : (
+                  <ConnectButton key={slug} toolkit={slug} />
+                );
+              })}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {drafts.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Nothing written yet.
-            {next
-              ? ` The next piece is due ${new Date(next.next_run_at!).toLocaleDateString([], {
+        <div className="grid grid-cols-2 gap-3">
+          <Stage
+            label="Waiting to send"
+            value={waiting.length}
+            tone={waiting.length ? "amber" : undefined}
+          />
+          <Stage label="Answered · 7d" value={sent.length} tone="emerald" />
+        </div>
+
+        {waiting.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-muted-foreground text-xs font-medium">Drafted, waiting on you</p>
+            {waiting.slice(0, 5).map((a) => (
+              <Link
+                key={a.id}
+                to="/approvals"
+                className="hover:border-primary/40 bg-muted/20 flex items-center gap-3 rounded-xl border px-3.5 py-2.5 transition"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{a.title}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {replyChannel(a.tool_slug) === "email"
+                      ? "Email reply"
+                      : replyChannel(a.tool_slug) === "facebook"
+                        ? "Messenger reply"
+                        : "Reply"}{" "}
+                    ·{" "}
+                    {new Date(a.created_at).toLocaleDateString([], {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                <span className="text-primary shrink-0 text-xs font-medium">Review</span>
+              </Link>
+            ))}
+            {waiting.length > 5 && (
+              <Link
+                to="/approvals"
+                className="text-muted-foreground hover:text-foreground block py-1 text-center text-xs font-medium"
+              >
+                See all {waiting.length} waiting
+              </Link>
+            )}
+          </div>
+        ) : (
+          <p className="text-muted-foreground mt-4 text-sm">
+            Nothing waiting. {meta.name} drafts a reply the moment a real message needs one, and it
+            lands here for your OK.
+            {lastRun
+              ? ` Last swept the inbox ${new Date(lastRun.created_at).toLocaleDateString([], {
                   weekday: "long",
                 })}.`
               : ""}
           </p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {drafts.map((d) => (
-              <Link
-                key={d.id}
-                to="/agents/$agentId"
-                params={{ agentId: d.task_id ?? "" }}
-                className="hover:border-primary/40 bg-muted/20 block rounded-xl border p-3 transition"
-              >
-                <p className="line-clamp-2 text-sm font-medium">{d.title || "Untitled"}</p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {d.status === "posted" ? "Delivered" : "Waiting for your OK"} ·{" "}
-                  {new Date(d.updated_at).toLocaleDateString()}
-                </p>
-              </Link>
-            ))}
-          </div>
         )}
       </CardContent>
     </Card>
