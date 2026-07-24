@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 
 import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY, prefillChat } from "@/features/chat/Chat";
+import { toolkitLogo } from "@/features/integrations/ConnectCta";
 import { useMissingToolkits } from "@/features/integrations/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
 import { formatWhen, useRuns, useTasks, useUpdateTaskConfig } from "@/features/tasks/hooks";
@@ -74,11 +75,10 @@ export function TeamCards({ variant = "team" }: { variant?: "team" | "catalog" }
     );
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {offered.map(({ meta, mine }) => (
-          <EmployeeCard
+        {offered.map(({ meta }) => (
+          <CatalogCard
             key={meta.role}
             meta={meta}
-            mine={mine}
             recommended={mineCards.length === 0 && meta.role === pick.role}
           />
         ))}
@@ -424,6 +424,75 @@ function StatusChip({ label, tone }: { label: string; tone: "green" | "amber" | 
           ? "bg-[#eef4fd] text-[#1566e6]"
           : "bg-muted text-muted-foreground";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
+}
+
+// Toolkits without a clean hosted logo, kept off the card's logo strip.
+const NO_LOGO = new Set(["webhook"]);
+
+/**
+ * A ready-made employee as a hire card: round portrait, the tools they work
+ * through, the role, one line of what they do, and a single Hire link. Clean
+ * and uniform, no status noise or truncated agent lists.
+ */
+function CatalogCard({ meta, recommended }: { meta: EmployeeMeta; recommended?: boolean }) {
+  const soon = meta.comingSoon;
+  const logos = meta.relevantToolkits.filter((s) => !NO_LOGO.has(s)).slice(0, 4);
+
+  const inner = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <EmployeeAvatar meta={meta} className="size-12 rounded-full" />
+        <div className="flex items-center gap-1.5 pt-1">
+          {logos.map((slug) => (
+            <img
+              key={slug}
+              src={toolkitLogo(slug)}
+              alt=""
+              className="size-[18px] rounded-[5px]"
+              loading="lazy"
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 className="text-[15px] leading-none font-semibold">{meta.name}</h3>
+          {recommended ? (
+            <span className="text-primary bg-primary/10 rounded-full px-2 py-0.5 text-[11px] font-semibold">
+              Recommended
+            </span>
+          ) : soon ? (
+            <span className="text-muted-foreground bg-muted rounded-full px-2 py-0.5 text-[11px] font-medium">
+              Soon
+            </span>
+          ) : null}
+        </div>
+        <p className="text-muted-foreground mt-1.5 text-sm">{meta.title}</p>
+        <p className="text-foreground/80 mt-2.5 line-clamp-2 text-sm leading-relaxed">
+          {meta.blurb}
+        </p>
+      </div>
+
+      {!soon && (
+        <span className="text-primary mt-4 inline-flex items-center gap-1 text-sm font-semibold">
+          Hire {meta.name} <ArrowRight className="size-3.5" />
+        </span>
+      )}
+    </>
+  );
+
+  const base = "bg-card flex h-full flex-col rounded-2xl border p-5 shadow-xs transition";
+  if (soon) return <div className={`${base} opacity-70`}>{inner}</div>;
+  return (
+    <Link
+      to="/team/$role"
+      params={{ role: meta.role }}
+      className={`${base} hover:border-primary/40 hover:-translate-y-0.5`}
+    >
+      {inner}
+    </Link>
+  );
 }
 
 function EmployeeCard({
