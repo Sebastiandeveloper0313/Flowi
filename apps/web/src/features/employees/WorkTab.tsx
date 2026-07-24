@@ -24,7 +24,8 @@ import { useEffect, useState } from "react";
 import { useConfirm } from "@/components/useConfirm";
 import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
-import { ConnectBanner } from "@/features/integrations/ConnectCta";
+import { ConnectBanner, toolkitName } from "@/features/integrations/ConnectCta";
+import { useMissingToolkits } from "@/features/integrations/hooks";
 import { DraftApprovalCard } from "@/features/posts/DraftApprovalCard";
 import {
   nextFireLocal,
@@ -355,6 +356,18 @@ export function WorkTab({
   const ranTaskIds = new Set(myRuns.map((r) => r.task_id));
   const firstUnrun = active.find((t) => requiredToolkits(t).length > 0 && !ranTaskIds.has(t.id));
 
+  // What this employee's agents need connected but don't have. A run can be
+  // in flight yet do nothing (it skips the moment it sees the toolkit missing),
+  // so the presence must never narrate "drafting replies" for a blocked agent.
+  const { missing } = useMissingToolkits(neededToolkits);
+  const missingSet = new Set(missing);
+  const runningTask = runningRun ? mine.find((t) => t.id === runningRun.task_id) : undefined;
+  const runningBlockedOn = runningTask
+    ? requiredToolkits(runningTask).filter((tk) => missingSet.has(tk))
+    : [];
+  // Only treat a run as live work when its prerequisites are actually met.
+  const liveRun = runningRun && runningBlockedOn.length === 0 ? runningRun : null;
+
   function startNow(taskId: string) {
     run.mutate(taskId, { onSuccess: () => void refetchTasks() });
   }
@@ -403,43 +416,54 @@ export function WorkTab({
         </div>
       </div>
 
-      {/* Presence: is she working as we speak? */}
+      {/* Presence: is she working as we speak? A run that's blocked on a
+          missing connection is NOT working, so it shows as waiting, never as
+          "drafting replies". */}
       <Card className="mb-5">
         <CardContent className="flex flex-wrap items-center gap-4 p-5">
           <span className="relative flex size-3 shrink-0">
-            {runningRun && (
+            {liveRun && (
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
             )}
             <span
               className={`relative inline-flex size-3 rounded-full ${
-                runningRun
+                liveRun
                   ? "bg-emerald-500"
-                  : active.length > 0
-                    ? "bg-[#1566e6]"
-                    : "bg-muted-foreground/40"
+                  : runningBlockedOn.length > 0
+                    ? "bg-amber-500"
+                    : active.length > 0
+                      ? "bg-[#1566e6]"
+                      : "bg-muted-foreground/40"
               }`}
             />
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-semibold">
-              {runningRun
+              {liveRun
                 ? `${meta.name} is working right now`
-                : active.length > 0
-                  ? `${meta.name} is on duty`
-                  : mine.length === 0
-                    ? `${meta.name} is ready`
-                    : `${meta.name} is paused`}
+                : runningBlockedOn.length > 0
+                  ? `${meta.name} can't run yet`
+                  : active.length > 0
+                    ? `${meta.name} is on duty`
+                    : mine.length === 0
+                      ? `${meta.name} is ready`
+                      : `${meta.name} is paused`}
             </p>
-            {runningRun ? (
+            {liveRun ? (
               <p className="text-muted-foreground text-sm">
                 <span className="text-foreground font-medium">
-                  {titleById.get(runningRun.task_id) ?? "A skill"}
+                  {titleById.get(liveRun.task_id) ?? "A skill"}
                 </span>
                 {" · "}
                 <RunningStage
-                  kind={mine.find((t) => t.id === runningRun.task_id)?.kind ?? ""}
-                  runId={runningRun.id}
+                  kind={mine.find((t) => t.id === liveRun.task_id)?.kind ?? ""}
+                  runId={liveRun.id}
                 />
+              </p>
+            ) : runningBlockedOn.length > 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Connect {runningBlockedOn.map(toolkitName).join(" and ")} below and {meta.name}{" "}
+                starts working. Nothing runs until it's connected.
               </p>
             ) : (
               <p className="text-muted-foreground text-sm">
