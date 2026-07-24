@@ -44,11 +44,11 @@ export function MorningBrief() {
     // First run: one question, plus the honest alternative right under it, so
     // nobody stares at an empty box wondering if typing is the only way in.
     return (
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <div className="mb-9 text-center">
+        <h2 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-[3.1rem]">
           What should Sentrive take care of?
         </h2>
-        <p className="text-muted-foreground mt-2 text-[15px]">
+        <p className="text-muted-foreground mx-auto mt-3.5 max-w-md text-[15px] leading-relaxed">
           Describe any recurring job and it gets built, or hire a ready-made employee below.
         </p>
       </div>
@@ -94,12 +94,12 @@ export function MorningBrief() {
     );
 
   return (
-    <div className="mb-8 text-center">
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+    <div className="mb-9 text-center">
+      <h2 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.03em] sm:text-[3.1rem]">
         {greeting}
         {name ? `, ${name}` : ""}.
       </h2>
-      <p className="text-muted-foreground mt-2.5 text-[15px]">
+      <p className="text-muted-foreground mt-3.5 text-[15px] leading-relaxed">
         {bits.length > 0 ? (
           <>
             While you were away:{" "}

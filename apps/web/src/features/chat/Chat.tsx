@@ -901,7 +901,7 @@ export function Chat({
     : null;
 
   const composer = (
-    <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[1.7rem] border p-4 shadow-xs transition focus-within:ring-4">
+    <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[18px] border p-4 shadow-sm transition focus-within:ring-4">
       <input
         ref={fileInputRef}
         type="file"
