@@ -30,14 +30,20 @@ function ChatPage() {
         <Chat chatId={c} />
       </div>
       {!inConversation && (
-        <section className="mx-auto w-full max-w-3xl pb-20">
-          <WelcomeTour />
-          {/* The workplace: everything every agent did, and everything that
-              needs you, right under the composer. TeamSection only shows for
-              a workspace with nothing running yet (the start-here catalog). */}
-          <Workplace />
-          <TeamSection />
-        </section>
+        <>
+          {/* The workplace stays in the reading-width column under the composer:
+              everything every agent did, and everything that needs you. */}
+          <section className="mx-auto w-full max-w-3xl pb-4">
+            <WelcomeTour />
+            <Workplace />
+          </section>
+          {/* The starter team gets its own wider container so the hire cards
+              have room to breathe, instead of being squeezed into the chat
+              column. Only shows for a workspace with nothing running yet. */}
+          <section className="mx-auto w-full max-w-6xl pb-20">
+            <TeamSection />
+          </section>
+        </>
       )}
     </div>
   );
