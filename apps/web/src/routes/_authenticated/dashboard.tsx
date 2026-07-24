@@ -57,8 +57,9 @@ function TeamSection() {
           </h2>
           {!hasStaff && (
             <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-              Type what you need in the box above and Sentrive builds the agent for you, or hire an
-              employee below: they arrive with agents ready to run and manage them for you.
+              Not sure? Hire Maya. She finds people on Reddit already asking for what you sell and
+              drafts replies for you to approve, which is how most people get their first customer
+              here. Anything else: just type it in the box above.
             </p>
           )}
         </div>

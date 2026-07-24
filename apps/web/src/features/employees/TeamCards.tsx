@@ -62,25 +62,36 @@ export function TeamCards() {
   // team that only wants its own agents never has ours in their roster.
   const active = cards.filter((c) => c.mine.length > 0 || c.meta.custom);
   const catalog = cards.filter((c) => !(c.mine.length > 0 || c.meta.custom));
+  const empty = active.length === 0;
+
+  // Nothing running yet: show only what can actually be hired today, and skip
+  // the "new employee" door (you don't need a manager before you have agents).
+  const offered = empty ? catalog.filter((c) => !c.meta.comingSoon) : catalog;
 
   return (
     <div className="space-y-10">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {active.map(({ meta, mine }) => (
-          <EmployeeCard key={meta.role} meta={meta} mine={mine} />
-        ))}
-        <NewAgentCard />
-      </div>
+      {!empty && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {active.map(({ meta, mine }) => (
+            <EmployeeCard key={meta.role} meta={meta} mine={mine} />
+          ))}
+          <NewAgentCard />
+        </div>
+      )}
 
-      {catalog.length > 0 && (
+      {offered.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold">Ready-made employees</h3>
-          <p className="text-muted-foreground mb-4 text-sm">
-            Pre-briefed on your business. Hire one and they start today, or ignore them and build
-            your own.
-          </p>
+          {!empty && (
+            <>
+              <h3 className="text-sm font-semibold">Ready-made employees</h3>
+              <p className="text-muted-foreground mb-4 text-sm">
+                Pre-briefed on your business. Hire one and they start today, or ignore them and
+                build your own.
+              </p>
+            </>
+          )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {catalog.map(({ meta, mine }) => (
+            {offered.map(({ meta, mine }) => (
               <EmployeeCard key={meta.role} meta={meta} mine={mine} />
             ))}
           </div>
@@ -431,7 +442,8 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
 
       <div className="flex min-h-8 items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-muted-foreground truncate text-sm">{metaLine}</p>
+          {/* Never cut the "what you actually get" line mid-word. */}
+          <p className="text-muted-foreground line-clamp-2 text-sm">{metaLine}</p>
           {hired && waiting > 0 && (
             <p className="text-primary mt-0.5 text-sm font-medium">{waiting} waiting for your OK</p>
           )}
