@@ -9,9 +9,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { Activity, CalendarClock, CheckCheck, Loader2, Pause, Play, Plus } from "lucide-react";
+import {
+  Activity,
+  CalendarClock,
+  CheckCheck,
+  Loader2,
+  Pause,
+  Play,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useConfirm } from "@/components/useConfirm";
 import { useApprovals } from "@/features/approvals/hooks";
 import { DESK_DRAFT_KEY } from "@/features/chat/Chat";
 import { ConnectBanner } from "@/features/integrations/ConnectCta";
@@ -20,6 +30,7 @@ import {
   nextFireLocal,
   SCHEDULES,
   scheduleLabel,
+  useDeleteTask,
   useRunTask,
   useSetTaskStatus,
   useTasks,
@@ -577,6 +588,7 @@ export function WorkTab({
                   <ShiftRow
                     key={t.id}
                     task={t}
+                    meta={meta}
                     isRunning={runningIds.has(t.id) || (run.isPending && run.variables === t.id)}
                     onStartNow={() => startNow(t.id)}
                   />
@@ -636,18 +648,32 @@ export function WorkTab({
  */
 function ShiftRow({
   task: t,
+  meta,
   isRunning,
   onStartNow,
 }: {
   task: Task;
+  meta: EmployeeMeta;
   isRunning: boolean;
   onStartNow: () => void;
 }) {
   const setStatus = useSetTaskStatus();
   const setSchedule = useUpdateTaskSchedule();
+  const remove = useDeleteTask();
   const pacing = useUpdateAutoPostPacing();
+  const { confirm, dialog } = useConfirm();
   const { data: ws } = useWorkspace();
   const paused = t.status === "paused";
+
+  async function onRemove() {
+    const ok = await confirm({
+      title: "Remove this agent?",
+      description: `${meta.name} will stop doing “${t.title}”, and its history goes with it. This can't be undone.`,
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (ok) remove.mutate(t.id);
+  }
 
   const cron = t.schedule_cron ?? "once";
   // The current schedule always renders in the user's own clock (derived from
@@ -766,17 +792,28 @@ function ShiftRow({
           Full settings
         </Link>
 
-        {!paused && (
+        <div className="ml-auto flex items-center gap-3">
+          {!paused && (
+            <button
+              type="button"
+              disabled={setStatus.isPending}
+              onClick={() => setStatus.mutate({ id: t.id, status: "paused" })}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium"
+            >
+              <Pause className="size-3" /> Pause
+            </button>
+          )}
           <button
             type="button"
-            disabled={setStatus.isPending}
-            onClick={() => setStatus.mutate({ id: t.id, status: "paused" })}
-            className="text-muted-foreground hover:text-foreground ml-auto inline-flex items-center gap-1 text-xs font-medium"
+            disabled={remove.isPending}
+            onClick={onRemove}
+            className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1 text-xs font-medium"
           >
-            <Pause className="size-3" /> Pause
+            <Trash2 className="size-3" /> Remove
           </button>
-        )}
+        </div>
       </div>
+      {dialog}
     </div>
   );
 }
