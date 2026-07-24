@@ -55,7 +55,7 @@ function LibraryPage() {
         <p className="text-muted-foreground mb-4 text-sm">
           Each one manages a group of agents for you and reports what got done.
         </p>
-        <TeamCards />
+        <TeamCards variant="catalog" />
       </section>
 
       <h2 className="mb-1 text-lg font-bold tracking-tight">Single agents</h2>

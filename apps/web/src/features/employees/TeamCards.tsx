@@ -48,7 +48,7 @@ import {
  * offer. A working agent reads like a person at work (status, last worked,
  * what's waiting); catalog cards are pre-briefed hires one click away.
  */
-export function TeamCards() {
+export function TeamCards({ variant = "team" }: { variant?: "team" | "catalog" }) {
   const { data: tasks } = useTasks();
   const { data: customs } = useCustomAgents();
   const { data: ws } = useWorkspace();
@@ -60,58 +60,70 @@ export function TeamCards() {
     mine: tasksOfRole(tasks ?? [], meta.role, customIds),
   }));
 
-  // YOUR agents: anything actually working for you (plus your own creations).
-  // The unhired ready-mades are a catalog below, offered, never imposed: a
-  // team that only wants its own agents never has ours in their roster.
-  const active = cards.filter((c) => c.mine.length > 0 || c.meta.custom);
+  // Two disjoint sets, and only one is ever shown: who works for you (Team)
+  // vs who you could hire (Library). No page is both.
+  const mineCards = cards.filter((c) => c.mine.length > 0 || c.meta.custom);
   const catalog = cards.filter((c) => !(c.mine.length > 0 || c.meta.custom));
-  const empty = active.length === 0;
-
-  // Nothing running yet: show only what can actually be hired today, skip the
-  // "new employee" door (no manager needed before there are agents), and lead
-  // with the one we actually recommend for this business.
   const pick = recommendEmployee(ws ?? {});
-  const offered = empty
-    ? catalog
-        .filter((c) => !c.meta.comingSoon)
-        .sort((a, b) => Number(b.meta.role === pick.role) - Number(a.meta.role === pick.role))
-    : catalog;
+
+  if (variant === "catalog") {
+    const offered = [...catalog].sort(
+      (a, b) =>
+        Number(a.meta.comingSoon) - Number(b.meta.comingSoon) ||
+        Number(b.meta.role === pick.role) - Number(a.meta.role === pick.role),
+    );
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {offered.map(({ meta, mine }) => (
+          <EmployeeCard
+            key={meta.role}
+            meta={meta}
+            mine={mine}
+            recommended={mineCards.length === 0 && meta.role === pick.role}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (mineCards.length === 0) {
+    return (
+      <div className="bg-card rounded-2xl border p-8 text-center shadow-xs">
+        <p className="font-semibold">No employees yet</p>
+        <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
+          Hire a ready-made one from the library, or build your own and put them in charge of the
+          agents you already have.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <Button asChild>
+            <Link to="/library">Browse the library</Link>
+          </Button>
+          <NewEmployeeButton />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-10">
-      {!empty && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {active.map(({ meta, mine }) => (
-            <EmployeeCard key={meta.role} meta={meta} mine={mine} />
-          ))}
-          <NewAgentCard />
-        </div>
-      )}
-
-      {offered.length > 0 && (
-        <div>
-          {!empty && (
-            <>
-              <h3 className="text-sm font-semibold">Ready-made employees</h3>
-              <p className="text-muted-foreground mb-4 text-sm">
-                Pre-briefed on your business. Hire one and they start today, or ignore them and
-                build your own.
-              </p>
-            </>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {offered.map(({ meta, mine }) => (
-              <EmployeeCard
-                key={meta.role}
-                meta={meta}
-                mine={mine}
-                recommended={empty && meta.role === pick.role}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {mineCards.map(({ meta, mine }) => (
+        <EmployeeCard key={meta.role} meta={meta} mine={mine} />
+      ))}
+      <NewAgentCard />
     </div>
+  );
+}
+
+/** The create-your-own door as a plain button, for empty states. */
+function NewEmployeeButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Plus className="size-4" /> New employee
+      </Button>
+      {open && <NewEmployeeDialog open={open} onOpenChange={setOpen} />}
+    </>
   );
 }
 

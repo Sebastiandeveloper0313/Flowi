@@ -24,11 +24,11 @@ function TeamPage() {
   return (
     <div className="flowy-page">
       <PageHeader
-        title={hasTeam ? "Your team" : "Hire your first employee"}
+        title="Your team"
         subtitle={
           hasTeam
             ? "An employee manages a group of your agents: one chat, one report, one place to check instead of opening each agent."
-            : "Nobody works for you yet. An employee manages a group of agents, reports what got done, and answers for it in chat, so you check one desk instead of every agent."
+            : "Employees you hire show up here. Each one manages a group of agents and reports what got done."
         }
       />
       <TeamCards />

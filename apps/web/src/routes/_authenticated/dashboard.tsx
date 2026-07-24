@@ -57,8 +57,8 @@ function TeamSection() {
     <section id="your-team">
       <header className="mb-5 flex items-end justify-between">
         <div>
-          {/* Nothing running yet: name the two ways to start, in order, so a
-              brand-new user always has one obvious next click. */}
+          {/* Nothing running yet: the dashboard shows what the library offers,
+              led by the hire we'd actually recommend for this business. */}
           <h2 className="text-2xl font-bold tracking-tight">
             {hasStaff ? "Your team" : "Start here"}
           </h2>
@@ -69,11 +69,14 @@ function TeamSection() {
             </p>
           )}
         </div>
-        <Link to="/team" className="text-primary text-sm font-medium hover:underline">
-          See all
+        <Link
+          to={hasStaff ? "/team" : "/library"}
+          className="text-primary text-sm font-medium hover:underline"
+        >
+          {hasStaff ? "See all" : "Browse the library"}
         </Link>
       </header>
-      <TeamCards />
+      <TeamCards variant={hasStaff ? "team" : "catalog"} />
     </section>
   );
 }
