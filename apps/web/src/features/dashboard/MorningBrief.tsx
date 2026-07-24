@@ -47,7 +47,7 @@ export function MorningBrief() {
     return (
       <div className="mb-9 text-center">
         <IntegrationsPill />
-        <h2 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-[3.1rem]">
+        <h2 className="text-[clamp(1.15rem,4.6vw,3.05rem)] leading-[1.05] font-semibold tracking-[-0.03em] whitespace-nowrap">
           What should Sentrive take care of?
         </h2>
         <p className="text-muted-foreground mx-auto mt-3.5 max-w-md text-[15px] leading-relaxed">
@@ -98,7 +98,7 @@ export function MorningBrief() {
   return (
     <div className="mb-9 text-center">
       <IntegrationsPill />
-      <h2 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.03em] sm:text-[3.1rem]">
+      <h2 className="text-[clamp(1.15rem,4.6vw,3.05rem)] leading-[1.05] font-semibold tracking-[-0.03em] whitespace-nowrap">
         What do you want done today?
       </h2>
       <p className="text-muted-foreground mt-3.5 text-[15px] leading-relaxed">
