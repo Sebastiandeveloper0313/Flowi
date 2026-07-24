@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { ArrowLeft, ArrowRight, CalendarClock, Check, ChevronDown, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { toolkitLogo, toolkitName } from "@/features/integrations/ConnectCta";
 import { useConnectIntegration, useIntegrations } from "@/features/integrations/hooks";
@@ -328,6 +328,13 @@ function QuestionStep({
   onBack?: () => void;
   onNext: () => void;
 }) {
+  // Focus the answer box on each new question so the interview types straight
+  // through, without autoFocus stealing focus on first paint.
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    boxRef.current?.focus();
+  }, [q.key]);
+
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
       <p className="text-primary text-sm font-semibold">{meta.name} asks</p>
@@ -356,6 +363,7 @@ function QuestionStep({
       )}
 
       <Textarea
+        ref={boxRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -365,7 +373,6 @@ function QuestionStep({
           }
         }}
         rows={5}
-        autoFocus
         placeholder={q.placeholder}
         className="focus-visible:ring-primary/25 focus-visible:border-primary/40 mt-5 min-h-36 resize-none rounded-2xl border p-5 text-[15px] leading-relaxed shadow-xs focus-visible:ring-4"
       />

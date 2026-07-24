@@ -33,6 +33,7 @@ import { buildWorkItems, LeadReplyCard, WorkItemRow } from "./Deliverables";
 import { EmployeeAvatar } from "./EmployeeAvatar";
 import { employeeDeliverablesQueryOptions } from "./queries";
 import { kindLine, type EmployeeMeta } from "./roles";
+import { RoleWorkspace } from "./RoleWorkspace";
 import { SkillLibraryDialog } from "./SkillLibrary";
 import { InboxApprovalRow, StatChip } from "./ui";
 
@@ -475,6 +476,10 @@ export function WorkTab({
       <div className="mb-4 empty:hidden">
         <ConnectBanner toolkits={neededToolkits} autoRunTaskId={firstUnrun?.id} />
       </div>
+
+      {/* The trade's own workspace: a calendar for social, a pipeline for
+          growth, a shelf for content. Filled by their agents, not by hand. */}
+      <RoleWorkspace meta={meta} mine={mine} deliverables={deliverables} />
 
       {/* One column, the boss's questions in order: what needs me, the
           schedule (with its dials, and where new skills get taught), then the
