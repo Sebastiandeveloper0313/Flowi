@@ -61,6 +61,7 @@ import {
   useUpdateTaskConfig,
   useUpdateTaskSchedule,
 } from "@/features/tasks/hooks";
+import { ImproveCard } from "@/features/tasks/ImproveCard";
 import { uploadAgentMedia } from "@/features/tasks/mutations";
 import { PostMediaEditor } from "@/features/tasks/PostMediaEditor";
 import type { Task, TaskRun } from "@/features/tasks/queries";
@@ -346,6 +347,8 @@ function AgentDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          <ImproveCard agentId={agent.id} agentName={agent.title} />
 
           {isReddit && <WatchingCard agent={agent} />}
           {isRedditPost && <SubredditsCard agent={agent} />}

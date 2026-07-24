@@ -9,11 +9,13 @@ const DAILY_LIMITS: Record<string, Record<string, number>> = {
     chat: 30,
     analyze_website: 5,
     suggest_agents: 5,
+    improve_agent: 10,
   },
   pro: {
     chat: 300,
     analyze_website: 20,
     suggest_agents: 20,
+    improve_agent: 60,
   },
 };
 
