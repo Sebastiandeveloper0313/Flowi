@@ -49,7 +49,7 @@ function ActivityPage() {
           )}
         </div>
       ) : (
-        <div className="bg-card/95 overflow-hidden rounded-2xl border shadow-[0_24px_50px_-44px_rgba(16,48,120,0.4)]">
+        <div className="bg-card/95 overflow-hidden rounded-2xl border shadow-xs">
           {runs.map((run, i) => (
             <ActivityRow
               key={run.id}

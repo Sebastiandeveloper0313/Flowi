@@ -6,6 +6,9 @@ import { CalendarClock, Check, ChevronDown, Loader2, Plug } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader } from "@/features/dashboard/ui";
+import { useCustomAgents } from "@/features/employees/customAgents";
+import { employeeMeta, roleOfTask, type EmployeeRole } from "@/features/employees/roles";
+import { TeamCards } from "@/features/employees/TeamCards";
 import { toolkitName } from "@/features/integrations/ConnectCta";
 import { AgentCreatedJourney } from "@/features/tasks/AgentCreatedJourney";
 import { useTasks } from "@/features/tasks/hooks";
@@ -43,9 +46,24 @@ function LibraryPage() {
   return (
     <div className="flowy-page">
       <PageHeader
-        title="Agent Library"
-        subtitle={`Ready-made marketing agents for ${company}. Add any with one click, you approve everything before it ships.`}
+        title="Library"
+        subtitle={`Everything ready to run for ${company}: hire an employee to manage a whole area, or add single agents. You approve everything before it ships.`}
       />
+
+      {/* Employees first: hiring one brings its agents with it, so it's the
+          bigger, faster choice; single agents are the a la carte option. */}
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-bold tracking-tight">Ready-made employees</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Each one manages a group of agents for you and reports what got done.
+        </p>
+        <TeamCards variant="catalog" />
+      </section>
+
+      <h2 className="mb-1 text-lg font-bold tracking-tight">Single agents</h2>
+      <p className="text-muted-foreground mb-4 text-sm">
+        One job each, on a schedule. Add any on its own, or hand it to an employee later.
+      </p>
 
       <div className="flex flex-col gap-8">
         {TEMPLATE_CATEGORIES.map((category) => {
@@ -131,10 +149,17 @@ function TemplateCard({
   const Icon = t.icon;
   const needs = requiredToolkits({ kind: t.kind });
 
+  // Everything belongs to someone: an added agent goes to the employee whose
+  // trade it is, and the button says whose stack it joins.
+  const { data: customs } = useCustomAgents();
+  const owner = roleOfTask({ kind: t.kind, config: { proposal_id: t.id } });
+  const ownerRow = (customs ?? []).find((c) => c.id === owner);
+  const ownerName = ownerRow?.name ?? employeeMeta(owner as EmployeeRole).name;
+
   const create = useMutation({
     mutationFn: () => {
       if (!teamId) throw new Error("No workspace selected.");
-      return createAgentFromProposal(teamId, templateToProposal(t));
+      return createAgentFromProposal(teamId, { ...templateToProposal(t), role: owner });
     },
     onSuccess: (agent) => {
       setCreatedId(agent.id);
@@ -143,7 +168,7 @@ function TemplateCard({
   });
 
   return (
-    <Card className="hover:border-primary/40 flex flex-col shadow-[0_24px_50px_-46px_rgba(16,48,120,0.45)] transition-colors">
+    <Card className="hover:border-primary/40 flex flex-col shadow-xs transition-colors">
       <CardContent className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-center gap-2.5">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white shadow-sm shadow-[#1566e6]/25">
@@ -192,7 +217,7 @@ function TemplateCard({
                 onClick={() => create.mutate()}
               >
                 {create.isPending && <Loader2 className="size-4 animate-spin" />}
-                Add to my agents
+                Give to {ownerName}
               </Button>
               {create.isError && (
                 <p className="text-destructive mt-1.5 text-xs">

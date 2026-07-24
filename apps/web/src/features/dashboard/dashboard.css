@@ -5,89 +5,166 @@
   display: flex;
   min-height: 100vh;
   isolation: isolate;
-  background: #f3f6fb;
-  color: #160f24;
-  font-family: "Inter", system-ui, sans-serif;
+  background: #f6f7f9;
+  color: #14171f;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 
-  /* scoped shadcn token overrides */
-  --primary: #3d82f5;
+  /* Neutral chrome, one accent. The premium look is a quiet grayscale system
+     where a single blue is spent sparingly (primary action, active nav), not
+     smeared across every border and fill. */
+  --primary: #2f6df0;
   --primary-foreground: #ffffff;
-  --ring: #4286f5;
-  --radius: 1rem;
-  --secondary: #e9f1fd;
-  --secondary-foreground: #1f3a66;
-  --muted: #eef4fd;
-  --muted-foreground: #5b6b86;
-  --accent: #e9f1fd;
-  --accent-foreground: #1f3a66;
-  --border: rgba(30, 60, 110, 0.1);
-  --input: rgba(30, 60, 110, 0.14);
+  --ring: #2f6df0;
+  --radius: 0.875rem;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #1f2430;
+  --muted: #f4f5f7;
+  --muted-foreground: #6b7280;
+  --accent: #f3f4f6;
+  --accent-foreground: #1f2430;
+  /* Hairline borders in near-neutral ink: the line that makes a card read as
+     crisp instead of floating. */
+  --border: rgba(17, 24, 39, 0.08);
+  --input: rgba(17, 24, 39, 0.12);
 }
 
+/* The canvas: flat, calm, blue-tinted, one faint glow. No texture: a quiet
+   floor is what lets card shadows and white surfaces read as premium. */
 .flowy-app-sky {
   position: fixed;
   inset: 0;
   z-index: 0;
-}
-.flowy-app-sky svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+  background:
+    radial-gradient(900px 380px at 50% -160px, rgba(90, 155, 255, 0.12), transparent 70%),
+    linear-gradient(180deg, #ecf3fb 0%, #f4f7fc 45%, #f7f9fd 100%);
 }
 .flowy-app > :not(.flowy-app-sky):not(.flowy-sidebar) {
   position: relative;
   z-index: 1;
 }
 
+/* One clean grotesque everywhere. Headings earn their weight from size and
+   tight tracking, not a separate display face, which is what reads as premium
+   rather than decorative. */
 .flowy-app h1,
 .flowy-app h2,
 .flowy-app h3,
-.flowy-app [data-slot="card-title"] {
-  font-family: "Gabarito", system-ui, sans-serif;
-  letter-spacing: -0.02em;
+.flowy-app [data-slot="card-title"],
+.flowy-app [data-slot="dialog-title"] {
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  font-weight: 640;
+  letter-spacing: -0.021em;
+  color: #14171f;
 }
 
-/* premium light cards */
-.flowy-app [data-slot="card"] {
-  border-radius: 1.1rem;
-  border: 1px solid rgba(30, 60, 110, 0.08);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 30px 60px -44px rgba(16, 48, 120, 0.4);
+/* Premium type scale: page chrome quiets down (heroes on the chat landing
+   are outside .flowy-page and keep their size). */
+.flowy-page h1 {
+  font-size: 1.375rem;
 }
+.flowy-app [data-slot="card-title"] {
+  font-size: 0.95rem;
+  font-weight: 620;
+}
+
+/* Crisp light cards: a real hairline border carries the edge, and the shadow
+   is barely there. Flat and sharp, not floating and glassy. */
+.flowy-app [data-slot="card"] {
+  border-radius: 16px;
+  border: 1px solid rgba(17, 24, 39, 0.09);
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.05),
+    0 6px 20px -14px rgba(17, 24, 39, 0.14);
+}
+/* every ad-hoc card surface (team cards, rows) gets the same treatment */
+.flowy-app .bg-card {
+  background-color: #ffffff;
+}
+/* A whisper of lift for small raised controls; still tight, never a cloud. */
+.flowy-app .shadow-xs {
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.05),
+    0 4px 12px -10px rgba(17, 24, 39, 0.12);
+}
+.flowy-app .shadow-sm {
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.05),
+    0 6px 16px -12px rgba(17, 24, 39, 0.14);
+}
+/* The one place blue is spent: a flat, confident solid, not a shiny gradient. */
 .flowy-app [data-slot="button"].bg-primary {
-  background-image: linear-gradient(180deg, #5a9bff, #3d82f5);
+  background-image: none;
+  background-color: var(--primary);
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.1);
+}
+.flowy-app [data-slot="button"].bg-primary:hover {
+  background-color: #2860db;
+}
+/* controls sit on white with a crisp hairline, no gray fills, no glow */
+.flowy-app [data-slot="input"],
+.flowy-app [data-slot="textarea"],
+.flowy-app [data-slot="select-trigger"] {
+  background-color: #ffffff;
+  border-color: var(--input);
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
 }
 
 /* portal'd dialog */
 [data-slot="dialog-content"] {
-  --primary: #3d82f5;
+  --primary: #2f6df0;
   --primary-foreground: #ffffff;
-  --ring: #4286f5;
-  --radius: 1rem;
-  border-radius: 1.25rem;
-  font-family: "Inter", system-ui, sans-serif;
+  --ring: #2f6df0;
+  --radius: 0.875rem;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.04),
+    0 24px 56px -28px rgba(17, 24, 39, 0.24);
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+}
+
+/* portal'd menus and pickers: crisp hairline, restrained depth */
+[data-slot="select-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="popover-content"] {
+  border-color: rgba(17, 24, 39, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.04),
+    0 12px 32px -16px rgba(17, 24, 39, 0.22);
 }
 [data-slot="dialog-content"] [data-slot="dialog-title"] {
-  font-family: "Gabarito", system-ui, sans-serif;
-  letter-spacing: -0.02em;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  font-weight: 640;
+  letter-spacing: -0.021em;
 }
 
 /* ---------------- sidebar ---------------- */
+/* A floating panel: detached from the window edges with a margin, a full
+   hairline border, rounded corners and a soft lift, so it reads as its own
+   surface sitting on the background rather than a wall stuck to the edge. */
 .flowy-sidebar {
   position: sticky;
-  top: 0;
+  top: 10px;
   z-index: 2;
   align-self: flex-start;
-  height: 100vh;
-  width: 256px;
+  height: calc(100vh - 20px);
+  width: 252px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.74);
-  backdrop-filter: blur(18px) saturate(140%);
-  border-right: 1px solid rgba(30, 60, 110, 0.08);
+  margin: 10px 4px 10px 10px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.04),
+    0 12px 32px -20px rgba(17, 24, 39, 0.2);
   padding: 0.85rem 0.7rem;
 }
 .flowy-top {
@@ -121,15 +198,15 @@
     color 0.15s;
 }
 .flowy-collapse:hover {
-  background: rgba(30, 60, 110, 0.06);
+  background: rgba(17, 24, 39, 0.05);
   color: #160f24;
 }
 .flowy-brand .wm {
-  font-family: "Gabarito", system-ui, sans-serif;
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: -0.04em;
-  color: #160f24;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  font-weight: 720;
+  font-size: 1.24rem;
+  letter-spacing: -0.03em;
+  color: #14171f;
 }
 .flowy-ws {
   padding: 0 0.2rem 0.7rem;
@@ -141,21 +218,22 @@
   gap: 0.4rem;
   width: 100%;
   padding: 0.5rem 0.7rem;
-  border: 1px solid rgba(30, 60, 110, 0.1);
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.55);
-  color: #160f24;
-  font-family: "Gabarito", system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.92rem;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #14171f;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  font-weight: 560;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
 .flowy-ws-switch:hover {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(61, 130, 245, 0.35);
+  background: #fafafb;
+  border-color: rgba(17, 24, 39, 0.18);
 }
 .flowy-nav {
   display: flex;
@@ -166,23 +244,26 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.55rem 0.65rem;
-  border-radius: 0.7rem;
-  color: #3a4358;
+  padding: 0.5rem 0.65rem;
+  border-radius: 9px;
+  color: #4b5262;
   font-weight: 500;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+  letter-spacing: -0.006em;
   text-decoration: none;
   transition:
     background 0.15s,
     color 0.15s;
 }
 .flowy-nav a:hover {
-  background: rgba(30, 60, 110, 0.06);
-  color: #160f24;
+  background: rgba(17, 24, 39, 0.05);
+  color: #14171f;
 }
+/* Active nav is a quiet neutral fill with ink text, not a blue wash: the
+   accent stays reserved for actions. */
 .flowy-nav a.active {
-  background: rgba(66, 134, 245, 0.13);
-  color: #1f5fd6;
+  background: rgba(17, 24, 39, 0.06);
+  color: #14171f;
   font-weight: 600;
 }
 .flowy-nav .nav-ico {
@@ -229,12 +310,12 @@
   text-overflow: ellipsis;
 }
 .flowy-recent-item:hover {
-  background: rgba(30, 60, 110, 0.06);
+  background: rgba(17, 24, 39, 0.05);
   color: #160f24;
 }
 .flowy-recent-item.active {
-  background: rgba(66, 134, 245, 0.12);
-  color: #1f5fd6;
+  background: rgba(17, 24, 39, 0.06);
+  color: #14171f;
   font-weight: 600;
 }
 .flowy-recent-empty {
@@ -276,14 +357,14 @@
 }
 .flowy-recent-menu:hover,
 .flowy-recent-menu[data-state="open"] {
-  background: rgba(30, 60, 110, 0.1);
+  background: rgba(17, 24, 39, 0.09);
   color: #160f24;
 }
 .flowy-recent-edit {
   width: 100%;
   padding: 0.42rem 0.6rem;
   border-radius: 0.6rem;
-  border: 1px solid rgba(66, 134, 245, 0.55);
+  border: 1px solid rgba(47, 109, 240, 0.5);
   background: #fff;
   font-size: 0.86rem;
   color: #160f24;
@@ -293,7 +374,7 @@
 .flowy-side-foot {
   margin-top: auto;
   padding-top: 0.6rem;
-  border-top: 1px solid rgba(30, 60, 110, 0.08);
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
 }
 .flowy-user {
   display: flex;
@@ -324,7 +405,7 @@
   text-decoration: none;
 }
 .flowy-signout:hover {
-  background: rgba(30, 60, 110, 0.06);
+  background: rgba(17, 24, 39, 0.05);
   color: #160f24;
 }
 
@@ -387,7 +468,7 @@
   padding: 2rem 1rem;
 }
 .flowy-wordmark {
-  font-family: "Gabarito", system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   font-weight: 800;
   font-size: 1.5rem;
   letter-spacing: -0.04em;

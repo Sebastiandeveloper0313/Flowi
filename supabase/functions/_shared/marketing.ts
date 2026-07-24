@@ -14,7 +14,31 @@ export interface WorkspaceContext {
   reply_samples?: Array<{ before?: string; after?: string; kind?: string; at?: string }> | null;
   auto_post_per_day?: number | null;
   auto_post_gap_minutes?: number | null;
+  /** Documents the user uploaded to the Brain, newest first. */
+  documents?: Array<{ name: string; content: string; role?: string | null }> | null;
 }
+
+// Prompt budget for uploaded documents: per-doc and total caps keep a big
+// paste from crowding out the task itself.
+const DOC_CHAR_CAP = 4000;
+const DOCS_TOTAL_CAP = 12000;
+
+// Which employee a task kind belongs to; mirrors the app's roleOfTask so a
+// doc pinned to one employee only reaches that employee's runs. Chat passes
+// no kind and sees everything (the manager reads all the docs).
+const KIND_ROLE: Record<string, string> = {
+  reddit_monitor: "growth",
+  reddit_post: "social",
+  linkedin_post: "social",
+  facebook_post: "social",
+  tiktok_slideshow: "social",
+  // SEO/content folded into the growth marketer (Alex the content writer was retired).
+  seo_blog: "growth",
+  content: "growth",
+  email_responder: "support",
+  facebook_dm: "support",
+  ops_brief: "ops",
+};
 
 /** How much Sentrive may do on its own. 'ask' is the safe default. */
 export function autonomyMode(ws: WorkspaceContext | null): "ask" | "auto" {
@@ -31,6 +55,24 @@ export function taskAutonomy(
 ): "ask" | "auto" {
   if (task.autonomy_mode === "auto" || task.autonomy_mode === "ask") return task.autonomy_mode;
   return autonomyMode(ws);
+}
+
+/**
+ * Is this agent on Ask first right now? Read live from the database, because an
+ * auto-queued post fires minutes or hours after it was queued and the user may
+ * have flipped the switch in between. Anything unreadable counts as Ask: the
+ * safe side of a call that posts in public under the user's name.
+ */
+export async function isAskFirst(admin: any, taskId: string, teamId: string): Promise<boolean> {
+  const read = async (table: string, id: string) => {
+    const { data } = await admin.from(table).select("autonomy_mode").eq("id", id).maybeSingle();
+    return (data as { autonomy_mode?: string | null } | null)?.autonomy_mode ?? null;
+  };
+  const own = await read("tasks", taskId).catch(() => null);
+  if (own === "auto") return false;
+  if (own === "ask") return true;
+  const team = await read("teams", teamId).catch(() => null);
+  return team !== "auto";
 }
 
 /**
@@ -65,14 +107,23 @@ export async function fetchWorkspaceContext(
   client: any,
   teamId: string,
 ): Promise<WorkspaceContext | null> {
-  const { data } = await client
-    .from("teams")
-    .select(
-      "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples, auto_post_per_day, auto_post_gap_minutes",
-    )
-    .eq("id", teamId)
-    .maybeSingle();
-  return data ?? null;
+  const [{ data }, { data: docs }] = await Promise.all([
+    client
+      .from("teams")
+      .select(
+        "name, website_url, business_context, business_model, business_categories, autonomy_mode, reply_instructions, reply_samples, auto_post_per_day, auto_post_gap_minutes",
+      )
+      .eq("id", teamId)
+      .maybeSingle(),
+    client
+      .from("team_documents")
+      .select("name, content, role")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
+  if (!data) return null;
+  return { ...data, documents: docs ?? [] };
 }
 
 /** The company's name, or a safe generic if it's still a default workspace name. */
@@ -84,7 +135,11 @@ export function companyName(ws: WorkspaceContext | null): string {
 }
 
 /** Render the company context as a prompt block the model must ground its work in. */
-export function contextBlock(ws: WorkspaceContext | null): string {
+export function contextBlock(
+  ws: WorkspaceContext | null,
+  kind?: string,
+  roleOverride?: string | null,
+): string {
   if (!ws) return "";
   const bc = (ws.business_context ?? {}) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
@@ -108,10 +163,41 @@ export function contextBlock(ws: WorkspaceContext | null): string {
   if (Array.isArray(bc.keywords) && bc.keywords.length) {
     lines.push(`Key themes: ${(bc.keywords as string[]).join(", ")}`);
   }
-  if (!lines.length) return "";
+  const head = lines.length
+    ? "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
+      lines.map((l) => `- ${l}`).join("\n")
+    : "";
+  return head + documentsBlock(ws, kind, roleOverride);
+}
+
+/**
+ * The user's uploaded documents, trimmed to a prompt budget. They rank as
+ * first-party truth about the business: fresher and more specific than the
+ * scraped website profile, so the model is told to prefer them on conflict.
+ * A task only sees shared docs plus the ones pinned to its own employee.
+ */
+function documentsBlock(
+  ws: WorkspaceContext | null,
+  kind?: string,
+  roleOverride?: string | null,
+): string {
+  const role = roleOverride ?? (kind ? KIND_ROLE[kind] : undefined);
+  const scoped = Boolean(roleOverride || kind);
+  const docs = (ws?.documents ?? []).filter(
+    (d) => (d?.content ?? "").trim() && (!d.role || !scoped || d.role === role),
+  );
+  if (!docs.length) return "";
+  let budget = DOCS_TOTAL_CAP;
+  const parts: string[] = [];
+  for (const d of docs) {
+    if (budget <= 0) break;
+    const text = d.content.trim().slice(0, Math.min(DOC_CHAR_CAP, budget));
+    budget -= text.length;
+    parts.push(`--- ${d.name} ---\n${text}`);
+  }
   return (
-    "\n\nWHO YOU WORK FOR (ground everything in this; output that could apply to any company is a failure):\n" +
-    lines.map((l) => `- ${l}`).join("\n")
+    "\n\nCOMPANY DOCUMENTS the user uploaded (first-party facts; when they conflict with the profile above, the documents win):\n" +
+    parts.join("\n\n")
   );
 }
 
@@ -194,7 +280,11 @@ export function operatorPersona(ws: WorkspaceContext | null): string {
 }
 
 /** System prompt for the content runner: produce a finished, shippable deliverable. */
-export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string {
+export function runnerSystem(
+  ws: WorkspaceContext | null,
+  kind?: string,
+  roleOverride?: string | null,
+): string {
   return (
     operatorPersona(ws) +
     "\n\nYou are handed a recurring task and you produce the finished marketing work, ready to ship. " +
@@ -217,7 +307,7 @@ export function runnerSystem(ws: WorkspaceContext | null, kind?: string): string
     "to Chat or to editing this agent's instruction, the surfaces that actually let them respond, never to a reply here.\n" +
     "- If the task calls for a high-stakes tool action, go ahead and call the tool; note in the deliverable what you did or that it is awaiting approval." +
     autonomyBlock(ws) +
-    contextBlock(ws) +
+    contextBlock(ws, kind, roleOverride) +
     // Learn the user's voice from drafts they've hand-edited (this kind first).
     replyPersonalization(ws, kind)
   );
@@ -243,6 +333,7 @@ export function chatSystem(ws: WorkspaceContext | null): string {
     '- Facebook inbox replies: kind "facebook_dm". Each run reads the business\'s Facebook Page inbox and drafts a reply to every unanswered customer message, sending them (approval-gated). Use this when the user wants to auto-respond to their Facebook messages or handle their Page inbox. It needs Facebook connected. Replies wait for approval unless the workspace or agent is on auto.\n' +
     '- Email inbox replies: kind "email_responder". Each run reads the connected Gmail inbox and drafts a reply to every genuine email that needs one (customer questions, prospect inquiries), sending them in-thread (approval-gated), while skipping newsletters and automated mail. Use this when the user wants help answering their email or triaging their inbox. It needs Gmail connected. Replies wait for approval unless the workspace or agent is on auto.\n' +
     '- TikTok slideshows: kind "tiktok_slideshow". Each run writes a swipeable TikTok photo slideshow about the business (a scroll-stopping hook slide, a few short value slides, and a CTA slide) plus a caption. The user uploads their own images on the agent, and the app renders the text over them to download and post in TikTok photo mode. Use this when the user wants TikTok slideshows or short-form visual content. No connection needed.\n' +
+    '- Operations briefs: kind "ops_brief". Each run reports on the user\'s own Sentrive workspace: what their agents produced over a window, what is waiting on their approval, anything that failed or is paused, and what runs next. Set config window_days to 1 for a daily brief or 7 for a weekly report, and prefer delivering it by email. Use this whenever the user wants a daily brief, a weekly report, a summary of what their agents have been doing, or simply to be kept in the loop. No connection needed, and the numbers come from their real data, never from the web.\n' +
     "- Content work: anything else that produces a written deliverable to the dashboard or email uses the default kind.\n\n" +
     "When proposing an agent:\n" +
     '- Infer a sensible cron schedule (e.g. "every day at noon" -> "0 12 * * *", "weekdays 8am" -> "0 8 * * 1-5"). Omit only for a genuine one-off.\n' +

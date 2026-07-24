@@ -33,6 +33,8 @@ import { createPortal } from "react-dom";
 
 import { useUser } from "@/auth/hooks";
 import { AutonomyToggle } from "@/features/autonomy/AutonomyToggle";
+import { MorningBrief } from "@/features/dashboard/MorningBrief";
+import { useCreateCustomAgent, useCustomAgents } from "@/features/employees/customAgents";
 import {
   CHANNELS,
   channelLabel,
@@ -50,8 +52,10 @@ import {
   chatKeys,
   createChat,
   fetchChatMessages,
+  type NewAgentProposal,
   saveMessage,
   type ChatMessage,
+  type SpeakingAs,
   useChat,
 } from "./hooks";
 import { ChatMarkdown } from "./Markdown";
@@ -100,6 +104,26 @@ function CopyButton({ text }: { text: string }) {
 }
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
+
+/** sessionStorage key other surfaces use to hand a message to a chat. */
+export const DESK_DRAFT_KEY = "sentrive.chat.draft";
+
+/**
+ * Prefill (NOT auto-send): the composer starts with this text so the user
+ * finishes the sentence. The "New employee" / "New agent" doors use it, which
+ * is how the product tells you what you're about to create.
+ */
+export const CHAT_PREFILL_KEY = "sentrive.chat.prefill";
+
+/** Prefill the chat composer from anywhere: works pre-mount and live. */
+export function prefillChat(text: string) {
+  try {
+    sessionStorage.setItem(CHAT_PREFILL_KEY, text);
+  } catch {
+    /* storage blocked: the live event below still works */
+  }
+  window.dispatchEvent(new CustomEvent("sentrive:chat-prefill", { detail: text }));
+}
 
 function fileToAttachment(file: File): Promise<Attachment> {
   return new Promise((resolve, reject) => {
@@ -155,8 +179,96 @@ function toList(s: string): string[] {
     .filter(Boolean);
 }
 
-/** A proposed agent shown in chat: fine-tune every field, then create it. */
-function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: string }) {
+/**
+ * A brand-new agent proposed by the chat: one card creates the roster entry
+ * AND its first skill. Matching by name+title lets the created state survive
+ * a reload, mirroring ProposalCard's proposal_id trick.
+ */
+function NewAgentProposalCard({ na, chatId }: { na: NewAgentProposal; chatId?: string }) {
+  const teamId = useActiveTeamId();
+  const createAgent = useCreateCustomAgent();
+  const createSkill = useCreateAgentFromProposal();
+  const { data: customs } = useCustomAgents();
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const existing = customs?.find((c) => c.name === na.name && c.title === na.agentTitle);
+  const doneId = createdId ?? existing?.id ?? null;
+  const busy = createAgent.isPending || createSkill.isPending;
+
+  async function onCreate() {
+    if (!teamId) return;
+    setError(null);
+    try {
+      const agent = await createAgent.mutateAsync({
+        name: na.name,
+        emoji: na.emoji,
+        title: na.agentTitle,
+        duties: na.skill.instructions,
+      });
+      await createSkill.mutateAsync({
+        teamId,
+        proposal: { ...na.skill, proposalId: na.id, chatId, role: agent.id },
+      });
+      setCreatedId(agent.id);
+    } catch (e) {
+      setError((e as Error).message || "Couldn't create the agent. Try again.");
+    }
+  }
+
+  return (
+    <div className="bg-card max-w-md rounded-2xl border p-4 shadow-xs">
+      <div className="flex items-center gap-3">
+        <span className="bg-muted grid size-10 shrink-0 place-items-center rounded-xl text-lg">
+          {na.emoji}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">
+            {na.name} <span className="text-muted-foreground font-normal">· {na.agentTitle}</span>
+          </p>
+          <p className="text-muted-foreground truncate text-xs">New employee for your team</p>
+        </div>
+      </div>
+      <div className="bg-muted/30 mt-3 rounded-xl border px-3.5 py-2.5">
+        <p className="text-sm font-medium">{na.skill.title}</p>
+        <p className="text-muted-foreground text-xs">
+          {scheduleLabel(na.skill.schedule_cron)} · their first agent, you approve the work
+        </p>
+      </div>
+      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      <div className="mt-3">
+        {doneId ? (
+          <Link
+            to="/team/$role"
+            params={{ role: doneId }}
+            className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+          >
+            <CheckCircle2 className="size-3.5" /> {na.name} joined your team, say hi
+          </Link>
+        ) : (
+          <Button size="sm" disabled={busy} onClick={() => void onCreate()}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            Hire {na.name}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProposalCard({
+  proposal,
+  chatId,
+  assignRole,
+  ownerName,
+}: {
+  proposal: AgentProposal;
+  chatId?: string;
+  /** Pin the created skill to this named agent (employee chats). */
+  assignRole?: string;
+  /** Whose desk it lands on, when created inside an employee's chat. */
+  ownerName?: string;
+}) {
   const teamId = useActiveTeamId();
   const { data: tasks } = useTasks();
   const create = useCreateAgentFromProposal();
@@ -202,6 +314,8 @@ function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: 
           subreddits: isReddit ? toList(subreddits) : [],
           proposalId: proposal.id,
           chatId,
+          // An employee chat pins to its owner; otherwise the chat's pick wins.
+          role: assignRole ?? proposal.role,
         },
       },
       { onSuccess: (data) => setCreated(data) },
@@ -233,13 +347,35 @@ function ProposalCard({ proposal, chatId }: { proposal: AgentProposal; chatId?: 
             </div>
           </div>
         </div>
-        <div className="bg-muted/30 border-t px-4 py-2.5">
+        <div className="bg-muted/30 flex items-center justify-center gap-3 border-t px-4 py-2.5">
+          {/* Created inside an employee's chat: land back on THEIR desk, where
+              the agent now lives, instead of a standalone page that reads like
+              the agent left the folder. */}
+          {assignRole && ownerName && (
+            <Link
+              to="/team/$role"
+              params={{ role: assignRole }}
+              className="text-primary flex items-center gap-1.5 text-xs font-medium"
+            >
+              <CheckCircle2 className="size-3.5" /> Added to {ownerName}'s agents
+            </Link>
+          )}
           <Link
             to="/agents/$agentId"
             params={{ agentId: done.id }}
-            className="text-primary flex items-center justify-center gap-1.5 text-xs font-medium"
+            className={`flex items-center justify-center gap-1.5 text-xs font-medium ${
+              assignRole && ownerName
+                ? "text-muted-foreground hover:text-foreground"
+                : "text-primary"
+            }`}
           >
-            <CheckCircle2 className="size-3.5" /> Agent created, open it
+            {assignRole && ownerName ? (
+              "Open its settings"
+            ) : (
+              <>
+                <CheckCircle2 className="size-3.5" /> Agent created, open it
+              </>
+            )}
           </Link>
         </div>
       </div>
@@ -462,14 +598,65 @@ function UpdateCard({ update }: { update: AgentUpdate }) {
   );
 }
 
-export function Chat({ chatId }: { chatId?: string }) {
+export function Chat({
+  chatId,
+  embedded,
+  emptyHero,
+  placeholder,
+  avatar,
+  assignRole,
+  speakingAs,
+}: {
+  chatId?: string;
+  /** Fill the parent's height instead of the viewport (employee chat tab). */
+  embedded?: boolean;
+  /** Replaces the landing greeting when the conversation is empty. */
+  emptyHero?: React.ReactNode;
+  /** Overrides the composer placeholder (e.g. "Tell Maya what you need…"). */
+  placeholder?: string;
+  /** Who is speaking: replaces the Sentrive logo on replies (employee chats). */
+  avatar?: React.ReactNode;
+  /** Skills created in this chat get pinned to this named agent. */
+  assignRole?: string;
+  /** In an employee's own chat, the assistant IS that employee. */
+  speakingAs?: SpeakingAs | null;
+}) {
   const chat = useChat();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const activeTeamId = useActiveTeamId();
   const { data: user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(() => {
+    try {
+      const v = sessionStorage.getItem(CHAT_PREFILL_KEY);
+      if (v) {
+        sessionStorage.removeItem(CHAT_PREFILL_KEY);
+        return v;
+      }
+    } catch {
+      /* storage blocked */
+    }
+    return "";
+  });
+
+  // Live prefill from the "New employee"/"New agent" doors while already
+  // mounted (e.g. the team section on this same page).
+  useEffect(() => {
+    function onPrefill(e: Event) {
+      const text = (e as CustomEvent<string>).detail;
+      if (typeof text === "string") {
+        setInput(text);
+        try {
+          sessionStorage.removeItem(CHAT_PREFILL_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    window.addEventListener("sentrive:chat-prefill", onPrefill);
+    return () => window.removeEventListener("sentrive:chat-prefill", onPrefill);
+  }, []);
   const [status, setStatus] = useState("Thinking");
   // when a new reply arrives, reveal it character by character; null once fully shown
   const [typing, setTyping] = useState<number | null>(null);
@@ -495,6 +682,28 @@ export function Chat({ chatId }: { chatId?: string }) {
     window.addEventListener("sentrive:focus-composer", focusComposer);
     return () => window.removeEventListener("sentrive:focus-composer", focusComposer);
   }, []);
+
+  // A message handed over from another surface (the skill library's custom
+  // teach box) arrives as a sessionStorage draft: send it once auth context is
+  // ready. Remove-before-send keeps StrictMode's double effect run from firing
+  // twice. Embedded chats (an employee's conversation) accept drafts too.
+  const draftSent = useRef(false);
+  useEffect(() => {
+    if (!activeTeamId || (chatId && !embedded) || draftSent.current) return;
+    if (embedded && !chatId) return; // employee chat not resolved yet
+    let draft: string | null = null;
+    try {
+      draft = sessionStorage.getItem(DESK_DRAFT_KEY);
+      if (draft) sessionStorage.removeItem(DESK_DRAFT_KEY);
+    } catch {
+      /* storage blocked */
+    }
+    if (draft?.trim()) {
+      draftSent.current = true;
+      void send(draft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send is stable enough for a one-shot
+  }, [activeTeamId, chatId, embedded]);
 
   async function addFiles(files: File[]) {
     const accepted: Attachment[] = [];
@@ -633,6 +842,7 @@ export function Chat({ chatId }: { chatId?: string }) {
         onStatus: setStatus,
         attachments: files,
         persist: convoId && teamId ? { convoId, teamId } : undefined,
+        speakingAs,
       },
       {
         onSuccess: (data) => {
@@ -643,6 +853,7 @@ export function Chat({ chatId }: { chatId?: string }) {
             content: data.reply,
             created: data.created,
             proposals: data.proposals,
+            newAgents: data.newAgents,
             updates: data.updates,
           };
           setMessages((m) => [...m, reply]);
@@ -690,7 +901,7 @@ export function Chat({ chatId }: { chatId?: string }) {
     : null;
 
   const composer = (
-    <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[1.7rem] border p-4 shadow-[0_24px_60px_-32px_rgba(16,48,120,0.4)] transition focus-within:ring-4">
+    <div className="bg-card focus-within:border-primary/50 focus-within:ring-primary/10 mx-auto w-full max-w-2xl rounded-[18px] border p-4 shadow-sm transition focus-within:ring-4">
       <input
         ref={fileInputRef}
         type="file"
@@ -754,7 +965,11 @@ export function Chat({ chatId }: { chatId?: string }) {
         }}
         onPaste={onPaste}
         rows={1}
-        placeholder="Tell Sentrive what to do…  e.g. “every morning, find Reddit posts asking about what we sell and draft replies for me to approve”"
+        id="chat-composer"
+        placeholder={
+          placeholder ??
+          "Tell Sentrive what to do…  e.g. “every morning, find Reddit posts asking about what we sell and draft replies for me to approve”"
+        }
         className="max-h-52 min-h-[4rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
       />
       <div className="mt-1 flex items-center justify-between px-1">
@@ -818,12 +1033,25 @@ export function Chat({ chatId }: { chatId?: string }) {
   );
 
   if (empty) {
+    // Embedded (an employee's chat tab): same shape as the main landing, the
+    // employee's own hero centered in the space the parent gives us.
+    if (embedded) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center px-2 pb-6">
+          <div className="w-full max-w-2xl">
+            {emptyHero}
+            {composer}
+          </div>
+          {lightbox}
+        </div>
+      );
+    }
+    // Centered in the viewport like a proper front desk; the agents section
+    // lives below the fold, a scroll away instead of crowding the hero.
     return (
-      <div className="flex min-h-[82vh] flex-col items-center justify-center px-2">
+      <div className="flex min-h-[calc(100dvh-8rem)] flex-col items-center justify-center px-2 pb-10">
         <div className="w-full max-w-2xl">
-          <h2 className="mb-8 text-center text-3xl font-bold tracking-tight sm:text-4xl">
-            What should Sentrive take care of?
-          </h2>
+          {emptyHero ?? <MorningBrief />}
           {composer}
         </div>
         {lightbox}
@@ -832,9 +1060,16 @@ export function Chat({ chatId }: { chatId?: string }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 pt-16 pb-6">
-        <div className="mx-auto flex max-w-2xl flex-col gap-5">
+    <div className={embedded ? "flex h-full flex-col" : "flex h-screen flex-col"}>
+      <div
+        ref={scrollRef}
+        className={`flex-1 overflow-y-auto px-2 ${embedded ? "pt-4 pb-2" : "pt-16 pb-6"}`}
+      >
+        {/* Embedded: bottom-anchor short conversations next to the composer,
+            like any messenger; long ones scroll exactly as before. */}
+        <div
+          className={`mx-auto flex max-w-2xl flex-col gap-5 ${embedded ? "min-h-full justify-end" : ""}`}
+        >
           {messages.map((m, i) =>
             m.role === "user" ? (
               <div key={i} className="group flex flex-col items-end gap-1">
@@ -847,7 +1082,7 @@ export function Chat({ chatId }: { chatId?: string }) {
               </div>
             ) : (
               <div key={i} className="group flex gap-3">
-                <SentriveAvatar />
+                {avatar ?? <SentriveAvatar />}
                 <div className="min-w-0 flex-1 space-y-2">
                   {typing !== null && i === messages.length - 1 ? (
                     // revealing character by character: plain text + caret, format on finish
@@ -871,6 +1106,15 @@ export function Chat({ chatId }: { chatId?: string }) {
                           key={p.id}
                           proposal={p}
                           chatId={chatId ?? ownedRef.current ?? undefined}
+                          assignRole={assignRole}
+                          ownerName={speakingAs?.name}
+                        />
+                      ))}
+                      {m.newAgents?.map((na) => (
+                        <NewAgentProposalCard
+                          key={na.id}
+                          na={na}
+                          chatId={chatId ?? ownedRef.current ?? undefined}
                         />
                       ))}
                       {m.updates?.map((u) => (
@@ -887,7 +1131,7 @@ export function Chat({ chatId }: { chatId?: string }) {
           )}
           {chat.isPending && (
             <div className="flex items-center gap-3">
-              <SentriveAvatar />
+              {avatar ?? <SentriveAvatar />}
               <span className="flowy-shimmer text-sm font-medium">{status}…</span>
             </div>
           )}

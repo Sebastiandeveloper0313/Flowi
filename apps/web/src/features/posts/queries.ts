@@ -23,6 +23,29 @@ export const postKeys = {
   all: ["post_drafts"] as const,
 };
 
+/**
+ * Every post an agent has written that is still waiting on a human: not queued
+ * to go out, not published, not dismissed. In ask-first mode this is where the
+ * work piles up, so it needs to be visible outside the agent's own page.
+ */
+export const pendingPostDraftsQueryOptions = (teamId: string | null) =>
+  queryOptions({
+    queryKey: [...postKeys.all, "pending", teamId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("post_drafts")
+        .select("*")
+        .eq("team_id", teamId!)
+        .not("status", "in", "(posted,dismissed,queued)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!teamId,
+    refetchInterval: 60_000,
+  });
+
 /** Post drafts written by one agent, newest first. */
 export const postDraftsByTaskQueryOptions = (taskId: string) =>
   queryOptions({

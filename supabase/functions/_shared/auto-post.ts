@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 import { executeComposioTool } from "./composio.ts";
+import { isAskFirst } from "./marketing.ts";
 
 const PER_TICK = 25; // due posts scanned per invocation
 const MAX_ATTEMPTS = 3; // give up on auto-posting after this many failures
@@ -81,6 +82,13 @@ export async function dripAutoPosts(
 
     // no draft to post: shouldn't happen (we only queue with a draft), but be safe
     if (!lead.draft_reply?.trim()) {
+      await admin.from("leads").update({ status: "new", auto_post_at: null }).eq("id", lead.id);
+      continue;
+    }
+
+    // Only auto mode queues replies, so if the agent has since been switched
+    // back to Ask first, this must not go out. Hand it back for review instead.
+    if (lead.task_id && (await isAskFirst(admin, lead.task_id, lead.team_id))) {
       await admin.from("leads").update({ status: "new", auto_post_at: null }).eq("id", lead.id);
       continue;
     }

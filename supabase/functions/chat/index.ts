@@ -69,9 +69,10 @@ const TOOL = {
           "facebook_dm",
           "email_responder",
           "tiktok_slideshow",
+          "ops_brief",
         ],
         description:
-          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first. 'facebook_post' writes an on-brand post and publishes it to the business's Facebook Page each run, use this when the user wants recurring Facebook content or posts (needs Facebook connected; posts wait for approval unless on auto). 'facebook_dm' reads the business's Facebook Page inbox and drafts replies to unanswered customer messages, sending them (approval-gated), use this when the user wants to auto-respond to their Facebook messages (needs Facebook connected). 'email_responder' reads the connected Gmail inbox and drafts replies to genuine emails that need one (customer questions, prospect inquiries), sending them in-thread (approval-gated), use this when the user wants help answering their email or triaging their inbox (needs Gmail connected). 'tiktok_slideshow' writes a swipeable TikTok photo slideshow about the business (a hook slide, value slides, and a CTA) plus a caption; the user uploads their own images and downloads the rendered slides to post, use this when the user wants TikTok slideshows or short-form visual content (no connection needed).",
+          "Capability. 'content' (default) produces a written deliverable delivered to the dashboard or email. 'reddit_monitor' watches Reddit for leads matching `keywords` and drafts replies, use this whenever the user wants to find leads/prospects or monitor Reddit. 'linkedin_post' writes an on-brand LinkedIn post from the business context and publishes it to the user's LinkedIn on each run, use this when the user wants recurring LinkedIn content or posts (needs LinkedIn connected). 'seo_blog' writes a complete, SEO-optimized blog article for the business's website and delivers the draft (it does not publish yet), use this when the user wants recurring blog posts or SEO content. 'reddit_post' writes a genuinely valuable, rule-aware post and submits it to the `subreddits` given, use this when the user wants to post content to Reddit (needs Reddit connected; posts wait for approval unless on auto). Warn briefly that Reddit is strict about self-promotion, so it posts value-first. 'facebook_post' writes an on-brand post and publishes it to the business's Facebook Page each run, use this when the user wants recurring Facebook content or posts (needs Facebook connected; posts wait for approval unless on auto). 'facebook_dm' reads the business's Facebook Page inbox and drafts replies to unanswered customer messages, sending them (approval-gated), use this when the user wants to auto-respond to their Facebook messages (needs Facebook connected). 'email_responder' reads the connected Gmail inbox and drafts replies to genuine emails that need one (customer questions, prospect inquiries), sending them in-thread (approval-gated), use this when the user wants help answering their email or triaging their inbox (needs Gmail connected). 'tiktok_slideshow' writes a swipeable TikTok photo slideshow about the business (a hook slide, value slides, and a CTA) plus a caption; the user uploads their own images and downloads the rendered slides to post, use this when the user wants TikTok slideshows or short-form visual content (no connection needed). 'ops_brief' reports on the user's own Sentrive workspace: what their agents did over a window, what is waiting on their approval, what failed, and what runs next, delivered to the dashboard or their inbox. Use this when the user wants a daily brief, a weekly report, a summary of what their agents have been doing, or to be kept in the loop (no connection needed; set config window_days 1 for a daily brief, 7 for a weekly report).",
       },
       keywords: {
         type: "array",
@@ -85,8 +86,38 @@ const TOOL = {
         description:
           "For reddit_monitor: optional subreddits to focus on (names without 'r/'), omit to search all of Reddit. For reddit_post: the subreddit(s) to post to (names without 'r/').",
       },
+      role: {
+        type: "string",
+        description:
+          "Which EMPLOYEE owns this agent. Every agent belongs to one, so always set this. Use a built-in slug (growth = Maya the Growth Marketer, who also owns SEO articles and blog content; social = Nova the Social Media Manager; support = Sam in Customer Support; ops = Theo the Operations Manager) or a custom employee's id from the roster list. Pick whoever the work belongs to: the employee the user names, the one whose chat you are in, or the one whose area it plainly is. SEO/blog/content work goes to Maya. Then say whose it becomes (\"I'll add this to Maya's agents\").",
+      },
     },
     required: ["title", "instructions"],
+  },
+};
+
+// A brand-new roster member plus its first skill, born from one description.
+// Shares the skill fields with propose_agent (minus role: the new agent owns it).
+const { role: _skillRole, ...SKILL_PROPS } = TOOL.input_schema.properties;
+const NEW_AGENT_TOOL = {
+  name: "propose_new_agent",
+  description:
+    "Propose hiring a brand-new named EMPLOYEE for the user's team, together with their first agent. The user sees a card and clicks to hire; nothing exists until then. Use when the user says hire/employee, wants someone to own a whole area, or no hired employee fits and a standalone agent would be too small for the job. For simple automations prefer propose_agent (with or without an owner).",
+  input_schema: {
+    type: "object",
+    properties: {
+      agent_name: {
+        type: "string",
+        description: "Short given name for the new agent, e.g. 'Kim'. Not a sentence.",
+      },
+      agent_emoji: { type: "string", description: "One emoji avatar, e.g. '🛠️'." },
+      agent_title: {
+        type: "string",
+        description: "What they do in 2-4 words, e.g. 'Ads Watcher'.",
+      },
+      ...SKILL_PROPS,
+    },
+    required: ["agent_name", "agent_title", "title", "instructions"],
   },
 };
 
@@ -317,9 +348,21 @@ interface AgentProposal {
     | "facebook_post"
     | "facebook_dm"
     | "email_responder"
-    | "tiktok_slideshow";
+    | "tiktok_slideshow"
+    | "ops_brief";
   keywords: string[];
   subreddits: string[];
+  /** Roster owner: built-in slug or a custom agent's id; the skill is pinned to them. */
+  role?: string;
+}
+
+/** A brand-new roster agent plus its first skill, confirmed on a card. */
+interface NewAgentProposal {
+  id: string; // tool_use id, the card key
+  name: string;
+  emoji: string;
+  agentTitle: string;
+  skill: Omit<AgentProposal, "id" | "role">;
 }
 
 /** A proposed change to an existing agent the user confirms on a card. */
@@ -336,7 +379,8 @@ interface AgentUpdate {
     | "facebook_post"
     | "facebook_dm"
     | "email_responder"
-    | "tiktok_slideshow";
+    | "tiktok_slideshow"
+    | "ops_brief";
   changes: {
     title?: string;
     instructions?: string;
@@ -404,7 +448,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   try {
-    const { messages, attachments, team_id } = await req.json().catch(() => ({}));
+    const { messages, attachments, team_id, speaking_as } = await req.json().catch(() => ({}));
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "messages array is required" }, 400);
     }
@@ -458,7 +502,41 @@ Deno.serve(async (req: Request) => {
     const agents = (agentRows ?? []) as ExistingAgent[];
     const agentsById = new Map(agents.map((a) => [a.id, a]));
 
-    const system = chatSystem(ws) + existingAgentsBlock(agents);
+    // The named roster, so proposals get assigned to the right agent and the
+    // chat talks about the team the user actually sees on the Agents page.
+    const { data: customAgents } = await userClient
+      .from("team_agents")
+      .select("id, name, title, duties")
+      .eq("team_id", teamId)
+      .order("created_at");
+    const rosterBlock =
+      "\n\nTHE USER'S NAMED AGENTS (every skill you propose belongs to one; set `role` and name them in your reply):\n" +
+      "- Maya, Growth Marketer (role: growth): finds leads, watches Reddit and competitors, and writes SEO articles and blog content\n" +
+      "- Nova, Social Media (role: social): LinkedIn/Reddit/Facebook posts, TikTok slideshows\n" +
+      "- Sam, Inbox Replies (role: support): Gmail and Messenger replies\n" +
+      "- Theo, Operations Manager (role: ops): daily briefs and weekly reports on how the whole team is running\n" +
+      (customAgents ?? [])
+        .map(
+          (c) =>
+            `- ${c.name}, ${c.title} (role: ${c.id}), created by the user${c.duties ? `: ${c.duties.slice(0, 160)}` : ""}\n`,
+        )
+        .join("") +
+      'These are EMPLOYEES, the only layer the user sees. Every agent belongs to one of them: there are no ownerless agents. How to decide: if the user says "hire" or "employee", or wants someone to own a whole area no one covers, use propose_new_agent (a new employee with their first agent). Otherwise use propose_agent and ALWAYS set `role` to whoever the work belongs to, naming them in your reply ("I have added this to Nova\'s agents"). When the user names an employee, or you are speaking as one, that is the owner.';
+
+    // In an employee's own chat the assistant IS that employee: same brain and
+    // tools, but they speak in the first person about their own area instead
+    // of introducing themselves as Sentrive.
+    const speaker =
+      speaking_as && typeof speaking_as === "object"
+        ? (speaking_as as { name?: string; title?: string; duties?: string; role?: string })
+        : null;
+    const identityBlock = speaker?.name
+      ? `\n\nWHO YOU ARE IN THIS CONVERSATION: you are ${speaker.name}, the ${speaker.title ?? "team member"} on this user's team${
+          speaker.duties ? `. Your area: ${speaker.duties}` : ""
+        }. Speak as ${speaker.name} in the first person ("I watch Reddit for...", "I posted this morning"). Never introduce yourself as Sentrive or as an assistant, and never describe your teammates' work as your own: if the user asks for something outside your area, say plainly that it belongs to a teammate (or offer to set it up for them) instead of pretending it is yours. Work you set up here becomes YOUR agent.`
+      : "";
+
+    const system = chatSystem(ws) + identityBlock + existingAgentsBlock(agents) + rosterBlock;
     let mode = autonomyMode(ws);
 
     // The workspace's connected tools (Gmail, etc.) so the chat can do real work,
@@ -524,6 +602,7 @@ Deno.serve(async (req: Request) => {
         const working: Msg[] = [...convo];
         const created: Array<{ id: string; title: string }> = [];
         const proposals: AgentProposal[] = [];
+        const newAgents: NewAgentProposal[] = [];
         const updates: AgentUpdate[] = [];
         let contextUpdated = false;
         let reply = "";
@@ -543,6 +622,7 @@ Deno.serve(async (req: Request) => {
                 system,
                 tools: [
                   TOOL,
+                  NEW_AGENT_TOOL,
                   UPDATE_TOOL,
                   ANALYZE_TOOL,
                   SET_AUTONOMY_TOOL,
@@ -590,24 +670,27 @@ Deno.serve(async (req: Request) => {
                     | "facebook_post"
                     | "facebook_dm"
                     | "email_responder"
-                    | "tiktok_slideshow" =
-                    inp.kind === "reddit_monitor"
-                      ? "reddit_monitor"
-                      : inp.kind === "linkedin_post"
-                        ? "linkedin_post"
-                        : inp.kind === "seo_blog"
-                          ? "seo_blog"
-                          : inp.kind === "reddit_post"
-                            ? "reddit_post"
-                            : inp.kind === "facebook_post"
-                              ? "facebook_post"
-                              : inp.kind === "facebook_dm"
-                                ? "facebook_dm"
-                                : inp.kind === "email_responder"
-                                  ? "email_responder"
-                                  : inp.kind === "tiktok_slideshow"
-                                    ? "tiktok_slideshow"
-                                    : "content";
+                    | "tiktok_slideshow"
+                    | "ops_brief" =
+                    inp.kind === "ops_brief"
+                      ? "ops_brief"
+                      : inp.kind === "reddit_monitor"
+                        ? "reddit_monitor"
+                        : inp.kind === "linkedin_post"
+                          ? "linkedin_post"
+                          : inp.kind === "seo_blog"
+                            ? "seo_blog"
+                            : inp.kind === "reddit_post"
+                              ? "reddit_post"
+                              : inp.kind === "facebook_post"
+                                ? "facebook_post"
+                                : inp.kind === "facebook_dm"
+                                  ? "facebook_dm"
+                                  : inp.kind === "email_responder"
+                                    ? "email_responder"
+                                    : inp.kind === "tiktok_slideshow"
+                                      ? "tiktok_slideshow"
+                                      : "content";
                   const proposal: AgentProposal = {
                     id: block.id,
                     title: String(inp.title ?? "Untitled agent").slice(0, 200),
@@ -624,6 +707,8 @@ Deno.serve(async (req: Request) => {
                       kind === "reddit_monitor" && Array.isArray(inp.subreddits)
                         ? inp.subreddits.map(String)
                         : [],
+                    role:
+                      typeof inp.role === "string" && inp.role.trim() ? inp.role.trim() : undefined,
                   };
                   proposals.push(proposal);
                   toolResults.push({
@@ -633,6 +718,63 @@ Deno.serve(async (req: Request) => {
                       `Proposed the agent "${proposal.title}" to the user. They now see a card and ` +
                       `click Create to set it up. Do not say it is created, active, or running; it ` +
                       `is only a proposal until they create it. Keep your reply to a short line.`,
+                  });
+                } else if (block.name === "propose_new_agent") {
+                  send({ type: "status", text: "Designing a new agent" });
+                  const inp = block.input ?? {};
+                  let cron: string | null =
+                    typeof inp.schedule_cron === "string" && inp.schedule_cron.trim()
+                      ? inp.schedule_cron.trim()
+                      : null;
+                  if (cron) {
+                    try {
+                      new Cron(cron);
+                    } catch {
+                      cron = null;
+                    }
+                  }
+                  const KINDS = [
+                    "content",
+                    "reddit_monitor",
+                    "linkedin_post",
+                    "seo_blog",
+                    "reddit_post",
+                    "facebook_post",
+                    "facebook_dm",
+                    "email_responder",
+                    "tiktok_slideshow",
+                    "ops_brief",
+                  ] as const;
+                  const kind = (KINDS as readonly string[]).includes(String(inp.kind))
+                    ? (String(inp.kind) as (typeof KINDS)[number])
+                    : "content";
+                  const na: NewAgentProposal = {
+                    id: block.id,
+                    name: String(inp.agent_name ?? "New agent").slice(0, 40),
+                    emoji: String(inp.agent_emoji ?? "🤖").slice(0, 8),
+                    agentTitle: String(inp.agent_title ?? "Custom agent").slice(0, 60),
+                    skill: {
+                      title: String(inp.title ?? "Untitled skill").slice(0, 200),
+                      instructions: String(inp.instructions ?? ""),
+                      channel: typeof inp.channel === "string" ? inp.channel : "dashboard",
+                      schedule_cron: cron,
+                      timezone: typeof inp.timezone === "string" ? inp.timezone : "UTC",
+                      kind,
+                      keywords:
+                        kind === "reddit_monitor" && Array.isArray(inp.keywords)
+                          ? inp.keywords.map(String)
+                          : [],
+                      subreddits: Array.isArray(inp.subreddits) ? inp.subreddits.map(String) : [],
+                    },
+                  };
+                  newAgents.push(na);
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content:
+                      `Proposed the new agent "${na.name}" (${na.agentTitle}) with the skill ` +
+                      `"${na.skill.title}". The user sees a card and clicks Create to add them to ` +
+                      `the roster. Do not say they exist yet. Keep your reply to a short line.`,
                   });
                 } else if (block.name === "update_agent") {
                   send({ type: "status", text: "Updating the agent" });
@@ -866,6 +1008,7 @@ Deno.serve(async (req: Request) => {
             reply: reply || "Done.",
             created,
             proposals,
+            newAgents,
             updates,
             contextUpdated,
           });

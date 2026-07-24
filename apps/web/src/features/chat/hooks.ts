@@ -33,6 +33,8 @@ export interface AgentProposal {
     | "tiktok_slideshow";
   keywords: string[];
   subreddits: string[];
+  /** Roster owner the chat picked: built-in slug or a custom agent's id. */
+  role?: string;
 }
 
 /** A proposed change to an existing agent, confirmed on a card. */
@@ -60,11 +62,21 @@ export interface AgentUpdate {
   };
 }
 
+/** A brand-new roster agent plus its first skill, confirmed on a card. */
+export interface NewAgentProposal {
+  id: string;
+  name: string;
+  emoji: string;
+  agentTitle: string;
+  skill: Omit<AgentProposal, "id" | "role">;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
+  newAgents?: NewAgentProposal[];
   updates?: AgentUpdate[];
 }
 
@@ -72,6 +84,7 @@ export interface ChatResponse {
   reply: string;
   created: CreatedAgent[];
   proposals: AgentProposal[];
+  newAgents: NewAgentProposal[];
   updates: AgentUpdate[];
   /** True when the turn re-analyzed the website and updated the business context. */
   contextUpdated: boolean;
@@ -99,6 +112,7 @@ interface StreamEvent {
   reply?: string;
   created?: CreatedAgent[];
   proposals?: AgentProposal[];
+  newAgents?: NewAgentProposal[];
   updates?: AgentUpdate[];
   contextUpdated?: boolean;
   error?: string;
@@ -109,12 +123,21 @@ interface StreamEvent {
  * status events (onStatus) while it works, then resolves with the final reply.
  * Uses fetch (not functions.invoke) so it can stream and be aborted.
  */
+/** Who the assistant is speaking as: an employee's own chat, or Sentrive. */
+export interface SpeakingAs {
+  name: string;
+  title: string;
+  duties?: string;
+  role: string;
+}
+
 export async function sendChat(
   messages: { role: string; content: string }[],
   signal?: AbortSignal,
   onStatus?: (text: string) => void,
   attachments?: Attachment[],
   teamId?: string | null,
+  speakingAs?: SpeakingAs | null,
 ): Promise<ChatResponse> {
   const {
     data: { session },
@@ -131,18 +154,41 @@ export async function sendChat(
       apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session?.access_token ?? env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, attachments: files, team_id: teamId ?? undefined }),
+    body: JSON.stringify({
+      messages,
+      attachments: files,
+      team_id: teamId ?? undefined,
+      speaking_as: speakingAs ?? undefined,
+    }),
     signal,
   });
 
   // Non-streaming path (validation errors, or the "no AI key" fallback).
   if (!res.headers.get("content-type")?.includes("text/event-stream") || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as Partial<ChatResponse> & { error?: string };
-    if (!res.ok || data.error) throw new Error(data.error ?? `Chat failed (${res.status})`);
+    const raw = await res.text().catch(() => "");
+    const data = (() => {
+      try {
+        return JSON.parse(raw) as Partial<ChatResponse> & { error?: string };
+      } catch {
+        return {} as Partial<ChatResponse> & { error?: string };
+      }
+    })();
+    if (!res.ok || data.error) {
+      // 5xx here is the platform (function crashed, worker limits, upstream AI
+      // outage), not the user's message. Say so honestly, and keep the raw body
+      // in the error so a screenshot tells us exactly what happened.
+      const detail = data.error ?? (raw ? raw.slice(0, 160) : "");
+      throw new Error(
+        res.status >= 500
+          ? `Sentrive had a hiccup (${res.status}${detail ? `: ${detail}` : ""}). Your message wasn't lost, try sending it again.`
+          : (data.error ?? `Chat failed (${res.status}${detail ? `: ${detail}` : ""})`),
+      );
+    }
     return {
       reply: data.reply ?? "Done.",
       created: data.created ?? [],
       proposals: [],
+      newAgents: [],
       updates: [],
       contextUpdated: false,
     };
@@ -173,6 +219,7 @@ export async function sendChat(
           reply: evt.reply ?? "Done.",
           created: evt.created ?? [],
           proposals: evt.proposals ?? [],
+          newAgents: evt.newAgents ?? [],
           updates: evt.updates ?? [],
           contextUpdated: evt.contextUpdated ?? false,
         };
@@ -193,14 +240,17 @@ export function useChat() {
       onStatus,
       attachments,
       persist,
+      speakingAs,
     }: {
       messages: { role: string; content: string }[];
       signal?: AbortSignal;
       onStatus?: (text: string) => void;
       attachments?: Attachment[];
       persist?: { convoId: string; teamId: string };
+      /** In an employee's own chat, they answer as themselves. */
+      speakingAs?: SpeakingAs | null;
     }) => {
-      const data = await sendChat(messages, signal, onStatus, attachments, teamId);
+      const data = await sendChat(messages, signal, onStatus, attachments, teamId, speakingAs);
       // Persist the assistant reply here, inside the mutation, so it survives the
       // user navigating away mid-request. The component's onSuccess won't run once
       // Chat unmounts, so saving there would silently drop the reply.
@@ -210,6 +260,7 @@ export function useChat() {
           content: data.reply,
           created: data.created,
           proposals: data.proposals,
+          newAgents: data.newAgents,
           updates: data.updates,
         };
         try {

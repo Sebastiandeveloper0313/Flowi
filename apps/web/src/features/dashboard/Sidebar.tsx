@@ -6,8 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
-  Activity,
-  Bot,
+  Brain,
   CheckCheck,
   LayoutGrid,
   MessageSquarePlus,
@@ -18,6 +17,7 @@ import {
   Plug,
   Settings,
   Trash2,
+  Users,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -26,15 +26,19 @@ import { useConfirm } from "@/components/useConfirm";
 import { usePendingApprovalCount } from "@/features/approvals/hooks";
 import { type ChatRow, useChats, useDeleteChat, useRenameChat } from "@/features/chat/hooks";
 import { usePendingLeadReplies } from "@/features/leads/hooks";
+import { usePendingPostDrafts } from "@/features/posts/hooks";
 import { WorkspaceSwitcher } from "@/features/workspace/WorkspaceSwitcher";
 
 import { SentriveLogo } from "./brand";
 
+// One visible layer: your team. Every agent lives inside the employee who
+// runs it (their page and chat), the library is where you get more, and Brain
+// is what they all know. /agents pages still exist for deep links and tuning.
 const NAV = [
   { to: "/dashboard", label: "Chat", icon: MessageSquarePlus, exact: true },
-  { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/team", label: "Team", icon: Users },
   { to: "/library", label: "Library", icon: LayoutGrid },
-  { to: "/activity", label: "Activity", icon: Activity },
+  { to: "/brain", label: "Brain", icon: Brain },
   { to: "/approvals", label: "Approvals", icon: CheckCheck },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -47,7 +51,9 @@ export function Sidebar() {
   const { data: chats } = useChats();
   const { data: pendingApprovals } = usePendingApprovalCount();
   const { data: leadReplyGroups } = usePendingLeadReplies();
-  const pendingReplies = (leadReplyGroups ?? []).reduce((s, g) => s + g.count, 0);
+  const { data: pendingDrafts } = usePendingPostDrafts();
+  const pendingReplies =
+    (leadReplyGroups ?? []).reduce((s, g) => s + g.count, 0) + (pendingDrafts?.length ?? 0);
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {

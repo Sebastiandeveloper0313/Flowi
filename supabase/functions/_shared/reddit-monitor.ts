@@ -173,7 +173,7 @@ async function deriveQueries(
 ): Promise<{ keywords: string[]; subreddits: string[] }> {
   const system =
     "You plan a Reddit search strategy for a lead-finding agent working inside this company." +
-    contextBlock(ws) +
+    contextBlock(ws, "reddit_monitor") +
     instructionSteer(instructions) +
     "\n\nGive SHORT search terms (2 to 4 words each) that real potential BUYERS type on Reddit when " +
     "they have the problem this company solves: their words, not the brand's marketing terms. Reddit " +
@@ -230,7 +230,7 @@ async function triage(
           "comparison of tools, or a stated need this business could help with. DROP obvious noise: " +
           "memes, news, announcements, self-promotion, giveaways, and off-topic chatter. Be generous: " +
           "when unsure, KEEP. Precision comes later." +
-          contextBlock(ws) +
+          contextBlock(ws, "reddit_monitor") +
           instructionSteer(instructions);
         const user =
           `Posts:\n${list}\n\n` +
@@ -273,7 +273,7 @@ async function scoreAndDraft(
     "genuinely have a relevant problem and some intent. Write draft_reply only for posts scoring " +
     `${minRel}+, empty string otherwise.\n\n` +
     redditReplyStandards(ws) +
-    contextBlock(ws) +
+    contextBlock(ws, "reddit_monitor") +
     instructionSteer(instructions);
 
   const list = posts
@@ -399,10 +399,13 @@ export async function runRedditMonitor(
   admin: SupabaseClient,
   task: TaskRow,
   ws: WorkspaceContext | null,
-): Promise<{ summary: string; output: string; error?: string }> {
+): Promise<{ summary: string; output: string; error?: string; blocked?: boolean }> {
   const connected = await connectedToolkits(task.team_id).catch(() => [] as string[]);
   if (!connected.includes("reddit")) {
     return {
+      // Not a real run: the prerequisite is missing, so it must not count as
+      // work done. `blocked` tells the runner to record this as skipped.
+      blocked: true,
       summary: "Reddit isn't connected yet",
       output:
         "This agent needs your Reddit account connected. Open Integrations and connect Reddit, " +
@@ -414,6 +417,7 @@ export async function runRedditMonitor(
   const { keywords, subreddits, patch } = await resolveQueries(task, ws, cfg);
   if (!keywords.length && !subreddits.length) {
     return {
+      blocked: true,
       summary: "No search terms yet",
       output:
         "This agent could not derive who to look for. Connect your website in onboarding so it knows " +

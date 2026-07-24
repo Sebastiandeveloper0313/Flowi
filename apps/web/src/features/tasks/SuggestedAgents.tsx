@@ -79,23 +79,35 @@ export function SuggestedAgents() {
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Sparkles className="size-4 text-[#3d82f5]" />
-            Ready to run for {company}
+            My plan for {company}
           </h2>
           <p className="text-muted-foreground text-sm">
-            Based on your website. One click each, and you approve everything before it ships.
+            Based on your website. Start them all, or pick one; you approve everything before it
+            ships.
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={isLoading || isRefetching}
-          onClick={() => {
-            void fetchAgentSuggestions(teamId!, { refresh: true }).then(() => refetch());
-          }}
-        >
-          <RefreshCw className={`size-3.5 ${isRefetching ? "animate-spin" : ""}`} />
-          Different ideas
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={isLoading || isRefetching}
+            onClick={() => {
+              void fetchAgentSuggestions(teamId!, { refresh: true }).then(() => refetch());
+            }}
+          >
+            <RefreshCw className={`size-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+            Different ideas
+          </Button>
+          <StartAllButton
+            suggestions={suggestions ?? []}
+            teamId={teamId ?? null}
+            disabled={isLoading || isRefetching}
+            onStarted={() => {
+              setJourneyStarted(true);
+              void queryClient.invalidateQueries({ queryKey: taskKeys.all });
+            }}
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -133,6 +145,60 @@ export function SuggestedAgents() {
         </button>
       )}
     </section>
+  );
+}
+
+/**
+ * Starts the whole plan in one click: creates every suggested agent. The cards
+ * below flip to their created state (they match by proposal id), so the user
+ * still gets the per-agent guided next steps (connect, first run).
+ */
+function StartAllButton({
+  suggestions,
+  teamId,
+  disabled,
+  onStarted,
+}: {
+  suggestions: AgentSuggestion[];
+  teamId: string | null | undefined;
+  disabled: boolean;
+  onStarted: () => void;
+}) {
+  const startAll = useMutation({
+    mutationFn: async () => {
+      const created = [];
+      for (const s of suggestions) {
+        created.push(
+          await createAgentFromProposal(teamId!, {
+            title: s.title,
+            instructions: s.instructions,
+            channel: s.channel,
+            schedule_cron: s.schedule_cron,
+            timezone: s.timezone,
+            kind: s.kind,
+            keywords: s.keywords,
+            subreddits: s.subreddits,
+            proposalId: s.id,
+          }),
+        );
+      }
+      return created;
+    },
+    onSuccess: (created) => {
+      track("suggestions_start_all", { count: created.length });
+      onStarted();
+    },
+  });
+
+  return (
+    <Button
+      size="sm"
+      disabled={disabled || !teamId || suggestions.length === 0 || startAll.isPending}
+      onClick={() => startAll.mutate()}
+    >
+      {startAll.isPending && <Loader2 className="size-4 animate-spin" />}
+      {startAll.isPending ? "Starting…" : "Start all"}
+    </Button>
   );
 }
 

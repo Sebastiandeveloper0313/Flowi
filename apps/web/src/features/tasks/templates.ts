@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  ClipboardList,
   Eye,
   FileText,
   Film,
@@ -12,6 +13,7 @@ import {
   Radar,
   Recycle,
   Share2,
+  Sunrise,
 } from "lucide-react";
 
 import type { AgentProposalInput } from "./mutations";
@@ -47,6 +49,7 @@ export const TEMPLATE_CATEGORIES = [
   "Social media",
   "Inbox & replies",
   "SEO & content",
+  "Operations",
 ] as const;
 
 export const AGENT_TEMPLATES: AgentTemplate[] = [
@@ -241,6 +244,38 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     channel: "dashboard",
     instructions:
       "Research our main competitors and summarize what changed this week: new messaging, pricing, product launches, campaigns, or notable posts. Use web search to check their sites and recent activity. Deliver a short brief with the 3 to 5 things most worth knowing and any opportunity each one opens for us.",
+  },
+  {
+    id: "daily-brief",
+    name: "Daily Brief",
+    tagline: "Every morning: what got done, and what needs you today.",
+    outcome: "A morning brief",
+    description:
+      "Reads everything your team did in the last 24 hours (runs, leads, posts, failures) and writes you one short brief: what got done, what is waiting on your approval, anything that broke, and what runs today. Needs nothing connected, it reports on your own workspace.",
+    icon: Sunrise,
+    category: "Operations",
+    kind: "ops_brief",
+    schedule_cron: "0 7 * * 1-5",
+    scheduleLabel: "Weekdays, 7am",
+    channel: "email",
+    instructions:
+      "Every weekday morning, brief me on how my workspace is running: what my agents produced in the last 24 hours, what is waiting on my approval, anything that failed or looks off, and what runs today. Keep it under a minute to read and lead with whatever I actually have to act on.",
+  },
+  {
+    id: "weekly-report",
+    name: "Weekly Report",
+    tagline: "The week in outcomes, and where to push next.",
+    outcome: "A weekly report",
+    description:
+      "Every Monday, the week you just had: conversations found, replies posted, posts published, articles delivered, plus what stalled and what is worth doubling down on. Built from your own data, so the numbers are exact.",
+    icon: ClipboardList,
+    category: "Operations",
+    kind: "ops_brief",
+    schedule_cron: "0 8 * * 1",
+    scheduleLabel: "Weekly, Mon 8am",
+    channel: "email",
+    instructions:
+      "Every Monday, report on the past week across my whole workspace: what each agent produced, what shipped, what is still waiting on me, and anything that failed or stayed paused. End with the one or two things most worth my attention this week.",
   },
 ];
 

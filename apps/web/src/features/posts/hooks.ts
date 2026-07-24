@@ -1,17 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useActiveTeamId } from "@/features/workspace/active";
+
 import {
   cancelQueuedDraft,
   publishPostDraft,
+  rescheduleDraft,
   reschedulePost,
   schedulePostDraft,
   setPostDraftStatus,
   updatePostDraft,
 } from "./mutations";
-import { postDraftsByTaskQueryOptions, postKeys, type SubPostResult } from "./queries";
+import {
+  pendingPostDraftsQueryOptions,
+  postDraftsByTaskQueryOptions,
+  postKeys,
+  type SubPostResult,
+} from "./queries";
 
 export function useAgentPostDrafts(taskId: string) {
   return useQuery(postDraftsByTaskQueryOptions(taskId));
+}
+
+/** Everything an agent wrote that is still waiting on your yes. */
+export function usePendingPostDrafts() {
+  return useQuery(pendingPostDraftsQueryOptions(useActiveTeamId()));
 }
 
 export function useUpdatePostDraft() {
@@ -70,6 +83,22 @@ export function useReschedulePost() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: reschedulePost,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: postKeys.all }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: postKeys.all });
+      // The employee calendar reads drafts through its own deliverables query.
+      void queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
+  });
+}
+
+/** Move a single-destination draft (LinkedIn, Facebook) to a new time. */
+export function useRescheduleDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, at }: { id: string; at: string }) => rescheduleDraft(id, at),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: postKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
   });
 }

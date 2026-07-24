@@ -131,6 +131,16 @@ export async function reschedulePost(input: {
   if (error) throw error;
 }
 
+/**
+ * Move a whole draft to a new time. Used by the calendar for drafts that post
+ * to a single place (LinkedIn, Facebook), where there is one time, not one per
+ * subreddit.
+ */
+export async function rescheduleDraft(id: string, at: string) {
+  const { error } = await supabase.from("post_drafts").update({ scheduled_at: at }).eq("id", id);
+  if (error) throw error;
+}
+
 export interface PublishResult {
   posted: number;
   failed: number;

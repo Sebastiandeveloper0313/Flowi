@@ -46,11 +46,13 @@ export interface AgentProposalInput {
     | "facebook_post"
     | "facebook_dm"
     | "email_responder"
-    | "tiktok_slideshow";
+    | "tiktok_slideshow"
+    | "ops_brief";
   keywords: string[];
   subreddits: string[];
   proposalId?: string; // stamped into config so a proposal card can find its agent
   chatId?: string; // the conversation that created this agent, so "Open chat" returns to it
+  role?: string; // pin the skill to a named agent (e.g. taught in Maya's own chat)
 }
 
 /** Create a real agent from a chat proposal (the "Create agent" button). */
@@ -73,6 +75,7 @@ export async function createAgentFromProposal(teamId: string, p: AgentProposalIn
 
   const config: Record<string, unknown> = p.proposalId ? { proposal_id: p.proposalId } : {};
   if (p.chatId) config.chat_id = p.chatId;
+  if (p.role) config.role = p.role;
   if (p.kind === "reddit_monitor") {
     config.keywords = p.keywords;
     config.subreddits = p.subreddits;
@@ -216,13 +219,17 @@ export async function bulkDeleteTasks(ids: string[]) {
 
 /** Change an agent's schedule (5-field cron, or null for run-once). */
 export async function updateTaskSchedule(id: string, scheduleCron: string | null) {
+  // The user picked "8 AM" meaning THEIR 8 AM: stamp the browser's timezone so
+  // the schedule label and the next-run time show the same clock. (Old agents
+  // created in UTC drift apart: the label says 8 AM, the run lands at 10 local.)
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const { error } = await supabase
     // Clear next_run_at so the scheduler re-arms it from the new cron on its next
     // tick. Without this the old next-run time sticks and the new schedule does
     // not take effect until it passes (e.g. switching to hourly but not running
     // until the old weekly slot).
     .from("tasks")
-    .update({ schedule_cron: scheduleCron, next_run_at: null })
+    .update({ schedule_cron: scheduleCron, next_run_at: null, timezone: browserTz })
     .eq("id", id);
   if (error) throw error;
 }

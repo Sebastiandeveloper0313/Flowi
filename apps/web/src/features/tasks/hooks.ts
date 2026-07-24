@@ -251,6 +251,73 @@ function humanizeCron(cron: string): string {
   return cron;
 }
 
+/** A cron field as an explicit list: "*" is the whole range, "*\/n" steps it. */
+function cronField(field: string, lo: number, hi: number): number[] | null {
+  if (field === "*") return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  const step = field.match(/^\*\/(\d+)$/);
+  if (step) {
+    const n = Number(step[1]);
+    if (!n) return null;
+    const out: number[] = [];
+    for (let i = lo; i <= hi; i += n) out.push(i);
+    return out;
+  }
+  return cronList(field, lo, hi);
+}
+
+/**
+ * When a cron next fires in the viewer's own clock. The scheduler owns
+ * next_run_at, but it only arms it on its next sweep, so a freshly scheduled
+ * agent would otherwise read as "on demand" and show nothing on a calendar.
+ * This projects the same cadence locally to fill that gap.
+ */
+export function nextFireLocal(cron: string | null, after: Date = new Date()): Date | null {
+  if (!cron || cron === "once") return null;
+  const p = cron.trim().split(/\s+/);
+  if (p.length !== 5) return null;
+  const mins = cronField(p[0], 0, 59);
+  const hours = cronField(p[1], 0, 23);
+  const doms = cronField(p[2], 1, 31);
+  const months = cronField(p[3], 1, 12);
+  const dows = cronField(p[4], 0, 7);
+  if (!mins || !hours || !doms || !months || !dows) return null;
+  const dowSet = new Set(dows.map((d) => (d === 7 ? 0 : d)));
+  const domStar = p[2] === "*";
+  const dowStar = p[4] === "*";
+
+  const start = new Date(after.getTime() + 60_000);
+  start.setSeconds(0, 0);
+  for (let i = 0; i < 400; i++) {
+    const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    if (!months.includes(day.getMonth() + 1)) continue;
+    const domOk = doms.includes(day.getDate());
+    const dowOk = dowSet.has(day.getDay());
+    // Cron treats a restricted day-of-month and day-of-week as an OR.
+    const dayOk = domStar && dowStar ? true : domStar ? dowOk : dowStar ? domOk : domOk || dowOk;
+    if (!dayOk) continue;
+    for (const h of hours) {
+      for (const m of mins) {
+        const t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
+        if (t >= start) return t;
+      }
+    }
+  }
+  return null;
+}
+
+/** Every time a cron fires inside a window, capped so a per-minute cadence can't run away. */
+export function occurrencesIn(cron: string | null, from: Date, to: Date, limit = 60): Date[] {
+  const out: Date[] = [];
+  let cursor = from;
+  for (let i = 0; i < limit; i++) {
+    const next = nextFireLocal(cron, cursor);
+    if (!next || next >= to) break;
+    out.push(next);
+    cursor = next;
+  }
+  return out;
+}
+
 export function scheduleLabel(cron: string | null): string {
   if (!cron) return "Just once";
   return SCHEDULES.find((s) => s.value === cron)?.label ?? humanizeCron(cron);

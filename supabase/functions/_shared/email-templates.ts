@@ -104,7 +104,7 @@ export function dailyDigestEmail(opts: {
   if (newLeads > 0) found.push(`${b(newLeads)} new lead${newLeads === 1 ? "" : "s"} found`);
   if (posted > 0) found.push(`${b(posted)} repl${posted === 1 ? "y" : "ies"} posted for you`);
 
-  let body = p(`Hi ${hi}, here is what your Sentrive agents did in the last day.`);
+  let body = p(`Hi ${hi}, quick report from your team on the last day.`);
   if (found.length) body += p(`${found.join(", ")}.`);
   if (pending > 0) {
     body += p(
@@ -123,7 +123,7 @@ export function dailyDigestEmail(opts: {
         : `${newLeads} new lead${newLeads === 1 ? "" : "s"} from your agents`;
 
   const html = layout(body, {
-    heading: "Your daily Sentrive update",
+    heading: "Your team's daily report",
     preview: subject,
     cta: { label: pending > 0 ? "Review and post" : "See your results", url },
     unsubscribeUrl: opts.unsubscribeUrl,

@@ -20,6 +20,7 @@ import {
   taskAutonomy,
   type WorkspaceContext,
 } from "./marketing.ts";
+import { briefWindowDays, operationsDigest, opsBriefSystem } from "./ops-brief.ts";
 import { runRedditMonitor } from "./reddit-monitor.ts";
 import { createPostDraft, parsePostDraft, queueDraft } from "./reddit-post.ts";
 import { createSlideshow, parseSlideshow } from "./slideshow.ts";
@@ -117,15 +118,16 @@ export async function executeTask(
   task: TaskRow,
   ws: WorkspaceContext | null = null,
   ctx: ExecuteContext | null = null,
-): Promise<{ summary: string; output: string; error?: string }> {
+): Promise<{ summary: string; output: string; error?: string; blocked?: boolean }> {
   // A slideshow renders text over the user's own images, so there's nothing to
   // make until they've added some. Skip the run (scheduled or manual) with a
   // clear nudge instead of generating blank slides, so it only ever produces a
-  // real slideshow once images exist.
+  // real slideshow once images exist. `blocked` keeps this off the done count.
   if (task.kind === "tiktok_slideshow") {
     const imgs = (task.config as { images?: unknown } | null)?.images;
     if (!Array.isArray(imgs) || imgs.length === 0) {
       return {
+        blocked: true,
         summary: "Add images first, then run this agent",
         output:
           "This agent turns your images into a swipeable TikTok slideshow. Add a few images to it " +
@@ -152,7 +154,10 @@ export async function executeTask(
   // orphans it as "running").
   const timeout = setTimeout(() => controller.abort(), 110_000);
   try {
-    let system = runnerSystem(ws, task.kind);
+    // A manual employee assignment (config.role) steers which per-employee
+    // documents this run reads; otherwise the kind decides.
+    const assignedRole = (task.config as { role?: string } | null)?.role ?? null;
+    let system = runnerSystem(ws, task.kind, assignedRole);
 
     // Tools available this run:
     //  - web_search: Anthropic-hosted (server-side); the API runs it and pauses
@@ -178,6 +183,28 @@ export async function executeTask(
     // only draft (see FACEBOOK_PUBLISH_DISABLED).
     const facebookCanPublish = facebookConnected && !FACEBOOK_PUBLISH_DISABLED;
     const gmailConnected = connectedTools.some((t) => t.name === "GMAIL_REPLY_TO_THREAD");
+
+    // The inbox agents can do nothing at all without their mailbox connected:
+    // there is no inbox to read. Skip the run (don't burn a model call, and
+    // don't record phantom "work done") with a clear reason to connect.
+    if (task.kind === "email_responder" && !gmailConnected) {
+      return {
+        blocked: true,
+        summary: "Gmail isn't connected yet",
+        output:
+          "This agent reads and replies to your email, but Gmail isn't connected for this " +
+          "workspace. Open Integrations and connect Gmail, then run it again.",
+      };
+    }
+    if (task.kind === "facebook_dm" && !facebookConnected) {
+      return {
+        blocked: true,
+        summary: "Facebook isn't connected yet",
+        output:
+          "This agent answers your Facebook Page inbox, but Facebook isn't connected for this " +
+          "workspace. Open Integrations and connect Facebook, then run it again.",
+      };
+    }
 
     // A LinkedIn poster publishes when it can (the autonomy gate decides whether
     // the post goes out now or waits for approval); with no connection it falls
@@ -371,6 +398,21 @@ export async function executeTask(
         "domain or TLD. No hashtag spam, no em dashes, no markdown, no commentary outside the JSON.";
     }
 
+    // The operations brief reports on the workspace itself, so its ground truth
+    // is the database, not the web. Facts are gathered in code and the model
+    // only writes them up.
+    if (task.kind === "ops_brief") {
+      const days = briefWindowDays(task);
+      const facts = ctx?.client
+        ? await operationsDigest(ctx.client, task.team_id, days).catch(() => "")
+        : "";
+      system += facts
+        ? opsBriefSystem(days, facts)
+        : "\n\nThis agent writes the operations brief, but its data could not be read this run. Say " +
+          "plainly that the brief could not be assembled and that the next run will pick it up. Do " +
+          "not invent any numbers.";
+    }
+
     // Hide tools the model must never call: a reddit_post agent only DRAFTS (the
     // app publishes on the user's click), and LinkedIn publishing is disabled
     // upstream, so drop its posting tool too rather than let a run 426.
@@ -387,10 +429,12 @@ export async function executeTask(
         return false;
       return true;
     });
-    const tools: unknown[] = [
-      { type: "web_search_20260209", name: "web_search", max_uses: 5 },
-      ...usableTools,
-    ];
+    // The ops brief reports on facts we already gathered, so it gets no tools at
+    // all: nothing to search, nothing to send, and no way to wander off.
+    const tools: unknown[] =
+      task.kind === "ops_brief"
+        ? []
+        : [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }, ...usableTools];
 
     const messages: { role: string; content: unknown }[] = [
       { role: "user", content: task.instructions },
@@ -835,17 +879,21 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
 
   try {
     const ws = await fetchWorkspaceContext(admin, task.team_id);
-    const { summary, output, error } =
+    const { summary, output, error, blocked } =
       task.kind === "reddit_monitor"
         ? await runRedditMonitor(admin, task, ws)
         : await executeTask(task, ws, { client: admin, runId: run.id });
-    // A returned `error` means a real action (publish/send) failed even though the
-    // agent finished: record it as failed, but keep the summary/output so the draft
-    // it produced isn't lost. Don't email a failure as if it were a result.
+    // Three outcomes, not two:
+    //  - blocked: a prerequisite was missing (toolkit not connected, no images).
+    //    The run did no work, so record it 'skipped' and don't deliver or count it.
+    //  - error: a real action (publish/send) failed though the agent finished.
+    //    Record 'failed' but keep the summary/output so the draft isn't lost.
+    //  - otherwise succeeded.
+    const status = blocked ? "skipped" : error ? "failed" : "succeeded";
     await admin
       .from("task_runs")
       .update({
-        status: error ? "failed" : "succeeded",
+        status,
         summary,
         output,
         error: error ?? null,
@@ -853,7 +901,8 @@ export async function runTaskOnce(admin: SupabaseClient, task: TaskRow): Promise
       })
       .eq("id", run.id);
     await admin.from("tasks").update({ last_run_at: new Date().toISOString() }).eq("id", task.id);
-    if (!error) await deliverResult(task, summary, output);
+    if (!error && !blocked) await deliverResult(task, summary, output);
+    if (blocked) return { status: "skipped", run_id: run.id, summary };
     return error
       ? { status: "failed", run_id: run.id, error }
       : { status: "succeeded", run_id: run.id, summary };

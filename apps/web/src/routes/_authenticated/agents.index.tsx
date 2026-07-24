@@ -14,7 +14,10 @@ import {
 import { useState } from "react";
 
 import { useConfirm } from "@/components/useConfirm";
+import { prefillChat } from "@/features/chat/Chat";
 import { PageHeader } from "@/features/dashboard/ui";
+import { useCustomAgents } from "@/features/employees/customAgents";
+import { employeeMeta, roleOfTask, type EmployeeRole } from "@/features/employees/roles";
 import { formatWhen, scheduleLabel, useBulkDeleteTasks, useTasks } from "@/features/tasks/hooks";
 import type { Task } from "@/features/tasks/queries";
 import { DeliveryChip, TaskStatusBadge } from "@/features/tasks/ui";
@@ -25,16 +28,19 @@ export const Route = createFileRoute("/_authenticated/agents/")({
 
 function AgentRow({
   agent,
+  ownerName,
   selected,
   onToggle,
 }: {
   agent: Task;
+  /** Who owns this agent on the Team page, or null when it runs standalone. */
+  ownerName: string | null;
   selected: boolean;
   onToggle: (id: string) => void;
 }) {
   return (
     <div
-      className={`group bg-card/95 flex items-start gap-3 rounded-2xl border p-4 shadow-[0_24px_50px_-44px_rgba(16,48,120,0.4)] transition ${
+      className={`group bg-card/95 flex items-start gap-3 rounded-2xl border p-4 shadow-xs transition ${
         selected ? "border-primary/50 ring-primary/20 ring-1" : "hover:border-primary/40"
       }`}
     >
@@ -48,6 +54,7 @@ function AgentRow({
         <div className="flex items-center gap-2.5">
           <h3 className="truncate font-semibold">{agent.title}</h3>
           <TaskStatusBadge status={agent.status} />
+          <span className="text-muted-foreground shrink-0 text-xs">{ownerName}'s</span>
         </div>
         <p className="text-muted-foreground mt-1.5 line-clamp-1 text-sm">{agent.instructions}</p>
         <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
@@ -67,10 +74,19 @@ function AgentRow({
 
 function AgentsPage() {
   const { data: tasks, isLoading } = useTasks();
+  const { data: customs } = useCustomAgents();
   const bulkDelete = useBulkDeleteTasks();
   const { confirm, dialog } = useConfirm();
   const [filter, setFilter] = useState<"active" | "paused">("active");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const customIds = new Set((customs ?? []).map((c) => c.id));
+  const customNameById = new Map((customs ?? []).map((c) => [c.id, c.name]));
+  function ownerName(t: Task): string | null {
+    const r = roleOfTask(t, customIds);
+    if (!r) return null;
+    return customNameById.get(r) ?? employeeMeta(r as EmployeeRole).name;
+  }
 
   const all = tasks ?? [];
   const counts = {
@@ -128,10 +144,14 @@ function AgentsPage() {
     <div className="flowy-page">
       <PageHeader
         title="Agents"
-        subtitle="Every recurring agent you've set up. This is where your work runs."
+        subtitle="Every job running for you. Tune them here; if an employee manages one, their desk is where you check its work."
         actions={
           <Button asChild>
-            <Link to="/dashboard" search={{ c: undefined }}>
+            <Link
+              to="/dashboard"
+              search={{ c: undefined }}
+              onClick={() => prefillChat("Set up an agent that ")}
+            >
               <MessageSquarePlus className="size-4" /> New agent
             </Link>
           </Button>
@@ -150,7 +170,11 @@ function AgentsPage() {
             Describe a recurring job in the chat and Sentrive sets it up for you.
           </p>
           <Button asChild className="mt-5">
-            <Link to="/dashboard" search={{ c: undefined }}>
+            <Link
+              to="/dashboard"
+              search={{ c: undefined }}
+              onClick={() => prefillChat("Set up an agent that ")}
+            >
               <MessageSquarePlus className="size-4" /> Start in chat
             </Link>
           </Button>
@@ -215,7 +239,13 @@ function AgentsPage() {
           ) : (
             <div className="grid gap-3">
               {shown.map((t) => (
-                <AgentRow key={t.id} agent={t} selected={selected.has(t.id)} onToggle={toggle} />
+                <AgentRow
+                  key={t.id}
+                  agent={t}
+                  ownerName={ownerName(t)}
+                  selected={selected.has(t.id)}
+                  onToggle={toggle}
+                />
               ))}
             </div>
           )}
