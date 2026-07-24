@@ -40,7 +40,7 @@ function AgentRow({
 }) {
   return (
     <div
-      className={`group bg-card/95 flex items-start gap-3 rounded-2xl border p-4 shadow-[0_24px_50px_-44px_rgba(16,48,120,0.4)] transition ${
+      className={`group bg-card/95 flex items-start gap-3 rounded-2xl border p-4 shadow-xs transition ${
         selected ? "border-primary/50 ring-primary/20 ring-1" : "hover:border-primary/40"
       }`}
     >

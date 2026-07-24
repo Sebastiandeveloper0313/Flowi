@@ -235,7 +235,7 @@ export function RoleHire({ meta }: { meta: EmployeeMeta }) {
 
   return (
     <div className="mx-auto max-w-2xl pt-2 sm:pt-6">
-      <div className="bg-card rounded-3xl border p-7 shadow-[0_28px_60px_-44px_rgba(16,48,120,0.5)] sm:p-10">
+      <div className="bg-card rounded-3xl border p-7 shadow-xs sm:p-10">
         {/* the employee conducting their own interview */}
         <div className="flex items-center gap-3 border-b pb-6">
           <EmployeeAvatar meta={meta} className="size-12 rounded-xl text-xl shadow-xs" />

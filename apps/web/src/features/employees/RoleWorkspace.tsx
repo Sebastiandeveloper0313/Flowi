@@ -683,7 +683,7 @@ function ItemChip({
           ? `${item.title} · ${item.count} runs today, first at ${time}`
           : `${item.title} · ${s.label} at ${time}`
       }
-      className={`bg-card hover:border-primary/40 block w-full rounded-lg border border-l-[3px] px-2 py-1.5 text-left shadow-[0_10px_24px_-22px_rgba(16,48,120,0.5)] transition hover:shadow-[0_14px_28px_-20px_rgba(16,48,120,0.55)] ${
+      className={`bg-card hover:border-primary/40 block w-full rounded-lg border border-l-[3px] px-2 py-1.5 text-left shadow-xs transition hover:shadow-xs ${
         item.move ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
       } ${item.status === "posted" ? "opacity-80" : ""}`}
       style={{ borderLeftColor: s.bar }}

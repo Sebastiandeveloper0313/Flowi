@@ -168,7 +168,7 @@ function TemplateCard({
   });
 
   return (
-    <Card className="hover:border-primary/40 flex flex-col shadow-[0_24px_50px_-46px_rgba(16,48,120,0.45)] transition-colors">
+    <Card className="hover:border-primary/40 flex flex-col shadow-xs transition-colors">
       <CardContent className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-center gap-2.5">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#5aa6ff] to-[#1566e6] text-white shadow-sm shadow-[#1566e6]/25">
