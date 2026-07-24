@@ -73,8 +73,17 @@ export function RoleWorkspace({
         onOpenChat={onOpenChat}
       />
     );
-  if (meta.role === "growth") return <GrowthPipeline deliverables={deliverables} />;
-  if (meta.role === "content") return <ContentShelf meta={meta} mine={mine} runs={runs} />;
+  if (meta.role === "growth") {
+    // Growth also owns SEO/content now, so show the shelf under the pipeline
+    // when there are content agents, keeping articles readable in place.
+    const hasContent = mine.some((t) => CONTENT_KINDS.has(t.kind ?? ""));
+    return (
+      <>
+        <GrowthPipeline deliverables={deliverables} />
+        {hasContent && <ContentShelf meta={meta} mine={mine} runs={runs} />}
+      </>
+    );
+  }
   if (meta.role === "support")
     return <SupportDesk meta={meta} mine={mine} runs={runs} approvals={approvals} />;
   if (meta.role === "ops") return <OpsDesk meta={meta} mine={mine} runs={runs} />;
@@ -896,11 +905,15 @@ function pieceTitle(output: string): string {
   return "Untitled piece";
 }
 
+/** Kinds whose output is a written piece for the shelf (articles, drafts). */
+const CONTENT_KINDS = new Set(["seo_blog", "content"]);
+
 /**
- * Alex's shelf is what he actually wrote, read right here. Articles live in the
- * run output (not a draft table), so this reads the succeeded runs of his
- * content agents and opens the full piece in a reader, rather than making the
- * user dig into a run row on the agent page.
+ * The shelf is the written pieces, read right here. Articles live in the run
+ * output (not a draft table), so this reads the succeeded runs of the content
+ * agents and opens the full piece in a reader, rather than making the user dig
+ * into a run row on the agent page. Scoped to content kinds so it's safe to
+ * show alongside an employee's other work (e.g. Maya's lead runs).
  */
 function ContentShelf({
   meta,
@@ -913,10 +926,10 @@ function ContentShelf({
 }) {
   const [open, setOpen] = useState<Piece | null>(null);
   const titleById = new Map(mine.map((t) => [t.id, t.title]));
-  const mineIds = new Set(mine.map((t) => t.id));
+  const contentIds = new Set(mine.filter((t) => CONTENT_KINDS.has(t.kind ?? "")).map((t) => t.id));
 
   const pieces: Piece[] = (runs ?? [])
-    .filter((r) => mineIds.has(r.task_id) && r.status === "succeeded" && (r.output ?? "").trim())
+    .filter((r) => contentIds.has(r.task_id) && r.status === "succeeded" && (r.output ?? "").trim())
     .map((r) => ({
       runId: r.id,
       taskId: r.task_id,
@@ -926,7 +939,7 @@ function ContentShelf({
     }));
 
   const next = mine
-    .filter((t) => t.status === "active" && t.next_run_at)
+    .filter((t) => CONTENT_KINDS.has(t.kind ?? "") && t.status === "active" && t.next_run_at)
     .sort((a, b) => new Date(a.next_run_at!).getTime() - new Date(b.next_run_at!).getTime())[0];
 
   return (

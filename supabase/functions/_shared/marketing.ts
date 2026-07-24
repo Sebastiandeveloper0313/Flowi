@@ -32,8 +32,9 @@ const KIND_ROLE: Record<string, string> = {
   linkedin_post: "social",
   facebook_post: "social",
   tiktok_slideshow: "social",
-  seo_blog: "content",
-  content: "content",
+  // SEO/content folded into the growth marketer (Alex the content writer was retired).
+  seo_blog: "growth",
+  content: "growth",
   email_responder: "support",
   facebook_dm: "support",
   ops_brief: "ops",

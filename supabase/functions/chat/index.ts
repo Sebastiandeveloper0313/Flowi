@@ -89,7 +89,7 @@ const TOOL = {
       role: {
         type: "string",
         description:
-          "Which EMPLOYEE owns this agent. Every agent belongs to one, so always set this. Use a built-in slug (growth = Maya the Growth Marketer, social = Nova the Social Media Manager, content = Alex the Content Writer, support = Sam in Customer Support, ops = Theo the Operations Manager) or a custom employee's id from the roster list. Pick whoever the work belongs to: the employee the user names, the one whose chat you are in, or the one whose area it plainly is. Then say whose it becomes (\"I'll add this to Maya's agents\").",
+          "Which EMPLOYEE owns this agent. Every agent belongs to one, so always set this. Use a built-in slug (growth = Maya the Growth Marketer, who also owns SEO articles and blog content; social = Nova the Social Media Manager; support = Sam in Customer Support; ops = Theo the Operations Manager) or a custom employee's id from the roster list. Pick whoever the work belongs to: the employee the user names, the one whose chat you are in, or the one whose area it plainly is. SEO/blog/content work goes to Maya. Then say whose it becomes (\"I'll add this to Maya's agents\").",
       },
     },
     required: ["title", "instructions"],
@@ -511,9 +511,8 @@ Deno.serve(async (req: Request) => {
       .order("created_at");
     const rosterBlock =
       "\n\nTHE USER'S NAMED AGENTS (every skill you propose belongs to one; set `role` and name them in your reply):\n" +
-      "- Maya, Lead Finder (role: growth): finds leads, watches Reddit and competitors\n" +
+      "- Maya, Growth Marketer (role: growth): finds leads, watches Reddit and competitors, and writes SEO articles and blog content\n" +
       "- Nova, Social Media (role: social): LinkedIn/Reddit/Facebook posts, TikTok slideshows\n" +
-      "- Alex, SEO & Content (role: content): articles, blogs, written deliverables\n" +
       "- Sam, Inbox Replies (role: support): Gmail and Messenger replies\n" +
       "- Theo, Operations Manager (role: ops): daily briefs and weekly reports on how the whole team is running\n" +
       (customAgents ?? [])

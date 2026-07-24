@@ -54,8 +54,8 @@ export const EMPLOYEES: EmployeeMeta[] = [
     title: "Growth Marketer",
     blurb: "Finds the people already looking for you.",
     hirePitch:
-      "Watches Reddit for buyer-intent posts in your space and drafts natural replies, and keeps an eye on your competitors. You approve everything.",
-    relevantToolkits: ["reddit"],
+      "Watches Reddit for buyer-intent posts in your space and drafts natural replies, keeps an eye on your competitors, and can write SEO articles for your blog. You approve everything.",
+    relevantToolkits: ["reddit", "wordpress", "webhook"],
     trainedLine: "Pre-trained on your website: she knows what you sell and who buys it.",
     starterTemplates: ["reddit-lead-finder", "competitor-watch"],
   },
@@ -72,20 +72,6 @@ export const EMPLOYEES: EmployeeMeta[] = [
     relevantToolkits: ["linkedin", "facebook", "reddit"],
     trainedLine: "Pre-trained on your website: posts sound like you from day one.",
     starterTemplates: ["linkedin-poster", "reddit-poster"],
-  },
-  {
-    role: "content",
-    name: "Alex",
-    emoji: "✍️",
-    avatar: "/employees/alex.png",
-    tint: "bg-amber-50 text-amber-700",
-    title: "Content Writer",
-    blurb: "Writes SEO articles straight to your blog.",
-    hirePitch:
-      "Publishes a complete, search-optimized article to your blog every week (WordPress or any custom site), plus fresh content angles when you need them.",
-    relevantToolkits: ["wordpress", "webhook"],
-    trainedLine: "Pre-trained on your website: he writes about what you actually do.",
-    starterTemplates: ["seo-blog-writer", "content-angles"],
   },
   {
     role: "support",
@@ -156,10 +142,13 @@ export const HIREABLE_ROLES = EMPLOYEES.filter((e) => !e.comingSoon).map((e) => 
  */
 export type RosterRole = EmployeeRole | (string & {});
 
+// SEO & content used to be its own employee (Alex). It's now the growth
+// marketer's inbound side: articles and content marketing sit next to lead
+// finding, so those agents belong to Maya.
 const CATEGORY_ROLE: Record<string, EmployeeRole> = {
   "Leads & research": "growth",
   "Social media": "social",
-  "SEO & content": "content",
+  "SEO & content": "growth",
   "Inbox & replies": "support",
   Operations: "ops",
 };
@@ -171,8 +160,8 @@ const KIND_ROLE: Record<string, EmployeeRole> = {
   linkedin_post: "social",
   facebook_post: "social",
   tiktok_slideshow: "social",
-  seo_blog: "content",
-  content: "content",
+  seo_blog: "growth",
+  content: "growth",
   email_responder: "support",
   facebook_dm: "support",
   ops_brief: "ops",
@@ -276,12 +265,13 @@ export function recommendEmployee(ws: {
         "For a local business, showing up consistently on social is the cheapest way to stay top of mind, and that is Nova's whole job.",
     };
   }
-  // Content-led businesses (courses, media, blogs) compound through search.
+  // Content-led businesses (courses, media, blogs) compound through search, which
+  // is Maya's inbound side: she can write a complete SEO article to your blog.
   if (has("blog", "media", "publisher", "course", "newsletter", "content site", "seo")) {
     return {
-      role: "content",
+      role: "growth",
       reason:
-        "Your growth compounds through search, so Alex writing a complete SEO article to your blog every week is the highest-leverage start.",
+        "Your growth compounds through search, so Maya writing a complete SEO article to your blog every week is the highest-leverage start.",
     };
   }
   // Heavy inbound support load: the inbox is the bottleneck.
