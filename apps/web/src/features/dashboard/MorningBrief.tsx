@@ -47,10 +47,10 @@ export function MorningBrief() {
     return (
       <div className="mb-9 text-center">
         <IntegrationsPill />
-        <h2 className="text-[clamp(1.15rem,4.6vw,3.05rem)] leading-[1.05] font-semibold tracking-[-0.03em] whitespace-nowrap">
+        <h2 className="text-[clamp(1.05rem,3.4vw,2.3rem)] leading-[1.1] font-semibold tracking-[-0.03em] whitespace-nowrap">
           What should Sentrive take care of?
         </h2>
-        <p className="text-muted-foreground mx-auto mt-3.5 max-w-md text-[15px] leading-relaxed">
+        <p className="text-muted-foreground mt-3 text-[clamp(0.78rem,1.7vw,0.95rem)] leading-relaxed whitespace-nowrap">
           Describe any recurring job and it gets built, or hire a ready-made employee below.
         </p>
       </div>
@@ -98,10 +98,10 @@ export function MorningBrief() {
   return (
     <div className="mb-9 text-center">
       <IntegrationsPill />
-      <h2 className="text-[clamp(1.15rem,4.6vw,3.05rem)] leading-[1.05] font-semibold tracking-[-0.03em] whitespace-nowrap">
+      <h2 className="text-[clamp(1.05rem,3.4vw,2.3rem)] leading-[1.1] font-semibold tracking-[-0.03em] whitespace-nowrap">
         What do you want done today?
       </h2>
-      <p className="text-muted-foreground mt-3.5 text-[15px] leading-relaxed">
+      <p className="text-muted-foreground mt-3 text-[clamp(0.78rem,1.7vw,0.95rem)] leading-relaxed whitespace-nowrap">
         {greeting}
         {name ? `, ${name}` : ""}.{" "}
         {bits.length > 0 ? (
