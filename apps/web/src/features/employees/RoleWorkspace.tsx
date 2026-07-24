@@ -76,6 +76,8 @@ interface CalItem {
   status: ItemStatus;
   url?: string;
   taskId?: string;
+  /** Runs folded into this one chip, for cadences that fire many times a day. */
+  count?: number;
   /** Everything needed to move it, or undefined when it can't be moved. */
   move?:
     | { type: "sub"; draftId: string; subreddit: string; results: SubPostResult[] }
@@ -230,22 +232,35 @@ function SocialCalendar({
     const first = t.next_run_at ? new Date(t.next_run_at) : null;
     const due = [
       ...(first && first < rangeEnd ? [first] : []),
-      ...occurrencesIn(t.schedule_cron, first ?? new Date(), rangeEnd, 40),
+      ...occurrencesIn(t.schedule_cron, first ?? new Date(), rangeEnd, 200),
     ];
+    // An hourly agent would paint 24 identical chips a day. One chip per day
+    // carrying the count says the same thing and stays readable.
+    const byDay = new Map<string, Date[]>();
     for (const at of due) {
-      items.push({
-        key: `run:${t.id}:${at.getTime()}`,
-        at,
-        title: t.title,
-        body: t.instructions ?? undefined,
-        platform: KIND_TOOLKIT[t.kind ?? ""],
-        status: "planned",
-        taskId: t.id,
-        move:
-          tzSafe && t.schedule_cron
-            ? { type: "run", taskId: t.id, cron: t.schedule_cron }
-            : undefined,
-      });
+      const k = at.toDateString();
+      byDay.set(k, [...(byDay.get(k) ?? []), at]);
+    }
+    for (const [, times] of byDay) {
+      const shown = times.length > 2 ? [times[0]] : times;
+      for (const at of shown) {
+        items.push({
+          key: `run:${t.id}:${at.getTime()}`,
+          at,
+          title: t.title,
+          body: t.instructions ?? undefined,
+          platform: KIND_TOOLKIT[t.kind ?? ""],
+          status: "planned",
+          taskId: t.id,
+          count: times.length > 2 ? times.length : undefined,
+          // Only a fixed weekly cadence can honestly be dragged to another day:
+          // moving "every day at noon" to Wednesday would mean nothing.
+          move:
+            tzSafe && t.schedule_cron && cronOnWeekday(t.schedule_cron, 0)
+              ? { type: "run", taskId: t.id, cron: t.schedule_cron }
+              : undefined,
+        });
+      }
     }
   }
 
@@ -564,7 +579,11 @@ function ItemChip({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onOpen}
-      title={`${item.title} · ${s.label} at ${time}`}
+      title={
+        item.count
+          ? `${item.title} · ${item.count} runs today, first at ${time}`
+          : `${item.title} · ${s.label} at ${time}`
+      }
       className={`bg-card hover:border-primary/40 block w-full rounded-lg border border-l-[3px] px-2 py-1.5 text-left shadow-[0_10px_24px_-22px_rgba(16,48,120,0.5)] transition hover:shadow-[0_14px_28px_-20px_rgba(16,48,120,0.55)] ${
         item.move ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
       } ${item.status === "posted" ? "opacity-80" : ""}`}
@@ -578,7 +597,9 @@ function ItemChip({
         ) : (
           <Clock className="size-3 opacity-60" />
         )}
-        <span className="text-[10px] font-semibold tabular-nums opacity-70">{time}</span>
+        <span className="text-[10px] font-semibold tabular-nums opacity-70">
+          {item.count ? `${item.count} runs` : time}
+        </span>
         {item.status === "posted" && <Check className="size-3 text-emerald-600" />}
       </span>
       <span className="mt-0.5 line-clamp-2 text-[11px] leading-tight font-medium">
@@ -614,6 +635,7 @@ function ItemDialog({ item, onClose }: { item: CalItem | null; onClose: () => vo
               hour: "numeric",
               minute: "2-digit",
             })}
+            {item.count ? ` · ${item.count} runs that day` : ""}
           </span>
         </div>
         {item.body && (
