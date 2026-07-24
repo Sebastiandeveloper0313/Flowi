@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { Chat } from "@/features/chat/Chat";
+import { employeeMeta, recommendEmployee } from "@/features/employees/roles";
 import { TeamCards } from "@/features/employees/TeamCards";
 import { useTasks } from "@/features/tasks/hooks";
 import { WelcomeTour } from "@/features/tasks/WelcomeTour";
+import { useWorkspace } from "@/features/workspace/hooks";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   validateSearch: (search: Record<string, unknown>): { c?: string } => ({
@@ -43,8 +45,13 @@ function ChatPage() {
  */
 function TeamSection() {
   const { data: tasks, isLoading } = useTasks();
+  const { data: ws } = useWorkspace();
   if (isLoading) return null;
   const hasStaff = (tasks ?? []).length > 0;
+
+  // Pick the first hire from what we learned about their business, and say why.
+  const pick = recommendEmployee(ws ?? {});
+  const suggested = employeeMeta(pick.role);
 
   return (
     <section id="your-team">
@@ -57,9 +64,8 @@ function TeamSection() {
           </h2>
           {!hasStaff && (
             <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-              Not sure? Hire Maya. She finds people on Reddit already asking for what you sell and
-              drafts replies for you to approve, which is how most people get their first customer
-              here. Anything else: just type it in the box above.
+              Not sure? Hire {suggested.name}. {pick.reason} Anything else: just type it in the box
+              above.
             </p>
           )}
         </div>

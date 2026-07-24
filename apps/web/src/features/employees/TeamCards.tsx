@@ -21,6 +21,7 @@ import { formatWhen, useRuns, useTasks, useUpdateTaskConfig } from "@/features/t
 import type { Task } from "@/features/tasks/queries";
 import { requiredToolkits } from "@/features/tasks/requirements";
 import { useActiveTeamId } from "@/features/workspace/active";
+import { useWorkspace } from "@/features/workspace/hooks";
 
 import {
   customAgentMeta,
@@ -33,6 +34,7 @@ import { EmployeeAvatar } from "./EmployeeAvatar";
 import {
   EMPLOYEES,
   employeeMeta,
+  recommendEmployee,
   roleOfTask,
   starterTemplatesOf,
   tasksOfRole,
@@ -49,6 +51,7 @@ import {
 export function TeamCards() {
   const { data: tasks } = useTasks();
   const { data: customs } = useCustomAgents();
+  const { data: ws } = useWorkspace();
 
   const customIds = new Set((customs ?? []).map((c) => c.id));
   const roster = [...EMPLOYEES, ...(customs ?? []).map(customAgentMeta)];
@@ -64,9 +67,15 @@ export function TeamCards() {
   const catalog = cards.filter((c) => !(c.mine.length > 0 || c.meta.custom));
   const empty = active.length === 0;
 
-  // Nothing running yet: show only what can actually be hired today, and skip
-  // the "new employee" door (you don't need a manager before you have agents).
-  const offered = empty ? catalog.filter((c) => !c.meta.comingSoon) : catalog;
+  // Nothing running yet: show only what can actually be hired today, skip the
+  // "new employee" door (no manager needed before there are agents), and lead
+  // with the one we actually recommend for this business.
+  const pick = recommendEmployee(ws ?? {});
+  const offered = empty
+    ? catalog
+        .filter((c) => !c.meta.comingSoon)
+        .sort((a, b) => Number(b.meta.role === pick.role) - Number(a.meta.role === pick.role))
+    : catalog;
 
   return (
     <div className="space-y-10">
@@ -92,7 +101,12 @@ export function TeamCards() {
           )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {offered.map(({ meta, mine }) => (
-              <EmployeeCard key={meta.role} meta={meta} mine={mine} />
+              <EmployeeCard
+                key={meta.role}
+                meta={meta}
+                mine={mine}
+                recommended={empty && meta.role === pick.role}
+              />
             ))}
           </div>
         </div>
@@ -379,7 +393,16 @@ function StatusChip({ label, tone }: { label: string; tone: "green" | "amber" | 
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
 }
 
-function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
+function EmployeeCard({
+  meta,
+  mine,
+  recommended,
+}: {
+  meta: EmployeeMeta;
+  mine: Task[];
+  /** The one we suggest starting with, on an otherwise empty workspace. */
+  recommended?: boolean;
+}) {
   const { data: runs } = useRuns();
   const { data: approvals } = useApprovals();
   const { data: leadGroups } = usePendingLeadReplies();
@@ -431,7 +454,11 @@ function EmployeeCard({ meta, mine }: { meta: EmployeeMeta; mine: Task[] }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[15px] font-semibold">{meta.name}</span>
-            <StatusChip label={status.label} tone={status.tone} />
+            {recommended ? (
+              <StatusChip label="Recommended for you" tone="blue" />
+            ) : (
+              <StatusChip label={status.label} tone={status.tone} />
+            )}
           </div>
           <p className="text-muted-foreground truncate text-sm">{meta.title}</p>
         </div>

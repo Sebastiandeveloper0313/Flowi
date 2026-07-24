@@ -184,6 +184,70 @@ export function tasksOfRole<T extends Pick<Task, "kind" | "config">>(
   return tasks.filter((t) => roleOfTask(t, customIds) === role);
 }
 
+/**
+ * Who to start with, read from the business profile instead of a hardcoded
+ * favourite. Deliberately simple and honest: a handful of signals, a stated
+ * reason the user can judge, and Maya as the default when nothing matches
+ * (finding buyers is the fastest first win for most businesses).
+ */
+export function recommendEmployee(ws: {
+  business_model?: string | null;
+  business_categories?: string[] | null;
+  business_context?: unknown;
+}): { role: EmployeeRole; reason: string } {
+  const bc = (ws.business_context ?? {}) as Record<string, unknown>;
+  const text = [
+    ws.business_model,
+    ...(ws.business_categories ?? []),
+    typeof bc.summary === "string" ? bc.summary : "",
+    typeof bc.audience === "string" ? bc.audience : "",
+    typeof bc.product === "string" ? bc.product : "",
+    Array.isArray(bc.keywords) ? (bc.keywords as string[]).join(" ") : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const has = (...words: string[]) => words.some((w) => text.includes(w));
+
+  // Shops and local businesses live or die on presence, not on forum replies.
+  if (has("ecommerce", "e-commerce", "shopify", "store", "retail", "boutique", "apparel")) {
+    return {
+      role: "social",
+      reason:
+        "For a store, steady on-brand posts do more than anything else, and Nova writes and schedules them in your voice.",
+    };
+  }
+  if (has("restaurant", "salon", "clinic", "dentist", "gym", "local", "plumber", "contractor")) {
+    return {
+      role: "social",
+      reason:
+        "For a local business, showing up consistently on social is the cheapest way to stay top of mind, and that is Nova's whole job.",
+    };
+  }
+  // Content-led businesses (courses, media, blogs) compound through search.
+  if (has("blog", "media", "publisher", "course", "newsletter", "content site", "seo")) {
+    return {
+      role: "content",
+      reason:
+        "Your growth compounds through search, so Alex writing a complete SEO article to your blog every week is the highest-leverage start.",
+    };
+  }
+  // Heavy inbound support load: the inbox is the bottleneck.
+  if (has("support", "helpdesk", "marketplace", "customers write", "tickets")) {
+    return {
+      role: "support",
+      reason:
+        "Your inbox is where customers wait on you, so Sam drafting replies in your voice buys back the most time first.",
+    };
+  }
+  return {
+    role: "growth",
+    reason:
+      "She finds people already asking for what you sell and drafts replies for you to approve, which is the fastest path to a first customer.",
+  };
+}
+
 /** Agents nobody owns: they run standalone and live on the Agents page. */
 export function independentTasks<T extends Pick<Task, "kind" | "config">>(
   tasks: T[],
